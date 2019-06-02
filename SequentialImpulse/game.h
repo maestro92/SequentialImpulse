@@ -20,13 +20,17 @@ struct GameState
     int numEntities;
 
     Camera mainCamera;
-    Player mainPlayer;
+
+    Entity* draggedEntity;
+
+    float angle;
+    int boxIndex;
 };
 
 
 namespace GameCode
 {
-    glm::vec3 GRAVITY = glm::vec3(0, -0.01, 0);
+    glm::vec3 GRAVITY = glm::vec3(0, -0.03, 0);
 
     void addRandomBall(GameState* gameState)
     {
@@ -62,12 +66,40 @@ namespace GameCode
         gameState->entities[gameState->numEntities++] = entity;
     }
 
+
+    void ProcessInputRaycast(GameState* gameState, glm::vec3 raycastDirection)
+    {
+        for (int i = 0; i < gameState->numEntities; i++)
+        {
+            Entity* entity = &gameState->entities[i];
+            if (!entity->flags & EntityFlag_Static)
+            {
+                continue;
+            }
+            
+            if (entity->physBody.type == Physics::PhysBodyType::PB_OBB)
+            {
+                
+                if (Physics::testPointInsideOBB2D(raycastDirection, entity->physBody.obb, entity->orientation, entity->position))
+                {
+                    cout << "selecting entity " << entity->id << endl;
+                    gameState->draggedEntity = entity;
+                }
+                
+            }
+        }
+    }
+
+
+
     void demo1Init(GameState* gameState)
     {
         gameState->numEntities = 0;
         gameState->worldWidth = 50;
         gameState->worldHeight = 50;
         gameState->entities = new Entity[4096];
+        gameState->angle = 0;
+        gameState->draggedEntity = NULL;
 
         float scale = 100.0;
         int index = gameState->numEntities++;
@@ -119,7 +151,10 @@ namespace GameCode
         entity->id = index;
         entity->entityType = EntityType::Box;
         entity->flags = EntityFlag_Collides;
+
+        entity->mass = 1;
         entity->position = glm::vec3(x, y, 0);
+        entity->orientation = glm::rotate(30.0f, glm::vec3(0, 0, 1));
         entity->scale = glm::vec3(size, size, size);
         entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
         
@@ -130,6 +165,7 @@ namespace GameCode
         entity->physBody.obb.axes[2] = glm::vec3(0, 0, 1);
         entity->physBody.obb.halfEdges = glm::vec3(size, size, size);
         
+        gameState->boxIndex = index;
 
         // the floor 
         index = gameState->numEntities++;
@@ -217,40 +253,93 @@ namespace GameCode
 
 
 
-
-
-    void initPlayer(GameState* gameState)
+    glm::vec3 screenToWorldPoint(GameState* gameState, glm::vec2 screenPoint)
     {
-        gameState->mainPlayer.render.setModel(global.modelMgr->get(ModelEnum::centeredQuad));
-        gameState->mainPlayer.transform.setScale(0.8);
+        glm::vec4 viewPort = glm::vec4(0, 0, utl::SCREEN_WIDTH, utl::SCREEN_HEIGHT);
+        glm::vec3 temp = glm::vec3(screenPoint.x, screenPoint.y, 0);
 
-        gameState->mainPlayer.vision = 8;
-        gameState->mainPlayer.simPos = glm::vec2(0, 0);
-        gameState->mainPlayer.transform.position = glm::vec3(gameState->mainPlayer.simPos.x, gameState->mainPlayer.simPos.y, 0);
-
-        //	vector<FogCell> dirtyFogCells;
-
-        //	fogManager.setSource(map.simPos2GridCoord(mainPlayer.simPos), mainPlayer.vision, FogManager::VISIBLE, dirtyFogCells);
-        //	fogView.addDirtyCells(dirtyFogCells);
+        glm::vec3 worldPoint = glm::unProject(temp, (gameState->mainCamera.getPipeline().getModelViewMatrix()), gameState->mainCamera.getPipeline().getProjectionMatrix(), viewPort);
+        return worldPoint;
     }
+
+
+    glm::vec3 worldToScreen(GameState* gameState, glm::vec3 pos)
+    {
+        glm::vec4 viewPort = glm::vec4(0, 0, utl::SCREEN_WIDTH, utl::SCREEN_HEIGHT);
+        //	glm::vec3 screenPos = glm::project(pos, glm::inverse(m_pipeline.getModelViewMatrix()), m_pipeline.getProjectionMatrix(), viewPort);
+        glm::vec3 screenPos = glm::project(pos, gameState->mainCamera.getPipeline().getModelViewMatrix(), gameState->mainCamera.getPipeline().getProjectionMatrix(), viewPort);
+        return screenPos;
+    }
+
+
 
     void init(GameState* gameState)
     {
         demo1Init(gameState);        
     }
 
+    float angle = 0;
 
+
+
+    // Game Physics Enginer Development 
+    // although the proper formula is x' = x + vt + 0.5 * a * t^2
+    // 3.31 the acceleration is often neglecgible. so we just ignore the acceleration term
+    // so we just ignore the acceleration term
+    void integrate(Entity* entity, float dt_s)
+    {        
+        
+        entity->position += dt_s * entity->velocity;
+    //    entity->orientation += dt_s * entity->angularVelocity;
+
+
+        // velocity has damping
+        // you can consider removing the damping term altogether if you have lots of entities
+        entity->acceleration = entity->forceAccum / entity->mass;
+        entity->velocity = entity->velocityDamping * entity->velocity + entity->acceleration * dt_s;
+
+
+        entity->angularVelocity = entity->angularDamping * entity->angularVelocity;
+
+
+        // update matrices with the new position and orientation
+
+        entity->forceAccum = glm::vec3(0, 0, 0);
+        entity->torqueAccum = glm::vec3(0, 0, 0);        
+    }
 
 
     void tick(GameInput gameInput, GameState* gameState)
     {
-        
+
+        gameState->angle += 1;
+        if (gameState->angle >= 360)
+        {
+            gameState->angle -= 360;
+        }
+
+        glm::mat4 rot = glm::rotate(gameState->angle, glm::vec3(0, 0, 1));
+//        gameState->entities[gameState->boxIndex].setRotation(rot);
+
+        gameState->entities[gameState->boxIndex].orientation = rot;
+
         // cout << "gameState->numEntities " << gameState->numEntities << endl;
         for (int i = 0; i < gameState->numEntities; i++)
         {
             if (!(gameState->entities[i].flags & EntityFlag_Static))
             {
-                gameState->entities[i].velocity += GRAVITY;
+                /*
+                if ( glm::distance(gameState->entities[i].velocity, glm::vec3(0,0,0)) < 1)
+                {
+                    gameState->entities[i].velocity += GRAVITY;
+                }
+                */
+
+            //    gameState->entities[i].addForce(GRAVITY);
+            
+                // gravity doesnt exert torque
+                // gameState->entities[i].addTorque(GRAVITY);
+
             }
         }
         
@@ -279,10 +368,9 @@ namespace GameCode
         {
             if (!(gameState->entities[i].flags & EntityFlag_Static))
             {
-                gameState->entities[i].position += gameInput.dt_s * gameState->entities[i].velocity;
+                integrate(&gameState->entities[i], gameInput.dt_s);
             }
         }
-
     }
 };
 

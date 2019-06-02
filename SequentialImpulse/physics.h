@@ -26,12 +26,71 @@ namespace Physics
     taking the distance from the center to its most positive vertex and take that distance,
     project it onto the normal and see if its shorter then the distance from the box center to the plane 
     */
-    int TestOBBPlane(OBB b, glm::vec3 bCenter, Plane p, ContactInfo& contact)
+
+
+
+    // box2D does 
+    /*
+    int TestOBBOBB(OBB a, glm::vec4 aTransform, OBB b, glm::vec4 bTransform)
     {
+
+    }
+    */
+
+
+    void GetOBBInertiaTensor()
+    {
+
+    }
+
+
+    void GetSphereInertiaTensor()
+    {
+
+    }
+
+
+    bool testPointInsideOBB2D(glm::vec3 point, OBB b, glm::mat4 rot, glm::vec3 bCenter)
+    {
+        glm::vec3 realAxes[3] = { glm::vec3(rot * glm::vec4(b.axes[0], 0)),
+                                  glm::vec3(rot * glm::vec4(b.axes[1], 0)),
+                                  glm::vec3(rot * glm::vec4(b.axes[2], 0))};
+
+        glm::vec3 d = point - bCenter;
+
+        // just need to do 2
+        for (int i = 0; i < 2; i++)
+        {
+            float dist = glm::dot(d, realAxes[i]);
+        
+            if (dist > b.halfEdges[i] || dist < -b.halfEdges[i])
+                return false;        
+        }
+
+        return true; 
+        // or you can do Casey_s method, which is to do edge tests, see if a point is inside the edge
+        // [not sure if this is true, but edge tests seems to be more general purpose?
+        // i can handle parallelograms?
+        // OBB after is just an rotated AABB
+    }
+
+    int TestOBBPlane(OBB b, glm::mat4 rot, glm::vec3 bCenter, Plane p, ContactInfo& contact)
+    {
+        glm::vec3 realAxes[3] = { glm::vec3(rot * glm::vec4(b.axes[0], 0)),
+            glm::vec3(rot * glm::vec4(b.axes[1], 0)),
+            glm::vec3(rot * glm::vec4(b.axes[2], 0)) };
+        
+        float r = b.halfEdges[0] * abs(glm::dot(p.normal, realAxes[0])) +
+                b.halfEdges[1] * abs(glm::dot(p.normal, realAxes[1])) +
+                b.halfEdges[2] * abs(glm::dot(p.normal, realAxes[2]));
+
+        /*
         float r = b.halfEdges[0] * abs(glm::dot(p.normal, b.axes[0])) +
             b.halfEdges[1] * abs(glm::dot(p.normal, b.axes[1])) +
             b.halfEdges[2] * abs(glm::dot(p.normal, b.axes[2]));
-/*
+        */
+        
+        /*
         cout << "r " << r << endl;
         utl::debug("bCenter", bCenter);
         utl::debug("b.halfEdges", b.halfEdges);
@@ -55,16 +114,29 @@ namespace Physics
     }
 
 
+    void ResolveInterpenetration(ContactInfo& contact, Entity* a, Entity* b)
+    {
+
+    }
+
+    void ResolveVelocity(ContactInfo& contact, Entity* a, Entity* b)
+    {
+
+    }
+
+
     int Resolve(ContactInfo& contact, Entity* a, Entity* b)
     {
-        float force = 5;
+        float force = 1;
         if (!(a->flags & EntityFlag_Static))
         {
+            a->position += 1.0f * contact.normal;
             a->velocity += force * contact.normal;
         }
 
         if (!(b->flags & EntityFlag_Static))
         {
+            b->position -= 1.0f * contact.normal;
             b->velocity -= force * contact.normal;
         }
         return 0;
@@ -75,12 +147,12 @@ namespace Physics
         if (a.entityType == EntityType::Floor && b.entityType == EntityType::Box)
         {
             glm::vec3 bCenter = b.physBody.obb.center + b.position;            
-            return TestOBBPlane(b.physBody.obb, bCenter, a.physBody.plane, contact);            
+            return TestOBBPlane(b.physBody.obb, b.orientation, bCenter, a.physBody.plane, contact);            
         }
         else if (a.entityType == EntityType::Box && b.entityType == EntityType::Floor)
         {
             glm::vec3 aCenter = a.physBody.obb.center + a.position; 
-            return TestOBBPlane(a.physBody.obb, aCenter, b.physBody.plane, contact);
+            return TestOBBPlane(a.physBody.obb, a.orientation, aCenter, b.physBody.plane, contact);
         }
         
         return false;

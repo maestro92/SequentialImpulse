@@ -65,12 +65,6 @@ const int INVALID_OBJECT = 0x7FFFFFFF;
 // link
 // http://lodev.org/cgtutor/raycasting.html
 
-FogOfWar::~FogOfWar()
-{
-
-}
-
-
 
 
 void FogOfWar::init()
@@ -86,13 +80,6 @@ void FogOfWar::init()
 
 
 	isRunning = true;
-
-
-	latencyOptions = { 0, 20, 50, 100, 200 };	// millisecond
-	curLatencyOption = latencyOptions.size() - 1;
-	latency = latencyOptions[curLatencyOption] / 2;
-
-	curLatencyOption = 0;
 
 	containedFlag = false;
 
@@ -240,11 +227,6 @@ void FogOfWar::start()
     gameState.mainCamera.setPanningBounds(glm::vec3(-5,-5,-5), glm::vec3(50, 50, 50));
     gameState.mainCamera.setPos(glm::vec3(-5, -5, 0));
     gameState.mainCamera.setZoom(20);
-
-    GameCode::initPlayer(&gameState);
-    
-
-
 
 
 
@@ -397,7 +379,6 @@ void FogOfWar::update(GameState* gameState)
 					case SDLK_a:
 					case SDLK_s:
 					case SDLK_d:
-                        gameState->mainPlayer.setCurDir(glm::vec2(0, 0));
 						break;
 
 
@@ -416,19 +397,6 @@ void FogOfWar::update(GameState* gameState)
 						break;
 
 					case SDLK_n:
-						break;
-
-					case SDLK_w:						
-                        gameState->mainPlayer.setCurDir(glm::vec2(0, 1));
-						break;
-					case SDLK_a:						
-                        gameState->mainPlayer.setCurDir(glm::vec2(-1, 0));
-						break;
-					case SDLK_s:						
-                        gameState->mainPlayer.setCurDir(glm::vec2(0, -1));
-						break;					
-					case SDLK_d:						
-                        gameState->mainPlayer.setCurDir(glm::vec2(1, 0));
 						break;
 
 
@@ -461,11 +429,11 @@ void FogOfWar::update(GameState* gameState)
 				switch (event.button.button)
 				{
 					case SDL_BUTTON_LEFT:
-						onMouseBtnDown();
+						onMouseBtnDown(gameState);
 						break;
 
 					case SDL_BUTTON_RIGHT:
-						onMouseBtnDown();
+						onMouseBtnDown(gameState);
 						break;
 					case SDL_BUTTON_WHEELUP:
 						// m_cameraZoom -= CAMERA_ZOOM_DELTA;
@@ -482,92 +450,58 @@ void FogOfWar::update(GameState* gameState)
 				switch (event.button.button)
 				{
 					case SDL_BUTTON_LEFT:
-						onMouseBtnUp();
+						onMouseBtnUp(gameState);
 						break;
 				}
 				break;
 		}
 	}
 
-
-	glm::ivec2 prevGc = map.simPos2GridCoord(gameState->mainPlayer.simPos);
-	gameState->mainPlayer.update();
-    gameState->mainPlayer.transform.setPosition(world.simPos2WorldPos(gameState->mainPlayer.simPos));
-//	updateFogByMainPlayer(prevGc);
-
-    gameState->mainCamera.setPos(gameState->mainPlayer.transform.getPosition());
-
-	onMouseBtnHold(&gameState->mainCamera);
+	onMouseBtnHold(gameState);
 
 //	glm::vec2 centerGridCoord =
 
 }
 
 
-void FogOfWar::onMouseBtnUp()
+void FogOfWar::onMouseBtnUp(GameState* gameState)
 {
 	int tmpx, tmpy;
 	SDL_GetMouseState(&tmpx, &tmpy);
 	tmpy = utl::SCREEN_HEIGHT - tmpy;
 
+    gameState->draggedEntity = NULL;
 }
 
 
-Entity FogOfWar::constructPoint(glm::vec2 p, float width) const
+void FogOfWar::onMouseBtnHold(GameState* gameState)
 {
-	Entity obj = Entity();
-//	obj.setModel(global.modelMgr->get(ModelEnum::centeredQuad));
-	obj.position = glm::vec3(p.x, p.y, 0);
+    int tmpx, tmpy;
+    SDL_GetMouseState(&tmpx, &tmpy);
+    tmpy = utl::SCREEN_HEIGHT - tmpy;
 
-	obj.scale = glm::vec3(width, width, width);
-
-	return obj;
+    glm::vec2 screenPoint = glm::vec2(tmpx, tmpy);
+    glm::vec3 worldPoint = GameCode::screenToWorldPoint(gameState, screenPoint);
+    glm::vec2 tempWorldPoint = glm::vec2(worldPoint.x, worldPoint.y);
 }
 
-
-void FogOfWar::onMouseBtnHold(Camera* mainCamera)
+void FogOfWar::onMouseBtnDown(GameState* gameState)
 {
-	int tmpx, tmpy;
-	SDL_GetMouseState(&tmpx, &tmpy);
-	tmpy = utl::SCREEN_HEIGHT - tmpy;
+    int tmpx, tmpy;
+    SDL_GetMouseState(&tmpx, &tmpy);
+    tmpy = utl::SCREEN_HEIGHT - tmpy;
 
-	glm::vec2 screenPoint = glm::vec2(tmpx, tmpy);
-	glm::vec3 worldPoint = mainCamera->screenToWorldPoint(screenPoint);
-	glm::vec2 tempWorldPoint = glm::vec2(worldPoint.x, worldPoint.y);
+    glm::vec2 screenPoint = glm::vec2(tmpx, tmpy);
 
+    glm::vec3 worldPoint = GameCode::screenToWorldPoint(gameState, screenPoint);
+    glm::vec3 raycastDir = glm::vec3(worldPoint.x, worldPoint.y, -1);
+
+    // move this into GameCode
+    cout << "OnMouseBtnDown" << endl;
+    utl::debug("raycastDir", raycastDir);
+    GameCode::ProcessInputRaycast(gameState, raycastDir);
 }
 
-
-void FogOfWar::onMouseBtnDown()
-{
-
-}
-
-
-
-
-Entity* FogOfWar::constructLine(glm::vec2 p0, glm::vec2 p1, float width) const
-{
-	Entity* obj = new Entity();
-//	obj->setModel(global.modelMgr->get(ModelEnum::centeredQuad));
-
-	glm::vec2 diffVector = p1 - p0;
-	glm::vec2 centerPoint = p0 + glm::vec2(diffVector.x / 2.0, diffVector.y / 2.0);
-
-	obj->position = glm::vec3(centerPoint.x, centerPoint.y, 0);
-
-	float angle = atan2(diffVector.y, diffVector.x) * 180 / PI;
-
-	float length = glm::distance(p0, p1);
-
-	glm::vec3 scale(length, width, 1);
-
-	obj->setRotation(glm::rotate(angle, 0.0f, 0.0f, 1.0f));
-
-	obj->scale = scale;
-
-	return obj;
-}
 
 
 

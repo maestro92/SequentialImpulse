@@ -13,8 +13,6 @@
 #include "define.h"
 #include "utility.h"
 
-#include "player.h"
-#include "map.h"
 
 #include <queue>
 
@@ -106,15 +104,12 @@ class FogOfWar
 		bool isRunning;
 
 
-
-
 		// models
 		Model*          p_model;
 
 
 		bool containedFlag;
 
-		Map map;
 
 		GUIManager m_gui;
 		bool loadData;
@@ -134,7 +129,7 @@ class FogOfWar
 		void initPlayer();
 //		void debugDrawing();
      //   void debugDrawing(GameState* gameState);
-		~FogOfWar();
+
 
 		/// init functions
 		void init();
@@ -154,27 +149,19 @@ class FogOfWar
 
 
 		void render(GameState* gameState);
-		void onMouseBtnUp();
-        void onMouseBtnHold(Camera* mainCamera);
-		void onMouseBtnDown();
+        void onMouseBtnUp(GameState* gameState);
+        void onMouseBtnHold(GameState* gameState);
+        void onMouseBtnDown(GameState* gameState);
 
-		Entity constructPoint(glm::vec2 p, float width) const;
-		bool hasDrawnSource;
-		bool hasDrawnEnd;
+
 
 		void GetTimeProfilerAverages();
 
 
 		void renderGUI();
-	
-
-		vector<int> latencyOptions;		// round trip
-		int latency;					// rount trip latency in milliseconds
-		int curLatencyOption;
 
 
 		long long getCurrentTimeMillis();
-		void updateFogByMainPlayer(glm::ivec2 prevGc);
 
 	private:
 		long long startedTime;
