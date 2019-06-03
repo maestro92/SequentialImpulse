@@ -31,6 +31,7 @@ struct GameState
 namespace GameCode
 {
     glm::vec3 GRAVITY = glm::vec3(0, -0.03, 0);
+    bool appliedForce = false;
 
     void addRandomBall(GameState* gameState)
     {
@@ -84,8 +85,24 @@ namespace GameCode
                 {
                     cout << "selecting entity " << entity->id << endl;
                     gameState->draggedEntity = entity;
-                }
-                
+
+
+
+
+                    glm::vec3 vecToForce = glm::vec3(raycastDirection.x, raycastDirection.y, 0) - entity->position;
+                    glm::vec3 zAxis = glm::vec3(0, 0, 1);
+                    glm::vec3 force = 1000.0f * glm::cross(vecToForce, zAxis);
+
+                    utl::debug("        vecToForce ", vecToForce);
+                    utl::debug("        force is ", force);
+
+                    
+                    appliedForce = true;
+                 //   entity->addForce(force);
+                    entity->addTorqueFromForce(force, vecToForce);
+
+
+                }                
             }
         }
     }
@@ -154,8 +171,20 @@ namespace GameCode
 
         entity->mass = 1;
         entity->position = glm::vec3(x, y, 0);
+
+        entity->orientationAxisForm = glm::vec3(0, 0, 30);
+
         entity->orientation = glm::rotate(30.0f, glm::vec3(0, 0, 1));
         entity->scale = glm::vec3(size, size, size);
+
+        entity->velocityDamping = 0.80f;
+        entity->angularDamping = 0.80f;
+
+        entity->inertiaTensor = Physics::GetBoxInertiaTensor(entity->mass, size * 2, size * 2, size * 2);
+        entity->transformInertiaTensor();
+        
+        
+        
         entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
         
         entity->physBody.type = Physics::PhysBodyType::PB_OBB;
@@ -165,6 +194,10 @@ namespace GameCode
         entity->physBody.obb.axes[2] = glm::vec3(0, 0, 1);
         entity->physBody.obb.halfEdges = glm::vec3(size, size, size);
         
+
+
+
+
         gameState->boxIndex = index;
 
         // the floor 
@@ -252,7 +285,6 @@ namespace GameCode
     }
 
 
-
     glm::vec3 screenToWorldPoint(GameState* gameState, glm::vec2 screenPoint)
     {
         glm::vec4 viewPort = glm::vec4(0, 0, utl::SCREEN_WIDTH, utl::SCREEN_HEIGHT);
@@ -288,22 +320,90 @@ namespace GameCode
     // so we just ignore the acceleration term
     void integrate(Entity* entity, float dt_s)
     {        
-        
-        entity->position += dt_s * entity->velocity;
-    //    entity->orientation += dt_s * entity->angularVelocity;
-
-
         // velocity has damping
         // you can consider removing the damping term altogether if you have lots of entities
         entity->acceleration = entity->forceAccum / entity->mass;
-        entity->velocity = entity->velocityDamping * entity->velocity + entity->acceleration * dt_s;
+        entity->velocity += entity->acceleration * dt_s;
 
+        // damping 
+        entity->velocity = entity->velocityDamping * entity->velocity;
+        
+        if ( glm::length(entity->velocity) < 0.01)
+        {
+            entity->velocity = glm::vec3(0.0);
+        }
 
+        /*
+        if (entity->velocity != glm::vec3(0.0))
+        {
+            utl::debug(">>>> forceAccum ", entity->forceAccum);
+            utl::debug("        dt_s ", dt_s);
+            utl::debug("        length ", glm::length(entity->velocity));
+            utl::debug("        acceleration ", entity->acceleration);
+            utl::debug("        velocity ", entity->velocity);
+        }
+        */
+
+        entity->position += dt_s * entity->velocity;
+
+        
+        entity->angularAcceleration = entity->inverseInertiaTensor * entity->torqueAccum;
+        entity->angularVelocity += entity->angularAcceleration * dt_s;
+
+        // damping
         entity->angularVelocity = entity->angularDamping * entity->angularVelocity;
 
+        if (glm::length(entity->angularVelocity) < 0.01)
+        {
+            entity->angularVelocity = glm::vec3(0.0);
+        }
 
+
+        float angularMag = glm::length(entity->angularVelocity);
+        if (angularMag != 0)
+        {
+            glm::vec3 angularAxis = glm::normalize(entity->angularVelocity);
+
+            glm::mat4 da = glm::rotate(angularMag, angularAxis);
+
+            // https://math.stackexchange.com/questions/22437/combining-two-3d-rotations
+            entity->orientation = dt_s * glm::rotate(angularMag, angularAxis) * entity->orientation;
+
+            
+            if (appliedForce)
+            {
+
+                utl::debug(">>>>>>>>>>>>>> torqueAccum ", entity->torqueAccum);
+                utl::debug("entity->inverseInertiaTensor ", entity->inverseInertiaTensor);
+                
+                utl::debug("angularMag ", angularMag);
+
+                utl::debug("angularMag ", angularMag);
+                utl::debug("angularAxis ", angularAxis);
+                utl::debug("entity->angularAcceleration ", entity->angularAcceleration);
+
+                utl::debug("entity->angularVelocity ", entity->angularVelocity);
+                utl::debug("da ", da);
+            }
+            
+            entity->transformInertiaTensor();
+
+            if (appliedForce)
+            {
+                int a = 1;
+            }
+        }
+        
+
+        /*
+        utl::debug("        glm::rotate(angularMag, angularAxis) ", glm::rotate(angularMag, angularAxis));
+
+
+        
+        utl::debug("         entity->orientation ", entity->orientation);
+        */
+        
         // update matrices with the new position and orientation
-
         entity->forceAccum = glm::vec3(0, 0, 0);
         entity->torqueAccum = glm::vec3(0, 0, 0);        
     }
@@ -311,7 +411,7 @@ namespace GameCode
 
     void tick(GameInput gameInput, GameState* gameState)
     {
-
+/*
         gameState->angle += 1;
         if (gameState->angle >= 360)
         {
@@ -319,10 +419,9 @@ namespace GameCode
         }
 
         glm::mat4 rot = glm::rotate(gameState->angle, glm::vec3(0, 0, 1));
-//        gameState->entities[gameState->boxIndex].setRotation(rot);
-
         gameState->entities[gameState->boxIndex].orientation = rot;
-
+*/
+        
         // cout << "gameState->numEntities " << gameState->numEntities << endl;
         for (int i = 0; i < gameState->numEntities; i++)
         {
