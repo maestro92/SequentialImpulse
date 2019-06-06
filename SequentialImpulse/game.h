@@ -19,6 +19,9 @@ struct GameState
     Entity* entities;
     int numEntities;
 
+    glm::vec3* contactPoints;
+
+
     Camera mainCamera;
 
     Entity* draggedEntity;
@@ -30,7 +33,8 @@ struct GameState
 
 namespace GameCode
 {
-    glm::vec3 GRAVITY = glm::vec3(0, -0.03, 0);
+    // box2d has it at -10
+    glm::vec3 GRAVITY = glm::vec3(0, -5, 0);
     bool appliedForce = false;
 
     void addRandomBall(GameState* gameState)
@@ -83,13 +87,16 @@ namespace GameCode
                 
                 if (Physics::testPointInsideOBB2D(raycastDirection, entity->physBody.obb, entity->orientation, entity->position))
                 {
+                    
+                    gameState->draggedEntity = entity;
+                    /*
                     cout << "selecting entity " << entity->id << endl;
                     gameState->draggedEntity = entity;
 
 
-
-
                     glm::vec3 vecToForce = glm::vec3(raycastDirection.x, raycastDirection.y, 0) - entity->position;
+//                    glm::vec3 vecToForce = glm::vec3(0, -5, 0);
+
                     glm::vec3 zAxis = glm::vec3(0, 0, 1);
                     glm::vec3 force = 1000.0f * glm::cross(vecToForce, zAxis);
 
@@ -98,8 +105,9 @@ namespace GameCode
 
                     
                     appliedForce = true;
-                 //   entity->addForce(force);
+                    entity->addForce(force);
                     entity->addTorqueFromForce(force, vecToForce);
+                    */
 
 
                 }                
@@ -162,7 +170,7 @@ namespace GameCode
         // the box
         int x = 0;
         int y = 10;
-        int size = 5;
+        int size = 1;
         index = gameState->numEntities++;
         entity = &gameState->entities[index];
         entity->id = index;
@@ -172,9 +180,13 @@ namespace GameCode
         entity->mass = 1;
         entity->position = glm::vec3(x, y, 0);
 
-        entity->orientationAxisForm = glm::vec3(0, 0, 30);
+
 
         entity->orientation = glm::rotate(30.0f, glm::vec3(0, 0, 1));
+    //    entity->orientation2 = glm::quat(30, glm::vec3(0, 0, 1));
+        
+        entity->orientation2 = glm::toQuat(entity->orientation);
+
         entity->scale = glm::vec3(size, size, size);
 
         entity->velocityDamping = 0.80f;
@@ -212,7 +224,7 @@ namespace GameCode
 
         entity->physBody.type = Physics::PhysBodyType::PB_PLANE;
         entity->physBody.plane.normal = glm::vec3(0, 1, 0);
-        entity->physBody.plane.d = 0;       // dot(glm::vec3(0, 1, 0),  glm::vec3(0, 0, 0));
+        entity->physBody.plane.offset = 0;       // dot(glm::vec3(0, 1, 0),  glm::vec3(0, 0, 0));
 
 
         // the wall
@@ -362,17 +374,18 @@ namespace GameCode
         float angularMag = glm::length(entity->angularVelocity);
         if (angularMag != 0)
         {
-            glm::vec3 angularAxis = glm::normalize(entity->angularVelocity);
+        //    glm::vec3 angularAxis = glm::normalize(entity->angularVelocity);
 
-            glm::mat4 da = glm::rotate(angularMag, angularAxis);
+        //    glm::mat4 da = glm::rotate(angularMag, angularAxis);
 
             // https://math.stackexchange.com/questions/22437/combining-two-3d-rotations
-            entity->orientation = dt_s * glm::rotate(angularMag, angularAxis) * entity->orientation;
+          //  entity->orientation = dt_s * glm::rotate(angularMag, angularAxis) * entity->orientation;
 
-            
+            entity->updateOrientation(entity->angularVelocity, dt_s);
+
+            /*
             if (appliedForce)
             {
-
                 utl::debug(">>>>>>>>>>>>>> torqueAccum ", entity->torqueAccum);
                 utl::debug("entity->inverseInertiaTensor ", entity->inverseInertiaTensor);
                 
@@ -385,13 +398,7 @@ namespace GameCode
                 utl::debug("entity->angularVelocity ", entity->angularVelocity);
                 utl::debug("da ", da);
             }
-            
-            entity->transformInertiaTensor();
-
-            if (appliedForce)
-            {
-                int a = 1;
-            }
+            */
         }
         
 
@@ -406,12 +413,16 @@ namespace GameCode
         // update matrices with the new position and orientation
         entity->forceAccum = glm::vec3(0, 0, 0);
         entity->torqueAccum = glm::vec3(0, 0, 0);        
+
+        entity->orientation = glm::toMat4(entity->orientation2);
+
+        entity->transformInertiaTensor();
     }
 
 
     void tick(GameInput gameInput, GameState* gameState)
     {
-/*
+        /*
         gameState->angle += 1;
         if (gameState->angle >= 360)
         {
@@ -420,19 +431,24 @@ namespace GameCode
 
         glm::mat4 rot = glm::rotate(gameState->angle, glm::vec3(0, 0, 1));
         gameState->entities[gameState->boxIndex].orientation = rot;
-*/
-        
+        */
+
+
+
+    //    glm::mat4 rot = gameInput.dt_s * glm::rotate(1.0f, glm::vec3(0, 0, 1));
+    //    gameState->entities[gameState->boxIndex].orientation *= rot;
+
+
         // cout << "gameState->numEntities " << gameState->numEntities << endl;
         for (int i = 0; i < gameState->numEntities; i++)
         {
-            if (!(gameState->entities[i].flags & EntityFlag_Static))
+            if (!(gameState->entities[i].flags & EntityFlag_Static) && &gameState->entities[i] != gameState->draggedEntity)
             {
-                /*
-                if ( glm::distance(gameState->entities[i].velocity, glm::vec3(0,0,0)) < 1)
+                Entity* entity = &gameState->entities[i];
                 {
                     gameState->entities[i].velocity += GRAVITY;
                 }
-                */
+                
 
             //    gameState->entities[i].addForce(GRAVITY);
             
@@ -452,7 +468,7 @@ namespace GameCode
 
             for (int j = i + 1; j < gameState->numEntities; j++)
             {
-                Physics::ContactInfo contact;
+                Physics::CollisionData contact;
                 if (Physics::GenerateContactInfo(gameState->entities[i], gameState->entities[j], contact))
                 {
                     cout << "Resolving contact" << endl;

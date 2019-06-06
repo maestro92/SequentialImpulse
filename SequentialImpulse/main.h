@@ -91,7 +91,6 @@ class FogOfWar
 		Uint32 m_nextGameTick = 0;
 		MouseState m_mouseState;
 
-	//	Pipeline m_pipeline;
 
 		float m_fps;
 		float m_iterRefreshRate;
