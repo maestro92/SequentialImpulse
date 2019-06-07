@@ -9,6 +9,16 @@
 
 namespace GameRendering
 {
+    void render(Model* model, Pipeline &p, glm::vec3 position, glm::mat4 orientation, glm::vec3 scale, Renderer* r)
+    {
+        p.pushMatrix();
+            p.translate(position);
+            p.addMatrix(orientation);
+            p.scale(scale);
+            r->setUniLocs(p);
+            model->render();
+        p.popMatrix();
+    }
 
     void render(GameState* gameState)
     {
@@ -37,14 +47,8 @@ namespace GameRendering
 
         Entity* entities = gameState->entities;
 
-        // Rendering wireframes
-        Renderer* p_renderer = &global.rendererMgr->r_fullVertexColor;
-        p_renderer->enableShader();
 
-        gameState->entities[0].renderCore(gameState->mainCamera.getPipeline(), p_renderer);
-        p_renderer->disableShader();
-
-        p_renderer = &global.rendererMgr->r_fullColor;
+        Renderer* p_renderer = &global.rendererMgr->r_fullColor;
         p_renderer->enableShader();
         p_renderer->setData(R_FULL_COLOR::u_color, COLOR_RED);
 
@@ -61,6 +65,39 @@ namespace GameRendering
 
             gameState->entities[i].renderCore(gameState->mainCamera.getPipeline(), p_renderer);
         }
+        
+        for (int i = 0; i < gameState->numContactPoints; i++)
+        {
+            p_renderer->setData(R_FULL_COLOR::u_color, COLOR_RED);
+
+            render(global.modelMgr->get(ModelEnum::centeredQuad), gameState->mainCamera.getPipeline(), 
+                gameState->contactPoints[i], 
+                glm::mat4(1.0), 
+                glm::vec3(0.5), 
+                p_renderer);
+        }
+
+
+
+
+        // Rendering wireframes
+        p_renderer = &global.rendererMgr->r_fullVertexColor;
+        p_renderer->enableShader();
+
+        gameState->entities[0].renderCore(gameState->mainCamera.getPipeline(), p_renderer);
+
+        for (int i = 1; i < gameState->numEntities; i++)
+        {
+            render(global.modelMgr->get(ModelEnum::xyzAxis), gameState->mainCamera.getPipeline(),
+                gameState->entities[i].position,
+                gameState->entities[i].orientation,
+                gameState->entities[i].scale,
+                p_renderer);
+        }
+        p_renderer->disableShader();
+
+
+
         /*
         if (currentRay != NULL && currentRay->canRender())
         {

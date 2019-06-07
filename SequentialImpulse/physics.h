@@ -107,18 +107,44 @@ namespace Physics
     // we can find the set of contacts by simply checking each vertex of the box one by one
     // and generating a contact if it lies below the plane.
 
+    
     glm::vec3 GetBoxVertexOffset(glm::vec3 axes[3], glm::vec3 halfEdges, glm::vec3 dir)
     {
-        return glm::vec3(axes[0] * halfEdges[0] * dir.x,
-            axes[1] * halfEdges[1] * dir.y,
-            axes[2] * halfEdges[2] * dir.z);
+        return axes[0] * halfEdges[0] * dir.x + 
+                axes[1] * halfEdges[1] * dir.y + 
+                axes[2] * halfEdges[2] * dir.z;
     }
+    
+
+
+
+    int TestOBBPlane(OBB b, PhysBodyTransform bTransform,
+        Plane p, PhysBodyTransform pTransform)
+    {
+        glm::vec3 realAxes[3] = { glm::vec3(bTransform.orientation * glm::vec4(b.axes[0], 0)),
+            glm::vec3(bTransform.orientation * glm::vec4(b.axes[1], 0)),
+            glm::vec3(bTransform.orientation * glm::vec4(b.axes[2], 0)) };
+
+        float r = b.halfEdges[0] * abs(glm::dot(p.normal, realAxes[0])) +
+            b.halfEdges[1] * abs(glm::dot(p.normal, realAxes[1])) +
+            b.halfEdges[2] * abs(glm::dot(p.normal, realAxes[2]));
+
+        // distance from box center to the plane
+        float s = glm::dot(p.normal, bTransform.position) - p.offset;
+
+        return abs(s) <= r;
+    };
+
 
 
     void GetOBBPlaneContacts(OBB b, PhysBodyTransform bTransform,
         Plane p, PhysBodyTransform pTransform, CollisionData& contact)
     {
-        
+        if (!TestOBBPlane(b, bTransform, p, pTransform))
+        {
+            return;
+        }
+
         static glm::vec3 dirs[4] = { glm::vec3(1,1,0),
                                    glm::vec3(-1,1,0),
                                    glm::vec3(1,-1,0),
@@ -128,16 +154,41 @@ namespace Physics
                                 glm::vec3(bTransform.orientation * glm::vec4(b.axes[1], 0)),
                                 glm::vec3(bTransform.orientation * glm::vec4(b.axes[2], 0)) };
 
-
+   //     cout << "in here " << endl;
         int contactIndex = 0;
+
+//        cout << "bTransform.position " << bTransform.position << endl;
+
+  //      utl::debug("bTransform.position", bTransform.position);
+
         for (int i = 0; i < 4; i++)
         {
+            /*
+            cout << ">>>>>>>>>>> point" << endl;
+            utl::debug("        realAxes[0]", realAxes[0]);
+            utl::debug("        realAxes[1]", realAxes[1]);
+            utl::debug("        realAxes[2]", realAxes[2]);
+
+
+            utl::debug("        b.halfEdges", b.halfEdges);
+            utl::debug("        dirs", dirs[i]);
+
+            glm::vec3 vertexOffset = GetBoxVertexOffset(realAxes, b.halfEdges, dirs[i]);
+
+            utl::debug("        vertexOffset", vertexOffset);
+            */
+
             glm::vec3 vertexPos = bTransform.position + b.center + GetBoxVertexOffset(realAxes, b.halfEdges, dirs[i]);
 
-
+            /*
+            utl::debug("        bTransform.position", bTransform.position);
+            utl::debug("        vertexPos", vertexPos);
+            */
+            
             // compute vertex distance from the plane
-            float dist = p.offset - glm::dot(vertexPos, p.normal);
 
+            float dist = p.offset - glm::dot(vertexPos, p.normal);
+            // utl::debug("        dist", dist);
             if (dist >= 0)
             {
                 contact.contactPoints[contactIndex] = vertexPos + 0.5f * dist * p.normal;
@@ -149,32 +200,14 @@ namespace Physics
 
             }
         }
-
-
-    };
-
-
-
-
-
-
-
-    int TestOBBPlane(OBB b, PhysBodyTransform bTransform, 
-                    Plane p, PhysBodyTransform pTransform)
-    {
-        glm::vec3 realAxes[3] = { glm::vec3(bTransform.orientation * glm::vec4(b.axes[0], 0)),
-            glm::vec3(bTransform.orientation * glm::vec4(b.axes[1], 0)),
-            glm::vec3(bTransform.orientation * glm::vec4(b.axes[2], 0)) };
         
-        float r = b.halfEdges[0] * abs(glm::dot(p.normal, realAxes[0])) +
-                b.halfEdges[1] * abs(glm::dot(p.normal, realAxes[1])) +
-                b.halfEdges[2] * abs(glm::dot(p.normal, realAxes[2]));
 
-        // distance from box center to the plane
-        float s = glm::dot(p.normal, bTransform.position) - p.offset;
-
-        return abs(s) <= r;
     };
+
+
+
+
+
 
 
     int TestSphereOBB()
@@ -198,30 +231,31 @@ namespace Physics
 
     int Resolve(CollisionData& contact, Entity* a, Entity* b)
     {
-        float force = 1;
+        float force = 10;
         if (!(a->flags & EntityFlag_Static))
         {
-            a->position += 1.0f * contact.normal;
+            a->position += 10.0f * contact.normal;
             a->velocity += force * contact.normal;
         }
 
         if (!(b->flags & EntityFlag_Static))
         {
-            b->position -= 1.0f * contact.normal;
+            b->position -= 10.0f * contact.normal;
             b->velocity -= force * contact.normal;
         }
         return 0;
     }
 
-    bool GenerateContactInfo(Entity a, Entity b, CollisionData& contact)
-    {        
+    /*
+    bool TestContactInfo(Entity a, Entity b, CollisionData& contact)
+    {
         if (a.entityType == EntityType::Floor && b.entityType == EntityType::Box)
         {
             glm::vec3 bCenter = b.position + b.physBody.obb.center;
-            PhysBodyTransform bTransform = { bCenter , b.orientation};
+            PhysBodyTransform bTransform = { bCenter , b.orientation };
             PhysBodyTransform aTransform = { a.position, a.orientation };
 
-            return TestOBBPlane(b.physBody.obb, bTransform, a.physBody.plane, aTransform, contact);
+            return TestOBBPlane(b.physBody.obb, bTransform, a.physBody.plane, aTransform);
         }
         else if (a.entityType == EntityType::Box && b.entityType == EntityType::Floor)
         {
@@ -229,10 +263,30 @@ namespace Physics
             PhysBodyTransform aTransform = { aCenter , a.orientation };
             PhysBodyTransform bTransform = { b.position , b.orientation };
 
-            return TestOBBPlane(a.physBody.obb, aTransform, b.physBody.plane, bTransform, contact);
+            return TestOBBPlane(a.physBody.obb, aTransform, b.physBody.plane, bTransform);
         }
-        
         return false;
+    };
+    */
+
+    void GenerateContactInfo(Entity a, Entity b, CollisionData& contact)
+    {        
+        if (a.entityType == EntityType::Floor && b.entityType == EntityType::Box)
+        {
+            glm::vec3 bCenter = b.position + b.physBody.obb.center;
+            PhysBodyTransform bTransform = { bCenter , b.orientation};
+            PhysBodyTransform aTransform = { a.position, a.orientation };
+
+            GetOBBPlaneContacts(b.physBody.obb, bTransform, a.physBody.plane, aTransform, contact);
+        }
+        else if (a.entityType == EntityType::Box && b.entityType == EntityType::Floor)
+        {
+            glm::vec3 aCenter = a.position + a.physBody.obb.center;
+            PhysBodyTransform aTransform = { aCenter , a.orientation };
+            PhysBodyTransform bTransform = { b.position , b.orientation };
+
+            GetOBBPlaneContacts(a.physBody.obb, aTransform, b.physBody.plane, bTransform, contact);
+        }
     };
 
 };

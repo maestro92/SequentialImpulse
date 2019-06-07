@@ -78,7 +78,6 @@ class ModelManager
 		Model* m_centeredQuad;
         Model* m_unitCenteredQuad;
         Model* m_xyzAxis;
-        XYZAxisModel* TempXYZModel;
 
 		vector<Model*> m_models;
 };

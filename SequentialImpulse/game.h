@@ -19,6 +19,7 @@ struct GameState
     Entity* entities;
     int numEntities;
 
+    int numContactPoints;
     glm::vec3* contactPoints;
 
 
@@ -119,10 +120,14 @@ namespace GameCode
 
     void demo1Init(GameState* gameState)
     {
-        gameState->numEntities = 0;
         gameState->worldWidth = 50;
         gameState->worldHeight = 50;
+        gameState->numEntities = 0;
         gameState->entities = new Entity[4096];
+
+        gameState->numContactPoints = 0;
+        gameState->contactPoints = new glm::vec3[1024];
+
         gameState->angle = 0;
         gameState->draggedEntity = NULL;
 
@@ -251,10 +256,13 @@ namespace GameCode
 
     void demo2Init(GameState* gameState)
     {
-        gameState->numEntities = 0;
         gameState->worldWidth = 50;
         gameState->worldHeight = 50;
+        gameState->numEntities = 0;
         gameState->entities = new Entity[4096];
+
+        gameState->numContactPoints = 0;
+        gameState->contactPoints = new glm::vec3[1024];
 
         float scale = 100.0;
         Entity entity;
@@ -420,24 +428,18 @@ namespace GameCode
     }
 
 
+    void CopyContactPoints(GameState* gameState, Physics::CollisionData* contact)
+    {
+        for (int i = 0; i < contact->numContactPoints; i++)
+        {
+            gameState->contactPoints[gameState->numContactPoints++] = contact->contactPoints[i];
+        }
+    }
+    
+
     void tick(GameInput gameInput, GameState* gameState)
     {
-        /*
-        gameState->angle += 1;
-        if (gameState->angle >= 360)
-        {
-            gameState->angle -= 360;
-        }
-
-        glm::mat4 rot = glm::rotate(gameState->angle, glm::vec3(0, 0, 1));
-        gameState->entities[gameState->boxIndex].orientation = rot;
-        */
-
-
-
-    //    glm::mat4 rot = gameInput.dt_s * glm::rotate(1.0f, glm::vec3(0, 0, 1));
-    //    gameState->entities[gameState->boxIndex].orientation *= rot;
-
+        gameState->numContactPoints = 0;
 
         // cout << "gameState->numEntities " << gameState->numEntities << endl;
         for (int i = 0; i < gameState->numEntities; i++)
@@ -467,14 +469,29 @@ namespace GameCode
             }
 
             for (int j = i + 1; j < gameState->numEntities; j++)
-            {
+            {                
                 Physics::CollisionData contact;
-                if (Physics::GenerateContactInfo(gameState->entities[i], gameState->entities[j], contact))
+
+                /*
+                if (Physics::TestContactInfo(gameState->entities[i], gameState->entities[j], contact))
                 {
+                    CopyContactPoints(gameState, &contact);
+
                     cout << "Resolving contact" << endl;
                     Physics::Resolve(contact, &gameState->entities[i], &gameState->entities[j]);
                 }
+                */
+                
+                Physics::GenerateContactInfo(gameState->entities[i], gameState->entities[j], contact);
+                if (contact.numContactPoints > 0)
+                {                    
+                    CopyContactPoints(gameState, &contact);
 
+                    cout << "Resolving contact" << endl;
+                    Physics::Resolve(contact, &gameState->entities[i], &gameState->entities[j]);
+                }
+                
+                
             }
         }
 

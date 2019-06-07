@@ -109,7 +109,6 @@ void ModelManager::init()
 	m_centeredQuad = new QuadModel(-0.5, 0.5, -0.5, 0.5);
     m_unitCenteredQuad = new QuadModel(-1, 1, -1, 1);
     m_xyzAxis = new XYZAxisModel();
-    TempXYZModel = (XYZAxisModel*)m_xyzAxis;
     
     std::vector<VertexData> vertices;
     std::vector<unsigned int> indices;

@@ -23,6 +23,13 @@ namespace Physics
         glm::vec3 contactPoints[16];
 
         float penetration;
+
+        CollisionData()
+        {
+            normal = glm::vec3(0.0);
+            numContactPoints = 0;
+            penetration = 0;
+        }
     };
 
     struct Sphere
