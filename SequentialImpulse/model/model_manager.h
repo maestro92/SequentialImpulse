@@ -50,7 +50,7 @@ class ModelManager
 		void shutDown();
 
 		Model* get(int modelEnum);
-
+ 
 
 		static void enableVertexAttribArrays();
 		static void disableVertexAttribArrays();
@@ -74,6 +74,9 @@ class ModelManager
 
 // change all these to just data
 	private:
+
+        Model* buildXYZModel();
+
 		Model* m_quad;
 		Model* m_centeredQuad;
         Model* m_unitCenteredQuad;

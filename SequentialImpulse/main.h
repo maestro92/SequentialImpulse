@@ -32,7 +32,6 @@
 #include "renderer_manager.h"
 #include "renderer.h"
 #include "renderer_constants.h"
-#include "world.h"
 
 #include "quad_model.h"
 #include "xyz_axis_model.h"
@@ -164,11 +163,6 @@ class FogOfWar
 
 	private:
 		long long startedTime;
-		World world;
-
-	//	Player mainPlayer;
-
-
 };
 
 #endif

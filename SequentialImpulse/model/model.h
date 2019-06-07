@@ -40,7 +40,7 @@ class Model
 {
     public:
 		
-
+        // TODO: remove CubeModel and QuadModel, make them functional
 
         Model();
         virtual ~Model();
@@ -49,11 +49,6 @@ class Model
 		void setTextures(vector<string> textureFiles);
 		void setMeshRandTextureIdx();
 		virtual void render();
-	//	virtual void renderSingle();
-
-
-
-
 		void setModelGemoetry(GLuint geometry);
 
         void clear();

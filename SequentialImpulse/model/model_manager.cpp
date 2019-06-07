@@ -69,6 +69,8 @@ namespace Asset
         buildLinesBetweenTwoPoints2D(pos0, pos1, thickness, vertices, indices);
     }
 
+
+
     void buildCircle(float radius, float thickness, vector<VertexData>& vertices, vector<unsigned int>& indices)
     {
         for (float i = 0; i < 360; i += 0.5f)
@@ -108,7 +110,7 @@ void ModelManager::init()
 	m_quad = new QuadModel(1, 1);
 	m_centeredQuad = new QuadModel(-0.5, 0.5, -0.5, 0.5);
     m_unitCenteredQuad = new QuadModel(-1, 1, -1, 1);
-    m_xyzAxis = new XYZAxisModel();
+    m_xyzAxis = buildXYZModel(); //new XYZAxisModel();
     
     std::vector<VertexData> vertices;
     std::vector<unsigned int> indices;
@@ -125,6 +127,61 @@ void ModelManager::init()
     m_models[ModelEnum::circle] = circleModel;
 
 
+}
+
+
+Model* ModelManager::buildXYZModel()
+{
+    Model* model = new Model();
+
+    model->setModelGemoetry(GL_LINES);
+
+    std::vector<VertexData> vertices;
+    std::vector<unsigned int> indices;
+    VertexData v;
+
+    float scale = 1;
+
+    /// X axis
+    v.position = glm::vec3(0.0, 0.0, 0.0);
+    v.color = glm::vec3(1.0, 0.0, 0.0);
+    vertices.push_back(v);
+
+    v.position = glm::vec3(scale, 0.0, 0.0);
+    v.color = glm::vec3(1.0, 0.0, 0.0);
+    vertices.push_back(v);
+
+    /// Y axis
+    v.position = glm::vec3(0.0, 0.0, 0.0);
+    v.color = glm::vec3(0.0, 1.0, 0.0);
+    vertices.push_back(v);;
+
+    v.position = glm::vec3(0.0, scale, 0.0);
+    v.color = glm::vec3(0.0, 1.0, 0.0);
+    vertices.push_back(v);;
+
+    /// Z axis
+    v.position = glm::vec3(0.0, 0.0, 0.0);
+    v.color = glm::vec3(0.0, 0.0, 1.0);
+    vertices.push_back(v);;
+
+    v.position = glm::vec3(0.0, 0.0, scale);
+    v.color = glm::vec3(0.0, 0.0, 1.0);
+    vertices.push_back(v);;
+
+
+    indices.push_back(0);
+    indices.push_back(1);
+    indices.push_back(2);
+    indices.push_back(3);
+    indices.push_back(4);
+    indices.push_back(5);
+
+    //   worldAxis = new mesh(&axisVertices, &axisIndices);
+    Mesh m(vertices, indices);
+    model->addMesh(m);
+
+    return model;
 }
 
 
