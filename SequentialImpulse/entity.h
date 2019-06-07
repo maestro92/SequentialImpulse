@@ -84,6 +84,7 @@ struct Entity
         EntityType entityType;
 
         float mass;
+        float invMass;
 
 		glm::vec3 position;
 		glm::vec3 velocity;

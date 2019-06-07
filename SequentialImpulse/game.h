@@ -183,6 +183,8 @@ namespace GameCode
         entity->flags = EntityFlag_Collides;
 
         entity->mass = 1;
+        entity->invMass = 1 / (float)entity->mass;
+
         entity->position = glm::vec3(x, y, 0);
 
 

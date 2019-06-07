@@ -188,7 +188,8 @@ namespace Physics
             // compute vertex distance from the plane
 
             float dist = p.offset - glm::dot(vertexPos, p.normal);
-            // utl::debug("        dist", dist);
+
+            // normal is from b to a
             if (dist >= 0)
             {
                 contact.contactPoints[contactIndex] = vertexPos + 0.5f * dist * p.normal;
@@ -216,35 +217,95 @@ namespace Physics
     }
 
 
-    void ResolveInterpenetration(CollisionData& contact, Entity* a, Entity* b)
-    {
 
+    // impulsve for lienar motion
+    // impulsive torque for angular motion
+
+    // w is angular velocity
+    // dw = I^-1 * impulsive torque
+
+
+    float CalculateSeparatingVelocity(Entity* a, Entity* b, glm::vec3 contactNormal)
+    {
+        glm::vec3 relativeVelocity = a->velocity;
+        if (!b->flags & EntityFlag_Static)
+        {
+            relativeVelocity -= b->velocity;
+        }
+
+        return glm::dot(relativeVelocity, contactNormal);
     }
 
+    // note separatingVelocity, newSeparatingVelocity, deltaVelocity are all along contact normal
     void ResolveVelocity(CollisionData& contact, Entity* a, Entity* b)
     {
+        float separatingVelocity = CalculateSeparatingVelocity(a, b, contact.normal);
 
-    }
-
-
-
-
-    int Resolve(CollisionData& contact, Entity* a, Entity* b)
-    {
-        float force = 10;
-        if (!(a->flags & EntityFlag_Static))
+        if (separatingVelocity > 0)
         {
-            a->position += 10.0f * contact.normal;
-            a->velocity += force * contact.normal;
+            // no impulse required
+            return;
         }
+
+        float newSeparatingVelocity = -separatingVelocity * 0.5f;
+                
+        float deltaVelocity = newSeparatingVelocity - separatingVelocity;
+
+        float totalInverseMass = a->invMass;
+        if (!b->flags & EntityFlag_Static)
+        {
+            totalInverseMass += b->invMass;
+        }
+
+        if (totalInverseMass <= 0)
+            return;
+
+        float impulse = deltaVelocity / totalInverseMass;
+        glm::vec3 impulsePerInvMass = contact.normal * impulse;
+
+        a->velocity = a->velocity + impulsePerInvMass * a->invMass;
 
         if (!(b->flags & EntityFlag_Static))
         {
-            b->position -= 10.0f * contact.normal;
-            b->velocity -= force * contact.normal;
+            b->velocity = b->velocity - impulsePerInvMass * b->invMass;
         }
-        return 0;
+
+        return;
     }
+
+    void ResolveInterpenetration(CollisionData& contact, Entity* a, Entity* b)
+    {
+        if (contact.penetration < 0)
+        {
+            return;
+        }
+
+        float totalInverseMass = a->invMass;
+        if (!b->flags & EntityFlag_Static)
+        {
+            totalInverseMass += b->invMass;
+        }
+
+        if (totalInverseMass <= 0)
+            return;
+
+        glm::vec3 movePerInvMass = contact.normal * (contact.penetration / totalInverseMass);
+
+        // do we want to resolve position or combine this into the velocity?
+        a->position = a->position + movePerInvMass * a->invMass;
+        if (!b->flags & EntityFlag_Static)
+        {
+            b->position = b->position - movePerInvMass * b->invMass;
+        }
+    }
+
+
+    void Resolve(CollisionData& contact, Entity* a, Entity* b)
+    {
+        ResolveVelocity(contact, a, b);
+        ResolveInterpenetration(contact, a, b);
+    }
+
 
     /*
     bool TestContactInfo(Entity a, Entity b, CollisionData& contact)
