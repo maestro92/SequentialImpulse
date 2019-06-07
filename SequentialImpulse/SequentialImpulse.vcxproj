@@ -1,0 +1,188 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{F47CEBC0-3B4A-4029-92C6-D6204FD657D6}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>FogOfWar</RootNamespace>
+    <ProjectName>SequentialImpulse</ProjectName>
+    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>NotSet</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>NotSet</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+    <IncludePath>$(IncludePath)</IncludePath>
+    <LibraryPath>$(LibraryPath)</LibraryPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;_LIB;_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>./;glm;gui;gui\custom_gui;camera;model;model\builtin_model;renderer;utility;libraries\assimp\include;libraries\freetype;libraries\freetype\freetype;libraries\glew\include;libraries\SDL\include;libraries\SDL_image\include;libraries\json_spirit;C:\Users\mliu\Desktop\boost_1_66_0;C:\Program Files %28x86%29\OpenAL 1.1 SDK\include;libraries\libpng\include</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>opengl32.lib;glu32.lib;glew32.lib;SDL.lib;SDLmain.lib;SDL_image.lib;ws2_32.lib;freetype.lib;legacy_stdio_definitions.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>libraries\glew\lib;libraries\freetype\lib;libraries\SDL\lib;libraries\SDL_image\lib\x86;C:\Program Files %28x86%29\OpenAL 1.1 SDK\libs\Win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <StackReserveSize>
+      </StackReserveSize>
+      <Profile>true</Profile>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;_LIB;_CRT_SECURE_NO_WARNINGS;_WINSOCK_DEPRECATED_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <SDLCheck>true</SDLCheck>
+      <AdditionalIncludeDirectories>./;glm;gui;gui\custom_gui;camera;model;model\builtin_model;renderer;utility;libraries\assimp\include;libraries\freetype;libraries\freetype\freetype;libraries\glew\include;libraries\SDL\include;libraries\SDL_image\include;libraries\json_spirit;C:\Users\Martin\Desktop\boost_1_55_0;C:\Program Files %28x86%29\OpenAL 1.1 SDK\include;libraries\libpng\include</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>opengl32.lib;glu32.lib;glew32.lib;SDL.lib;SDLmain.lib;SDL_image.lib;ws2_32.lib;freetype.lib;legacy_stdio_definitions.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>libraries\glew\lib;libraries\freetype\lib;libraries\SDL\lib;libraries\SDL_image\lib\x86;C:\Program Files %28x86%29\OpenAL 1.1 SDK\libs\Win32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="camera.cpp" />
+    <ClCompile Include="entity.cpp" />
+    <ClCompile Include="global.cpp" />
+    <ClCompile Include="gui\custom_gui\bar.cpp" />
+    <ClCompile Include="libraries\json_spirit\json_spirit_reader.cpp" />
+    <ClCompile Include="libraries\json_spirit\json_spirit_value.cpp" />
+    <ClCompile Include="libraries\json_spirit\json_spirit_writer.cpp" />
+    <ClCompile Include="gui\button.cpp" />
+    <ClCompile Include="gui\control.cpp" />
+    <ClCompile Include="gui\gui_manager.cpp" />
+    <ClCompile Include="gui\label.cpp" />
+    <ClCompile Include="gui\list_box.cpp" />
+    <ClCompile Include="gui\slider.cpp" />
+    <ClCompile Include="gui\text_engine.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="model\builtin_model\cube_model.cpp" />
+    <ClCompile Include="model\builtin_model\quad_model.cpp" />
+    <ClCompile Include="model\builtin_model\xyz_axis_model.cpp" />
+    <ClCompile Include="model\model.cpp" />
+    <ClCompile Include="model\model_manager.cpp" />
+    <ClCompile Include="pipeline.cpp" />
+    <ClCompile Include="renderer\renderer.cpp" />
+    <ClCompile Include="renderer\renderer_manager.cpp" />
+    <ClCompile Include="render_component.cpp" />
+    <ClCompile Include="shader.cpp" />
+    <ClCompile Include="transform_component.cpp" />
+    <ClCompile Include="utility\utility.cpp" />
+    <ClCompile Include="utility\utility_debug.cpp" />
+    <ClCompile Include="utility\utility_gl.cpp" />
+    <ClCompile Include="utility\utility_gl_uni_loc.cpp" />
+    <ClCompile Include="utility\utility_math.cpp" />
+    <ClCompile Include="utility\utility_sdl.cpp" />
+    <ClCompile Include="utility\utility_json.cpp" />
+    <ClCompile Include="utility\utility_time.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="camera.h" />
+    <ClInclude Include="entity.h" />
+    <ClInclude Include="game.h" />
+    <ClInclude Include="game_rendering.h" />
+    <ClInclude Include="global.h" />
+    <ClInclude Include="gui\custom_gui\bar.h" />
+    <ClInclude Include="gui\gui_renderer_constants.h" />
+    <ClInclude Include="libraries\json_spirit\json_spirit.h" />
+    <ClInclude Include="libraries\json_spirit\json_spirit_error_position.h" />
+    <ClInclude Include="libraries\json_spirit\json_spirit_reader.h" />
+    <ClInclude Include="libraries\json_spirit\json_spirit_reader_template.h" />
+    <ClInclude Include="libraries\json_spirit\json_spirit_stream_reader.h" />
+    <ClInclude Include="libraries\json_spirit\json_spirit_utils.h" />
+    <ClInclude Include="libraries\json_spirit\json_spirit_value.h" />
+    <ClInclude Include="libraries\json_spirit\json_spirit_writer.h" />
+    <ClInclude Include="libraries\json_spirit\json_spirit_writer_options.h" />
+    <ClInclude Include="libraries\json_spirit\json_spirit_writer_template.h" />
+    <ClInclude Include="define.h" />
+    <ClInclude Include="gui\button.h" />
+    <ClInclude Include="gui\control.h" />
+    <ClInclude Include="gui\gui_manager.h" />
+    <ClInclude Include="gui\label.h" />
+    <ClInclude Include="gui\list_box.h" />
+    <ClInclude Include="gui\rect.h" />
+    <ClInclude Include="gui\slider.h" />
+    <ClInclude Include="gui\text_engine.h" />
+    <ClInclude Include="main.h" />
+    <ClInclude Include="model\builtin_model\cube_model.h" />
+    <ClInclude Include="model\builtin_model\quad_model.h" />
+    <ClInclude Include="model\builtin_model\xyz_axis_model.h" />
+    <ClInclude Include="model\mesh.h" />
+    <ClInclude Include="model\model.h" />
+    <ClInclude Include="model\model_constant.h" />
+    <ClInclude Include="model\model_enum.h" />
+    <ClInclude Include="model\model_manager.h" />
+    <ClInclude Include="model\texture.h" />
+    <ClInclude Include="model\vertex_data.h" />
+    <ClInclude Include="physics.h" />
+    <ClInclude Include="physics_core.h" />
+    <ClInclude Include="platform.h" />
+    <ClInclude Include="renderer\renderer_constants.h" />
+    <ClInclude Include="render_component.h" />
+    <ClInclude Include="transform_component.h" />
+    <ClInclude Include="utility\utility_debug.h" />
+    <ClInclude Include="utility\utility_gl.h" />
+    <ClInclude Include="utility\utility_gl_uni_loc.h" />
+    <ClInclude Include="utility\utility_json.h" />
+    <ClInclude Include="utility\utility_math.h" />
+    <ClInclude Include="utility\utility_sdl.h" />
+    <ClInclude Include="pipeline.h" />
+    <ClInclude Include="renderer\renderer.h" />
+    <ClInclude Include="renderer\renderer_manager.h" />
+    <ClInclude Include="shader.h" />
+    <ClInclude Include="utility\utility.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
