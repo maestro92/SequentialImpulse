@@ -185,6 +185,7 @@ struct Entity
             orientation2 = glm::normalize(orientation2);
         }
 
+        // still need to verify whether this is correct
         void transformInertiaTensor()
         {
             // convert this to world coordinates

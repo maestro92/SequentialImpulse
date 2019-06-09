@@ -11,7 +11,6 @@ using namespace std;
 #include "model_constant.h"
 #include "model.h"
 #include "quad_model.h"
-#include "xyz_axis_model.h"
 
 
 #include "json_spirit.h"

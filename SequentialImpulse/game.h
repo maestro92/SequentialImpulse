@@ -90,25 +90,25 @@ namespace GameCode
                 {
                     
                     gameState->draggedEntity = entity;
-                    /*
+                    
                     cout << "selecting entity " << entity->id << endl;
                     gameState->draggedEntity = entity;
 
 
-                    glm::vec3 vecToForce = glm::vec3(raycastDirection.x, raycastDirection.y, 0) - entity->position;
-//                    glm::vec3 vecToForce = glm::vec3(0, -5, 0);
+//                    glm::vec3 vecToForce = glm::vec3(raycastDirection.x, raycastDirection.y, 0) - entity->position;
+                    glm::vec3 vecToForce = glm::vec3(0, -5, 0);
 
                     glm::vec3 zAxis = glm::vec3(0, 0, 1);
                     glm::vec3 force = 1000.0f * glm::cross(vecToForce, zAxis);
 
-                    utl::debug("        vecToForce ", vecToForce);
-                    utl::debug("        force is ", force);
+                //    utl::debug("        vecToForce ", vecToForce);
+                //    utl::debug("        force is ", force);
 
                     
                     appliedForce = true;
-                    entity->addForce(force);
+            //        entity->addForce(force);
                     entity->addTorqueFromForce(force, vecToForce);
-                    */
+                    
 
 
                 }                
@@ -175,7 +175,7 @@ namespace GameCode
         // the box
         int x = 0;
         int y = 10;
-        int size = 1;
+        int size = 5;
         index = gameState->numEntities++;
         entity = &gameState->entities[index];
         entity->id = index;
@@ -379,7 +379,10 @@ namespace GameCode
         {
             entity->angularVelocity = glm::vec3(0.0);
         }
-
+        else
+        {
+            utl::debug("entity->angularVelocity", entity->angularVelocity);
+        }
 
         float angularMag = glm::length(entity->angularVelocity);
         if (angularMag != 0)
@@ -420,6 +423,9 @@ namespace GameCode
         utl::debug("         entity->orientation ", entity->orientation);
         */
         
+
+
+
         // update matrices with the new position and orientation
         entity->forceAccum = glm::vec3(0, 0, 0);
         entity->torqueAccum = glm::vec3(0, 0, 0);        
@@ -450,7 +456,7 @@ namespace GameCode
             {
                 Entity* entity = &gameState->entities[i];
                 {
-                    gameState->entities[i].velocity += GRAVITY;
+   //                 gameState->entities[i].velocity += GRAVITY;
                 }
                 
 
@@ -490,7 +496,15 @@ namespace GameCode
                     CopyContactPoints(gameState, &contact);
 
                     cout << "Resolving contact" << endl;
-                    Physics::Resolve(contact, &gameState->entities[i], &gameState->entities[j]);
+
+                    if (gameState->entities[j].flags & EntityFlag_Static)
+                    {
+                        Physics::Resolve(contact, &gameState->entities[i], NULL);
+                    }
+                    else
+                    {
+                        Physics::Resolve(contact, &gameState->entities[i], &gameState->entities[j]);
+                    }
                 }
                 
                 

@@ -108,7 +108,6 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="model\builtin_model\cube_model.cpp" />
     <ClCompile Include="model\builtin_model\quad_model.cpp" />
-    <ClCompile Include="model\builtin_model\xyz_axis_model.cpp" />
     <ClCompile Include="model\model.cpp" />
     <ClCompile Include="model\model_manager.cpp" />
     <ClCompile Include="pipeline.cpp" />
@@ -156,7 +155,6 @@
     <ClInclude Include="main.h" />
     <ClInclude Include="model\builtin_model\cube_model.h" />
     <ClInclude Include="model\builtin_model\quad_model.h" />
-    <ClInclude Include="model\builtin_model\xyz_axis_model.h" />
     <ClInclude Include="model\mesh.h" />
     <ClInclude Include="model\model.h" />
     <ClInclude Include="model\model_constant.h" />

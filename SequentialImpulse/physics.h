@@ -218,6 +218,16 @@ namespace Physics
 
 
 
+
+
+
+
+
+
+
+
+
+
     // impulsve for lienar motion
     // impulsive torque for angular motion
 
@@ -237,7 +247,7 @@ namespace Physics
     }
 
     // note separatingVelocity, newSeparatingVelocity, deltaVelocity are all along contact normal
-    void ResolveVelocity(CollisionData& contact, Entity* a, Entity* b)
+    void ResolveVelocityLinearOnly(CollisionData& contact, Entity* a, Entity* b)
     {
         float separatingVelocity = CalculateSeparatingVelocity(a, b, contact.normal);
 
@@ -273,7 +283,7 @@ namespace Physics
         return;
     }
 
-    void ResolveInterpenetration(CollisionData& contact, Entity* a, Entity* b)
+    void ResolveInterpenetrationLinearOnly(CollisionData& contact, Entity* a, Entity* b)
     {
         if (contact.penetration < 0)
         {
@@ -299,36 +309,225 @@ namespace Physics
         }
     }
 
+    /*
+    14.2.1
+    inverting a matrix is complex yet, if your matrix is only rotation, and it doesnt have translational
+    also no skewing or scaling, since our rotation matrix is orthonormal, then the transpose is the same as 
+    the inverse
+    */
 
-    void Resolve(CollisionData& contact, Entity* a, Entity* b)
+    glm::mat4 CreateContactCoordinateBasis(CollisionData& contact)
     {
-        ResolveVelocity(contact, a, b);
-        ResolveInterpenetration(contact, a, b);
+        // page 311
+        // since we are in 2d, our z axis is just pointing out of the world
+        glm::vec3 xAxis = contact.normal;
+        glm::vec3 zAxis = glm::vec3(0, 0, 1);
+        glm::vec3 yAxis = glm::cross(zAxis, xAxis);
+    
+        // world to contact local matrix
+        return utl::axes2GLMMat(xAxis, yAxis, zAxis);    
     }
 
 
+
+
+
+
+
+
+
+
+    // 
+
     /*
-    bool TestContactInfo(Entity a, Entity b, CollisionData& contact)
-    {
-        if (a.entityType == EntityType::Floor && b.entityType == EntityType::Box)
-        {
-            glm::vec3 bCenter = b.position + b.physBody.obb.center;
-            PhysBodyTransform bTransform = { bCenter , b.orientation };
-            PhysBodyTransform aTransform = { a.position, a.orientation };
+    1. we work in a set of coordinates that are relative to the contact
+        this makes the math a lot simpler. 
+          
+        This is because we arent interested in the linear and angular velocity of the whole object
+        we will be first resolving velocity of contact points, then through the 
+        contact points, we will change the velocity and rotation of the object
 
-            return TestOBBPlane(b.physBody.obb, bTransform, a.physBody.plane, aTransform);
-        }
-        else if (a.entityType == EntityType::Box && b.entityType == EntityType::Floor)
-        {
-            glm::vec3 aCenter = a.position + a.physBody.obb.center;
-            PhysBodyTransform aTransform = { aCenter , a.orientation };
-            PhysBodyTransform bTransform = { b.position , b.orientation };
+        the idea is that the physics model we are simulating is, the change in motion of both objects
+        in a collision is caused by the forces generated at the collision point by compression and 
+        deformation. Because we are representing the whole collision event as a single moment in time,
+        we are gonna do it through impulses, rather then forces
 
-            return TestOBBPlane(a.physBody.obb, aTransform, b.physBody.plane, bTransform);
-        }
-        return false;
-    };
+
+    2. GOAL: compute what impulse we need to apply after the collision
+           
+        for frictionless contacts, the only impulses generated at the contact are applied along the contact normal
+        so we have linear and angular
+
+        the linear part, we use an impulse
+
+        for the angular part, you get an impulsive torque from the impulse
+
+        and equation 9.5 tells us the velocity of a point (again, here we are concerned with the contact point,
+        not the object)
+                    
+        so we a have a set of equations that goes from 
+        impulse, via the impulsive torque it generates, the angular velocity that the torque causes, then finally
+        the linear velocity that results.
+
+
+        so three steps
+
+        torqueFromImpulsve 
+        angularVelocityFromTorque
+        velocityFromAngualrVelocity
+
+        transform this velocity into contact coordinates
+
+
+        
+        so for each object in the collision, we can find the change in velocity of the contact point 
+        for contacts with two objects, we have four values,
+        the velocity caused by the linear motion and by angular motion.
+
+        we will add the resulting values together to get an overall change in velocity per unit impulse.
+
+
+
+
+        we are not intersted in the linear and angular velocity of the whole object
+        we are only interested in the separating velocity of the contact points
+
+
+
+
+
+
+
+            the idea is to calculate impulse
+            we have current relative velocity
+            we calcualte the desired new separating velocity
+            impulse = vel - vel2;
+    
+    
+    
     */
+
+
+
+
+    float CalculateDeltaVelocity(glm::vec3 contactPoint, glm::vec3 normal,
+        Entity* a, Entity* b, glm::mat4 worldToContact)
+    {
+        glm::vec3 relativeContactPointA = contactPoint - a->position;
+
+        // velocity induced from angular part
+        glm::vec3 closingVelocity = glm::cross(a->angularVelocity, relativeContactPointA);
+        closingVelocity += a->velocity;
+
+        if (b != NULL)
+        {
+            glm::vec3 relativeContactPointB = contactPoint - b->position;
+            closingVelocity = glm::cross(b->angularVelocity, relativeContactPointB);
+            closingVelocity += b->velocity;
+        }
+
+        glm::mat3 worldToContact3x3 = glm::mat3(worldToContact);
+
+        glm::vec3 closingVelocityInContactCoordinate = worldToContact3x3 * closingVelocity;
+
+        return -closingVelocityInContactCoordinate.x * (1 + 0.5);
+    }
+
+
+    // we will do the same thing in ResolveVelocityLinearOnly
+    // we calcualte the desired separating velocity, deltaV
+    // then calcualte the impulse for each contact point 
+
+    // TODO: accout for physbody offset
+    glm::vec3 CalculateFrictionlessImpulse(glm::vec3 contactPoint, glm::vec3 normal,
+        Entity* a, Entity* b, glm::mat4 worldToContact)
+    {
+        glm::vec3 relativeContactPointA = contactPoint - a->position;
+        glm::vec3 deltaVelocityPerUnitImpulseWorldCoordinate = glm::cross(relativeContactPointA, normal);
+        deltaVelocityPerUnitImpulseWorldCoordinate = a->inverseInertiaTensor * deltaVelocityPerUnitImpulseWorldCoordinate;
+        deltaVelocityPerUnitImpulseWorldCoordinate = glm::cross(deltaVelocityPerUnitImpulseWorldCoordinate, relativeContactPointA);
+
+        float deltaVelocityPerUnitImpulse = glm::dot(deltaVelocityPerUnitImpulseWorldCoordinate, normal);
+
+        deltaVelocityPerUnitImpulse += a->invMass;
+
+        if (b != NULL)
+        {
+            glm::vec3 relativeContactPointB = contactPoint - b->position;
+            // ######### should I use -normal here?
+            deltaVelocityPerUnitImpulseWorldCoordinate = glm::cross(relativeContactPointB, -normal);
+            deltaVelocityPerUnitImpulseWorldCoordinate = b->inverseInertiaTensor * deltaVelocityPerUnitImpulseWorldCoordinate;
+            deltaVelocityPerUnitImpulseWorldCoordinate = glm::cross(deltaVelocityPerUnitImpulseWorldCoordinate, relativeContactPointB);
+
+            deltaVelocityPerUnitImpulse += glm::dot(deltaVelocityPerUnitImpulseWorldCoordinate, -normal);
+            deltaVelocityPerUnitImpulse += b->invMass;
+        }
+
+        
+        // compute desired separating velocity
+        float deltaVelocity = CalculateDeltaVelocity(contactPoint, normal, a, b, worldToContact);
+
+        glm::vec3 impulse(deltaVelocity / deltaVelocityPerUnitImpulse, 0, 0);
+
+
+        impulse = glm::vec3(glm::inverse(worldToContact) * glm::vec4(impulse.x, impulse.y, impulse.z, 0));
+        return impulse;
+    }
+
+
+
+
+
+    void ResolveVelocityForConactPoint(glm::vec3 contactPoint, glm::vec3 normal,
+        Entity* a, Entity* b, glm::mat4 worldToContact)
+    {
+        glm::vec3 impulse = CalculateFrictionlessImpulse(contactPoint, normal, a, b, worldToContact);
+
+        glm::vec3 relativeContactPointA = contactPoint - a->position;
+        glm::vec3 velocityChange = impulse * a->invMass;
+        glm::vec3 impulsiveTorque = glm::cross(impulse, relativeContactPointA);
+
+        glm::vec3 angularVelocityChange = a->inverseInertiaTensor * impulsiveTorque;
+
+        a->velocity += velocityChange;
+        a->angularVelocity += angularVelocityChange;
+
+        if (b != NULL)
+        {
+
+        }
+
+    }
+
+    // move both objects in the direction of the contact normal until they are no longer 
+    // interpenetrating. The movement is both linear and augular
+    // penetration depth of the contact is the total amount of movement we need to resolve
+    // our goal is to find the proportion of this movement that will be contributed by linear and angular motion
+    // for each object.
+    void ResolveInterpenetrationForContactPoint(CollisionData& contact)
+    {
+
+    }
+
+
+    // equation 9.5 is crucial
+    // q_vel = angular_velocity x (q_pos - object_origin) + object_velo [9.5]
+
+    void Resolve(CollisionData& contact, Entity* a, Entity* b)
+    {
+    //    ResolveVelocityLinearOnly(contact, a, b);
+    //    ResolveInterpenetrationLinearOnly(contact, a, b);
+    
+        glm::mat4 worldToContact = CreateContactCoordinateBasis(contact);
+        for (int i = 0; i < contact.numContactPoints; i++)
+        {
+            ResolveVelocityForConactPoint(contact.contactPoints[i], contact.normal, a, b, worldToContact);
+//            ResolveInterpenetration();
+
+        }
+    }
+
+
 
     void GenerateContactInfo(Entity a, Entity b, CollisionData& contact)
     {        

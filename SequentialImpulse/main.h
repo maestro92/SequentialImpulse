@@ -34,7 +34,6 @@
 #include "renderer_constants.h"
 
 #include "quad_model.h"
-#include "xyz_axis_model.h"
 #include "entity.h"
 #include "model_manager.h"
 

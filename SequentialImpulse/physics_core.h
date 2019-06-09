@@ -15,6 +15,9 @@ namespace Physics
         glm::mat4 orientation;
     };
 
+    // assuming all contact points have the same normal. 
+    // for this application, this may be true
+    // for for advance complicated convex shape, this wont be
     struct CollisionData
     {
         glm::vec3 normal;
@@ -31,6 +34,7 @@ namespace Physics
             penetration = 0;
         }
     };
+
 
     struct Sphere
     {
