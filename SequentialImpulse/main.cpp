@@ -224,8 +224,8 @@ void FogOfWar::start()
     GameCode::init(&gameState);
 
 
-    gameState.mainCamera.setPanningBounds(glm::vec3(-5,-5,-5), glm::vec3(50, 50, 50));
-    gameState.mainCamera.setPos(glm::vec3(-5, -5, 0));
+    gameState.mainCamera.setPanningBounds(glm::vec3(-50,-50,-50), glm::vec3(50, 50, 50));
+    gameState.mainCamera.setPos(glm::vec3(-5, 5, 0));
     gameState.mainCamera.setZoom(20);
 
 

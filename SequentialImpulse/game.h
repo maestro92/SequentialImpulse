@@ -91,6 +91,7 @@ namespace GameCode
                     
                     gameState->draggedEntity = entity;
                     
+                    /*
                     cout << "selecting entity " << entity->id << endl;
                     gameState->draggedEntity = entity;
 
@@ -108,7 +109,7 @@ namespace GameCode
                     appliedForce = true;
             //        entity->addForce(force);
                     entity->addTorqueFromForce(force, vecToForce);
-                    
+                    */
 
 
                 }                
@@ -175,7 +176,10 @@ namespace GameCode
         // the box
         int x = 0;
         int y = 10;
-        int size = 5;
+        int size = 3;
+        int w = size * 2;
+        int h = size;
+        int d = 1;
         index = gameState->numEntities++;
         entity = &gameState->entities[index];
         entity->id = index;
@@ -194,12 +198,12 @@ namespace GameCode
         
         entity->orientation2 = glm::toQuat(entity->orientation);
 
-        entity->scale = glm::vec3(size, size, size);
+        entity->scale = glm::vec3(w, h, d);
 
         entity->velocityDamping = 0.80f;
         entity->angularDamping = 0.80f;
 
-        entity->inertiaTensor = Physics::GetBoxInertiaTensor(entity->mass, size * 2, size * 2, size * 2);
+        entity->inertiaTensor = Physics::GetBoxInertiaTensor(entity->mass, w * 2, h * 2, d * 2);
         entity->transformInertiaTensor();
         
         
@@ -211,7 +215,7 @@ namespace GameCode
         entity->physBody.obb.axes[0] = glm::vec3(1, 0, 0);
         entity->physBody.obb.axes[1] = glm::vec3(0, 1, 0);
         entity->physBody.obb.axes[2] = glm::vec3(0, 0, 1);
-        entity->physBody.obb.halfEdges = glm::vec3(size, size, size);
+        entity->physBody.obb.halfEdges = glm::vec3(w, h, d);
         
 
 
@@ -375,13 +379,17 @@ namespace GameCode
         // damping
         entity->angularVelocity = entity->angularDamping * entity->angularVelocity;
 
+        bool printflag = false;
         if (glm::length(entity->angularVelocity) < 0.01)
         {
             entity->angularVelocity = glm::vec3(0.0);
         }
         else
         {
-            utl::debug("entity->angularVelocity", entity->angularVelocity);
+            printflag = true;
+    //        utl::debug("entity->angularVelocity", entity->angularVelocity);
+    //        utl::debug("entity->angularAcceleration", entity->angularAcceleration);
+    //        utl::debug("entity->inverseInertiaTensor", entity->inverseInertiaTensor);
         }
 
         float angularMag = glm::length(entity->angularVelocity);
@@ -423,8 +431,12 @@ namespace GameCode
         utl::debug("         entity->orientation ", entity->orientation);
         */
         
-
-
+        /*
+        if (printflag)
+        {
+            utl::debug("I is ", entity->inverseInertiaTensor);
+        }
+        */
 
         // update matrices with the new position and orientation
         entity->forceAccum = glm::vec3(0, 0, 0);
@@ -432,6 +444,7 @@ namespace GameCode
 
         entity->orientation = glm::toMat4(entity->orientation2);
 
+        // not really needed in 2D, but we will keep this code for completeness
         entity->transformInertiaTensor();
     }
 
@@ -456,15 +469,8 @@ namespace GameCode
             {
                 Entity* entity = &gameState->entities[i];
                 {
-   //                 gameState->entities[i].velocity += GRAVITY;
+                    gameState->entities[i].velocity += GRAVITY;
                 }
-                
-
-            //    gameState->entities[i].addForce(GRAVITY);
-            
-                // gravity doesnt exert torque
-                // gameState->entities[i].addTorque(GRAVITY);
-
             }
         }
         

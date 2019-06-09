@@ -485,12 +485,18 @@ namespace Physics
 
         glm::vec3 relativeContactPointA = contactPoint - a->position;
         glm::vec3 velocityChange = impulse * a->invMass;
-        glm::vec3 impulsiveTorque = glm::cross(impulse, relativeContactPointA);
+        glm::vec3 impulsiveTorque = glm::cross(relativeContactPointA, impulse);
 
         glm::vec3 angularVelocityChange = a->inverseInertiaTensor * impulsiveTorque;
 
         a->velocity += velocityChange;
         a->angularVelocity += angularVelocityChange;
+
+
+        utl::debug("impulse ", impulse);
+        utl::debug("impulsiveTorque ", impulsiveTorque);
+        utl::debug("velocityChange ", velocityChange);
+        utl::debug("angularVelocityChange ", angularVelocityChange);
 
         if (b != NULL)
         {
