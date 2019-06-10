@@ -90,7 +90,7 @@ namespace GameRendering
         {
             render(global.modelMgr->get(ModelEnum::xyzAxis), gameState->mainCamera.getPipeline(),
                 gameState->entities[i].position,
-                gameState->entities[i].orientation,
+                gameState->entities[i].orientationMat,
                 gameState->entities[i].scale,
                 p_renderer);
         }

@@ -35,6 +35,25 @@ namespace Physics
         }
     };
 
+    struct ContactPoint
+    {
+        glm::vec3 position;
+        glm::vec3 normal;
+        float penetration;
+        glm::vec3 relativeContactPositions[2];
+
+
+        ContactPoint()
+        {
+            position = glm::vec3(0.0);
+            normal = glm::vec3(0.0);
+            penetration = 0;
+            relativeContactPositions[0] = glm::vec3(0.0);
+            relativeContactPositions[1] = glm::vec3(0.0);
+        }
+    };
+
+
 
     struct Sphere
     {

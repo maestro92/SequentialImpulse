@@ -439,33 +439,30 @@ namespace Physics
     // then calcualte the impulse for each contact point 
 
     // TODO: accout for physbody offset
-    glm::vec3 CalculateFrictionlessImpulse(glm::vec3 contactPoint, glm::vec3 normal,
-        Entity* a, Entity* b, glm::mat4 worldToContact)
+    glm::vec3 CalculateFrictionlessImpulse(ContactPoint& cp, glm::mat4 worldToContact, Entity* a, Entity* b)
     {
-        glm::vec3 relativeContactPointA = contactPoint - a->position;
-        glm::vec3 deltaVelocityPerUnitImpulseWorldCoordinate = glm::cross(relativeContactPointA, normal);
+        glm::vec3 deltaVelocityPerUnitImpulseWorldCoordinate = glm::cross(cp.relativeContactPositions[0], cp.normal);
         deltaVelocityPerUnitImpulseWorldCoordinate = a->inverseInertiaTensor * deltaVelocityPerUnitImpulseWorldCoordinate;
-        deltaVelocityPerUnitImpulseWorldCoordinate = glm::cross(deltaVelocityPerUnitImpulseWorldCoordinate, relativeContactPointA);
+        deltaVelocityPerUnitImpulseWorldCoordinate = glm::cross(deltaVelocityPerUnitImpulseWorldCoordinate, cp.relativeContactPositions[0]);
 
-        float deltaVelocityPerUnitImpulse = glm::dot(deltaVelocityPerUnitImpulseWorldCoordinate, normal);
+        float deltaVelocityPerUnitImpulse = glm::dot(deltaVelocityPerUnitImpulseWorldCoordinate, cp.normal);
 
         deltaVelocityPerUnitImpulse += a->invMass;
 
         if (b != NULL)
         {
-            glm::vec3 relativeContactPointB = contactPoint - b->position;
             // ######### should I use -normal here?
-            deltaVelocityPerUnitImpulseWorldCoordinate = glm::cross(relativeContactPointB, -normal);
+            deltaVelocityPerUnitImpulseWorldCoordinate = glm::cross(cp.relativeContactPositions[1], -cp.normal);
             deltaVelocityPerUnitImpulseWorldCoordinate = b->inverseInertiaTensor * deltaVelocityPerUnitImpulseWorldCoordinate;
-            deltaVelocityPerUnitImpulseWorldCoordinate = glm::cross(deltaVelocityPerUnitImpulseWorldCoordinate, relativeContactPointB);
+            deltaVelocityPerUnitImpulseWorldCoordinate = glm::cross(deltaVelocityPerUnitImpulseWorldCoordinate, cp.relativeContactPositions[1]);
 
-            deltaVelocityPerUnitImpulse += glm::dot(deltaVelocityPerUnitImpulseWorldCoordinate, -normal);
+            deltaVelocityPerUnitImpulse += glm::dot(deltaVelocityPerUnitImpulseWorldCoordinate, -cp.normal);
             deltaVelocityPerUnitImpulse += b->invMass;
         }
 
         
         // compute desired separating velocity
-        float deltaVelocity = CalculateDeltaVelocity(contactPoint, normal, a, b, worldToContact);
+        float deltaVelocity = CalculateDeltaVelocity(cp.position, cp.normal, a, b, worldToContact);
 
         glm::vec3 impulse(deltaVelocity / deltaVelocityPerUnitImpulse, 0, 0);
 
@@ -478,14 +475,12 @@ namespace Physics
 
 
 
-    void ResolveVelocityForConactPoint(glm::vec3 contactPoint, glm::vec3 normal,
-        Entity* a, Entity* b, glm::mat4 worldToContact)
+    void ResolveVelocityForConactPoint(ContactPoint& cp, glm::mat4 worldToContact, Entity* a, Entity* b)
     {
-        glm::vec3 impulse = CalculateFrictionlessImpulse(contactPoint, normal, a, b, worldToContact);
+        glm::vec3 impulse = CalculateFrictionlessImpulse(cp, worldToContact, a, b);
 
-        glm::vec3 relativeContactPointA = contactPoint - a->position;
         glm::vec3 velocityChange = impulse * a->invMass;
-        glm::vec3 impulsiveTorque = glm::cross(relativeContactPointA, impulse);
+        glm::vec3 impulsiveTorque = glm::cross(cp.relativeContactPositions[0], impulse);
 
         glm::vec3 angularVelocityChange = a->inverseInertiaTensor * impulsiveTorque;
 
@@ -510,10 +505,76 @@ namespace Physics
     // penetration depth of the contact is the total amount of movement we need to resolve
     // our goal is to find the proportion of this movement that will be contributed by linear and angular motion
     // for each object.
-    void ResolveInterpenetrationForContactPoint(CollisionData& contact)
+    void ResolveInterpenetrationForContactPoint(ContactPoint& cp, glm::mat4 worldToContact, Entity* a, Entity* b)
     {
+        Entity* bodies[2] = { a, b };
 
+        float linearInertia[2];
+        float angularInertia[2];
+
+        
+        float totalInertia = 0;
+        for (int i = 0; i < 2; i++)
+        {
+            if (bodies[i])
+            {
+                glm::vec3 impulsiveTorque = glm::cross(cp.relativeContactPositions[i], cp.normal);
+                glm::vec3 angularChange = a->inverseInertiaTensor * impulsiveTorque;
+                glm::vec3 angularInducedVelocity = glm::cross(angularChange, cp.relativeContactPositions[i]);
+
+                angularInertia[i] = glm::dot(angularInducedVelocity, cp.normal);
+                linearInertia[i] = bodies[i]->invMass;
+
+                totalInertia += linearInertia[i] + angularInertia[i];
+            }
+        }
+
+
+        float inverseTotalInertia = 1 / totalInertia;
+        float linearMove[2];
+        float angularMove[2];
+        int sign = 0;
+        for (int i = 0; i < 2; i++)
+        {
+            if (bodies[i])
+            {
+                sign = 1 - 2 * i;
+                linearMove[i] = sign * cp.penetration * linearInertia[i] * inverseTotalInertia;
+                angularMove[i] = sign * cp.penetration * angularInertia[i] * inverseTotalInertia;
+            
+            
+                bodies[i]->position += linearMove[i] * cp.normal;
+
+
+                glm::vec3 impulsiveTorque = glm::cross(cp.relativeContactPositions[i], cp.normal);
+                glm::vec3 angularChangePerUnitImpulseTorque = bodies[i]->inverseInertiaTensor * impulsiveTorque;
+
+
+
+                bodies[i]->updateOrientation(, 1.0f);
+
+            }
+        }
+
+        
     }
+
+
+    void PrepareContactPoint(ContactPoint& cp, glm::vec3 contactPoint, glm::vec3 normal, float penetration,
+                            Entity* a, Entity* b)
+    {
+        cp.position = contactPoint;
+        cp.normal = normal;
+        cp.penetration = penetration;
+
+        cp.relativeContactPositions[0] = contactPoint - a->position;
+
+        if (b != NULL)
+        {
+            cp.relativeContactPositions[1] = contactPoint - b->position;
+        }
+    }
+
 
 
     // equation 9.5 is crucial
@@ -521,15 +582,17 @@ namespace Physics
 
     void Resolve(CollisionData& contact, Entity* a, Entity* b)
     {
-    //    ResolveVelocityLinearOnly(contact, a, b);
-    //    ResolveInterpenetrationLinearOnly(contact, a, b);
-    
+
+        // this is assuming all contacts have the same basis
         glm::mat4 worldToContact = CreateContactCoordinateBasis(contact);
+
         for (int i = 0; i < contact.numContactPoints; i++)
         {
-            ResolveVelocityForConactPoint(contact.contactPoints[i], contact.normal, a, b, worldToContact);
-//            ResolveInterpenetration();
+            ContactPoint cp = {};
+            PrepareContactPoint(cp, contact.contactPoints[i], contact.normal, contact.penetration, a, b);
 
+            ResolveVelocityForConactPoint(cp, worldToContact, a, b);
+            ResolveInterpenetrationForContactPoint(cp, worldToContact, a, b);
         }
     }
 
@@ -540,16 +603,16 @@ namespace Physics
         if (a.entityType == EntityType::Floor && b.entityType == EntityType::Box)
         {
             glm::vec3 bCenter = b.position + b.physBody.obb.center;
-            PhysBodyTransform bTransform = { bCenter , b.orientation};
-            PhysBodyTransform aTransform = { a.position, a.orientation };
+            PhysBodyTransform bTransform = { bCenter , b.orientationMat};
+            PhysBodyTransform aTransform = { a.position, a.orientationMat };
 
             GetOBBPlaneContacts(b.physBody.obb, bTransform, a.physBody.plane, aTransform, contact);
         }
         else if (a.entityType == EntityType::Box && b.entityType == EntityType::Floor)
         {
             glm::vec3 aCenter = a.position + a.physBody.obb.center;
-            PhysBodyTransform aTransform = { aCenter , a.orientation };
-            PhysBodyTransform bTransform = { b.position , b.orientation };
+            PhysBodyTransform aTransform = { aCenter , a.orientationMat };
+            PhysBodyTransform bTransform = { b.position , b.orientationMat };
 
             GetOBBPlaneContacts(a.physBody.obb, aTransform, b.physBody.plane, bTransform, contact);
         }

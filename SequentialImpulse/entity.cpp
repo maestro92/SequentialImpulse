@@ -9,7 +9,7 @@ Entity::Entity()
     position = glm::vec3(0.0, 0.0, 0.0);
     velocity = glm::vec3(0.0, 0.0, 0.0);
     scale = glm::vec3(1.0, 1.0, 1.0);
-    orientation = glm::mat4(1.0);
+    orientationMat = glm::mat4(1.0);
 	
 	m_model = NULL;
 }
@@ -28,7 +28,7 @@ void Entity::renderCore(Pipeline& p, Renderer* r)
 {
 	p.pushMatrix();
 		p.translate(position);
-		p.addMatrix(orientation);
+		p.addMatrix(orientationMat);
 		p.scale(scale);
 		r->setUniLocs(p);
 		m_model->render();

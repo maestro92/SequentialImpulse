@@ -90,7 +90,8 @@ struct Entity
 		glm::vec3 velocity;
         glm::vec3 acceleration;
 		glm::vec3 scale;
-		glm::mat4 orientation;
+        glm::quat orientation;
+        glm::mat4 orientationMat;
 		glm::mat4 modelMatrix;
 
 
@@ -131,7 +132,7 @@ struct Entity
         void renderCore(Pipeline& p, Renderer* r);
 
         
-        glm::quat orientation2;
+
         
         // p211, holds the amount of damping applied to angular motion. Damping
         // is required to remove energy added through numerical instability in the integrator
@@ -167,31 +168,36 @@ struct Entity
         }
         
         void updateOrientation(glm::vec3 angularVelocity, float dtSec)
-        {
-            //    glm::vec3 angularAxis = glm::normalize(entity->angularVelocity);
-
-//    glm::mat4 da = glm::rotate(angularMag, angularAxis);
-
-            
+        {           
             glm::quat q(0, angularVelocity.x * dtSec, angularVelocity.y * dtSec, angularVelocity.z * dtSec);
 
-            q = q * orientation2;
+            q = q * orientation;
 
-            orientation2.w += q.w * 0.5;
-            orientation2.x += q.x * 0.5;
-            orientation2.y += q.y * 0.5;
-            orientation2.z += q.z * 0.5;
+            orientation.w += q.w * 0.5;
+            orientation.x += q.x * 0.5;
+            orientation.y += q.y * 0.5;
+            orientation.z += q.z * 0.5;
 
-            orientation2 = glm::normalize(orientation2);
+            orientation = glm::normalize(orientation);
+
+            SyncOrientationMat();
         }
 
+
+
+        void SyncOrientationMat()
+        {
+            orientationMat = glm::toMat4(orientation);
+        }
+
+        // not really needed in 2D, but we will keep this code for completeness
         // still need to verify whether this is correct
         void transformInertiaTensor()
         {
             // convert this to world coordinates
             // the world 3 axes is just (1,0,0), (0,1,0), and (0,0,1)
 
-            glm::mat3 orientation3x3 = glm::mat3(orientation);
+            glm::mat3 orientation3x3 = glm::mat3(orientationMat);
         //    utl::debug("orientation ", orientation);
         //    utl::debug("orientation3x3 ", orientation3x3);
         //    utl::debug("inertiaTensor ", inertiaTensor);
@@ -202,6 +208,7 @@ struct Entity
 
         //    utl::debug("inverseInertiaTensor ", inverseInertiaTensor);
         }
+
         
 };
 
@@ -223,7 +230,7 @@ inline void Entity::setOrientation(glm::mat4 rot)
                       rot[1][0], rot[1][1], rot[1][2], 0.0,
                       rot[2][0], rot[2][1], rot[2][2], 0.0,
                       0.0,       0.0,       0.0,       1.0};
-    orientation = glm::make_mat4(temp);
+    orientationMat = glm::make_mat4(temp);
 }
 
 
@@ -241,7 +248,7 @@ inline void Entity::resetModel()
 
 inline void Entity::updateModelMatrix()
 {
-	modelMatrix = glm::translate(position) * orientation * glm::scale(scale);
+	modelMatrix = glm::translate(position) * orientationMat * glm::scale(scale);
 }
 
 #endif

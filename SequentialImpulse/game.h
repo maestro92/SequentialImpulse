@@ -86,7 +86,7 @@ namespace GameCode
             if (entity->physBody.type == Physics::PhysBodyType::PB_OBB)
             {
                 
-                if (Physics::testPointInsideOBB2D(raycastDirection, entity->physBody.obb, entity->orientation, entity->position))
+                if (Physics::testPointInsideOBB2D(raycastDirection, entity->physBody.obb, entity->orientationMat, entity->position))
                 {
                     
                     gameState->draggedEntity = entity;
@@ -190,13 +190,9 @@ namespace GameCode
         entity->invMass = 1 / (float)entity->mass;
 
         entity->position = glm::vec3(x, y, 0);
-
-
-
-        entity->orientation = glm::rotate(30.0f, glm::vec3(0, 0, 1));
-    //    entity->orientation2 = glm::quat(30, glm::vec3(0, 0, 1));
-        
-        entity->orientation2 = glm::toQuat(entity->orientation);
+        glm::mat4 om = glm::rotate(30.0f, glm::vec3(0, 0, 1));
+        entity->orientation = glm::toQuat(om);
+        entity->SyncOrientationMat();
 
         entity->scale = glm::vec3(w, h, d);
 
@@ -379,73 +375,23 @@ namespace GameCode
         // damping
         entity->angularVelocity = entity->angularDamping * entity->angularVelocity;
 
-        bool printflag = false;
         if (glm::length(entity->angularVelocity) < 0.01)
         {
             entity->angularVelocity = glm::vec3(0.0);
-        }
-        else
-        {
-            printflag = true;
-    //        utl::debug("entity->angularVelocity", entity->angularVelocity);
-    //        utl::debug("entity->angularAcceleration", entity->angularAcceleration);
-    //        utl::debug("entity->inverseInertiaTensor", entity->inverseInertiaTensor);
         }
 
         float angularMag = glm::length(entity->angularVelocity);
         if (angularMag != 0)
         {
-        //    glm::vec3 angularAxis = glm::normalize(entity->angularVelocity);
-
-        //    glm::mat4 da = glm::rotate(angularMag, angularAxis);
-
             // https://math.stackexchange.com/questions/22437/combining-two-3d-rotations
-          //  entity->orientation = dt_s * glm::rotate(angularMag, angularAxis) * entity->orientation;
-
             entity->updateOrientation(entity->angularVelocity, dt_s);
-
-            /*
-            if (appliedForce)
-            {
-                utl::debug(">>>>>>>>>>>>>> torqueAccum ", entity->torqueAccum);
-                utl::debug("entity->inverseInertiaTensor ", entity->inverseInertiaTensor);
-                
-                utl::debug("angularMag ", angularMag);
-
-                utl::debug("angularMag ", angularMag);
-                utl::debug("angularAxis ", angularAxis);
-                utl::debug("entity->angularAcceleration ", entity->angularAcceleration);
-
-                utl::debug("entity->angularVelocity ", entity->angularVelocity);
-                utl::debug("da ", da);
-            }
-            */
+            entity->transformInertiaTensor();
         }
         
-
-        /*
-        utl::debug("        glm::rotate(angularMag, angularAxis) ", glm::rotate(angularMag, angularAxis));
-
-
-        
-        utl::debug("         entity->orientation ", entity->orientation);
-        */
-        
-        /*
-        if (printflag)
-        {
-            utl::debug("I is ", entity->inverseInertiaTensor);
-        }
-        */
 
         // update matrices with the new position and orientation
         entity->forceAccum = glm::vec3(0, 0, 0);
         entity->torqueAccum = glm::vec3(0, 0, 0);        
-
-        entity->orientation = glm::toMat4(entity->orientation2);
-
-        // not really needed in 2D, but we will keep this code for completeness
-        entity->transformInertiaTensor();
     }
 
 
