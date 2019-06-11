@@ -507,14 +507,15 @@ namespace Physics
     // penetration depth of the contact is the total amount of movement we need to resolve
     // our goal is to find the proportion of this movement that will be contributed by linear and angular motion
     // for each object.
-    void ResolveInterpenetrationForContactPoint(ContactPoint& cp, glm::mat4 worldToContact, Entity* a, Entity* b)
+    void ResolveInterpenetrationForContactPoint(ContactPoint& cp, glm::mat4 worldToContact, Entity* a, Entity* b,
+                                                glm::vec3 linearChange[2], glm::vec3 angularChange[2])
     {
         Entity* bodies[2] = { a, b };
 
         float linearInertia[2];
         float angularInertia[2];
 
-        
+        utl::debug(">>>>>> cp Penetration", cp.penetration);
         float totalInertia = 0;
         for (int i = 0; i < 2; i++)
         {
@@ -543,24 +544,28 @@ namespace Physics
                 sign = 1 - 2 * i;
                 linearMove[i] = sign * cp.penetration * linearInertia[i] * inverseTotalInertia;
                 angularMove[i] = sign * cp.penetration * angularInertia[i] * inverseTotalInertia;
-            
-            
-                bodies[i]->position += linearMove[i] * cp.normal;
+
+                linearChange[i] = cp.normal * linearMove[i];
+                bodies[i]->position += linearChange[i];
+
+                if (angularMove[i] != 0)
+                {
+                    glm::vec3 impulsiveTorque = glm::cross(cp.relativeContactPositions[i], cp.normal);
+                    glm::vec3 angularChangePerUnitImpulseTorque = bodies[i]->inverseInertiaTensor * impulsiveTorque;
 
 
-                glm::vec3 impulsiveTorque = glm::cross(cp.relativeContactPositions[i], cp.normal);
-                glm::vec3 angularChangePerUnitImpulseTorque = bodies[i]->inverseInertiaTensor * impulsiveTorque;
+                    utl::debug("angularMove", angularMove[i]);
+                    utl::debug("angularInertia", angularInertia[i]);
 
+                    // this is the impulses needed to cover angularMove amount of distance
+                    float impulseNeeded = angularMove[i] / angularInertia[i];
 
-                // utl::debug("angularMove", angularMove[i]);
-                // utl::debug("angularInertia", angularInertia[i]);
+                    glm::vec3 rotation = impulseNeeded * angularChangePerUnitImpulseTorque;
 
-                // this is the impulses needed to cover angularMove amount of distance
-                float impulseNeeded = angularMove[i] / angularInertia[i];
+                    angularChange[i] = rotation;
 
-                glm::vec3 rotation = impulseNeeded * angularChangePerUnitImpulseTorque;
-                // utl::debug("rotation", rotation);
-                bodies[i]->updateOrientation(rotation, 1.0f);
+                    bodies[i]->updateOrientation(rotation, 1.0f);
+                }
             }
         }
 
@@ -575,6 +580,11 @@ namespace Physics
         cp.normal = normal;
         cp.penetration = penetration;
 
+        if (abs(cp.penetration) < 0.0001)
+        {
+            cp.penetration = 0;
+        }
+
         cp.relativeContactPositions[0] = contactPoint - a->position;
 
         if (b != NULL)
@@ -583,6 +593,54 @@ namespace Physics
         }
     }
 
+    // to calcualte the new penetration value, we calculate the new position of the relative contact point
+    // for each object, based on the linear and angular movements we applied.
+
+    // i am assuming all the contact points come from entity a or entity b
+    // not sure if this is the right assumption?
+    void UpdatePenetrations(ContactPoint* contactPoints, int numContactPoints, Entity* a, Entity* b, 
+                            glm::vec3 linearChange[2], glm::vec3 angularChange[2])
+    {
+        Entity* bodies[2] = { a, b };
+        for (int i = 0; i < numContactPoints; i++)
+        {
+            ContactPoint* cp = &contactPoints[i];
+
+            for (int j = 0; j < 2; j++)
+            {
+                if (bodies)
+                {
+                    int sign = j?1:-1;
+
+                    glm::vec3 deltaPosition = linearChange[j] + glm::cross(angularChange[j], cp->relativeContactPositions[j]);
+                    cp->penetration += sign * glm::dot(deltaPosition, cp->normal);
+
+                    if (abs(cp->penetration) < 0.0001)
+                    {
+                        cp->penetration = 0;
+                    }
+                }
+            }
+        }
+    }
+
+
+    ContactPoint* FindWorstContacts(ContactPoint* contactPoints, int numContactPoints)
+    {
+        ContactPoint* worstContact = NULL;
+        float worstPenetration = 0;
+        // find worst contact
+        for (int j = 0; j < numContactPoints; j++)
+        {
+            if (contactPoints[j].penetration > worstPenetration)
+            {
+                worstContact = &contactPoints[j];
+                worstPenetration = contactPoints[j].penetration;
+            }
+        }
+
+        return worstContact;
+    }
 
 
     // equation 9.5 is crucial
@@ -594,18 +652,68 @@ namespace Physics
         // this is assuming all contacts have the same basis
         glm::mat4 worldToContact = CreateContactCoordinateBasis(contact);
 
-        // cout << "########## resolving " << contact.numContactPoints << " contact points" << endl;
 
+        // make this memory stable
+        ContactPoint* contactPoints = new ContactPoint[contact.numContactPoints];
+
+        // PrepareContacts();
+        for (int i = 0; i < contact.numContactPoints; i++)
+        {
+            PrepareContactPoint(contactPoints[i], contact.contactPoints[i], contact.normal, contact.penetration, a, b);
+        }
+
+        cout << "########## resolving " << contact.numContactPoints << " contact points" << endl;
+
+        for (int i = 0; i < contact.numContactPoints; i++)
+        {
+            cout << "           penetration at start up " << contactPoints[i].penetration << endl;
+        }
+
+
+        glm::vec3 linearChange[2];
+        glm::vec3 angularChange[2];
+
+        int iterations = 4;
+        for (int i = 0; i < iterations; i++)
+        {
+            cout << "           iteration " << i << endl;
+            ContactPoint* worstContact = FindWorstContacts(contactPoints, contact.numContactPoints);
+            if (worstContact == NULL)
+            {
+                break;
+            }
+
+            ResolveInterpenetrationForContactPoint(contactPoints[i], worldToContact, a, b, linearChange, angularChange);
+
+            UpdatePenetrations(contactPoints, contact.numContactPoints, a, b, linearChange, angularChange);
+        }
+
+
+        iterations = 1;
+        for (int i = 0; i < iterations; i++)
+        {
+            for (int i = 0; i < contact.numContactPoints; i++)
+            {
+                ResolveVelocityForConactPoint(contactPoints[i], worldToContact, a, b);
+            }
+        }
+        
+
+        //adjustPositions();
+
+        //adjustVelocities();
+
+
+        /*
         for (int i = 0; i < contact.numContactPoints; i++)
         {
             ContactPoint cp = {};
             PrepareContactPoint(cp, contact.contactPoints[i], contact.normal, contact.penetration, a, b);
 
-        //    cp.PrintDebug();
-
             ResolveVelocityForConactPoint(cp, worldToContact, a, b);
             ResolveInterpenetrationForContactPoint(cp, worldToContact, a, b);
         }
+        */
     }
 
 

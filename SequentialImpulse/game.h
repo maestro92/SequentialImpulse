@@ -190,7 +190,9 @@ namespace GameCode
         entity->invMass = 1 / (float)entity->mass;
 
         entity->position = glm::vec3(x, y, 0);
-        glm::mat4 om = glm::rotate(30.0f, glm::vec3(0, 0, 1));
+//        glm::mat4 om = glm::rotate(30.0f, glm::vec3(0, 0, 1));
+        glm::mat4 om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
+
         entity->orientation = glm::toQuat(om);
         entity->SyncOrientationMat();
 
