@@ -358,11 +358,10 @@ namespace GameCode
         /*
         if (entity->velocity != glm::vec3(0.0))
         {
-            utl::debug(">>>> forceAccum ", entity->forceAccum);
-            utl::debug("        dt_s ", dt_s);
-            utl::debug("        length ", glm::length(entity->velocity));
-            utl::debug("        acceleration ", entity->acceleration);
+            utl::debug(">>>> resolving position ", entity->position);
             utl::debug("        velocity ", entity->velocity);
+            utl::debug("        orientation ", entity->orientation);
+            utl::debug("        orientationMat ", entity->orientationMat);
         }
         */
 

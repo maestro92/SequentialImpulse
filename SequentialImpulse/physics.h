@@ -37,6 +37,8 @@ namespace Physics
     }
     */
 
+    float restitution = 0.5;
+
     glm::mat3 GetBoxInertiaTensor(float mass, float xDim, float yDim, float zDim)
     {
         float dx = xDim;
@@ -155,8 +157,7 @@ namespace Physics
                                 glm::vec3(bTransform.orientation * glm::vec4(b.axes[2], 0)) };
 
    //     cout << "in here " << endl;
-        int contactIndex = 0;
-
+        
 //        cout << "bTransform.position " << bTransform.position << endl;
 
   //      utl::debug("bTransform.position", bTransform.position);
@@ -187,12 +188,13 @@ namespace Physics
             
             // compute vertex distance from the plane
 
+            // need to change penetration to be negative, cuz in academic papers, they use that convention
             float dist = p.offset - glm::dot(vertexPos, p.normal);
 
             // normal is from b to a
             if (dist >= 0)
             {
-                contact.contactPoints[contactIndex] = vertexPos + 0.5f * dist * p.normal;
+                contact.contactPoints[contact.numContactPoints] = vertexPos + 0.5f * dist * p.normal;
                 contact.numContactPoints++;
                 contact.normal = p.normal;
                 contact.penetration = dist;
@@ -257,7 +259,7 @@ namespace Physics
             return;
         }
 
-        float newSeparatingVelocity = -separatingVelocity * 0.5f;
+        float newSeparatingVelocity = -separatingVelocity;// *0.5f;
                 
         float deltaVelocity = newSeparatingVelocity - separatingVelocity;
 
@@ -430,7 +432,7 @@ namespace Physics
 
         glm::vec3 closingVelocityInContactCoordinate = worldToContact3x3 * closingVelocity;
 
-        return -closingVelocityInContactCoordinate.x * (1 + 0.5);
+        return -closingVelocityInContactCoordinate.x * (1 + restitution);
     }
 
 
@@ -487,12 +489,12 @@ namespace Physics
         a->velocity += velocityChange;
         a->angularVelocity += angularVelocityChange;
 
-
+        /*
         utl::debug("impulse ", impulse);
         utl::debug("impulsiveTorque ", impulsiveTorque);
         utl::debug("velocityChange ", velocityChange);
         utl::debug("angularVelocityChange ", angularVelocityChange);
-
+        */
         if (b != NULL)
         {
 
@@ -550,9 +552,15 @@ namespace Physics
                 glm::vec3 angularChangePerUnitImpulseTorque = bodies[i]->inverseInertiaTensor * impulsiveTorque;
 
 
+                // utl::debug("angularMove", angularMove[i]);
+                // utl::debug("angularInertia", angularInertia[i]);
 
-                bodies[i]->updateOrientation(, 1.0f);
+                // this is the impulses needed to cover angularMove amount of distance
+                float impulseNeeded = angularMove[i] / angularInertia[i];
 
+                glm::vec3 rotation = impulseNeeded * angularChangePerUnitImpulseTorque;
+                // utl::debug("rotation", rotation);
+                bodies[i]->updateOrientation(rotation, 1.0f);
             }
         }
 
@@ -586,10 +594,14 @@ namespace Physics
         // this is assuming all contacts have the same basis
         glm::mat4 worldToContact = CreateContactCoordinateBasis(contact);
 
+        // cout << "########## resolving " << contact.numContactPoints << " contact points" << endl;
+
         for (int i = 0; i < contact.numContactPoints; i++)
         {
             ContactPoint cp = {};
             PrepareContactPoint(cp, contact.contactPoints[i], contact.normal, contact.penetration, a, b);
+
+        //    cp.PrintDebug();
 
             ResolveVelocityForConactPoint(cp, worldToContact, a, b);
             ResolveInterpenetrationForContactPoint(cp, worldToContact, a, b);

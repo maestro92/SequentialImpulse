@@ -51,6 +51,16 @@ namespace Physics
             relativeContactPositions[0] = glm::vec3(0.0);
             relativeContactPositions[1] = glm::vec3(0.0);
         }
+
+        void PrintDebug()
+        {
+            cout << "########## priting contactpoint " << endl;
+            utl::debug("position", position);
+            utl::debug("normal", normal);
+            utl::debug("penetration", penetration);
+            utl::debug("relativeContactPositions[0]", relativeContactPositions[0]);
+            utl::debug("relativeContactPositions[1]", relativeContactPositions[1]);
+        }
     };
 
 
