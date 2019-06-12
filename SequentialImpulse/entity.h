@@ -93,7 +93,7 @@ struct Entity
         glm::quat orientation;
         glm::mat4 orientationMat;
 		glm::mat4 modelMatrix;
-
+        glm::vec3 lastAcceleration;
 
         glm::vec3 angularVelocity;
         glm::vec3 angularAcceleration;

@@ -35,7 +35,7 @@ struct GameState
 namespace GameCode
 {
     // box2d has it at -10
-    glm::vec3 GRAVITY = glm::vec3(0, -5, 0);
+    glm::vec3 GRAVITY = glm::vec3(0, -10, 0);
     bool appliedForce = false;
 
     void addRandomBall(GameState* gameState)
@@ -198,7 +198,7 @@ namespace GameCode
 
         entity->scale = glm::vec3(w, h, d);
 
-        entity->velocityDamping = 0.80f;
+        entity->velocityDamping = 0.95f;
         entity->angularDamping = 0.80f;
 
         entity->inertiaTensor = Physics::GetBoxInertiaTensor(entity->mass, w * 2, h * 2, d * 2);
@@ -338,6 +338,64 @@ namespace GameCode
 
 
 
+
+    void PreIntegrate(Entity* entity, float dt_s)
+    {
+        // velocity has damping
+        // you can consider removing the damping term altogether if you have lots of entities
+
+    //    entity->lastAcceleration = entity->acceleration;
+        entity->acceleration = entity->forceAccum / entity->mass;
+        entity->velocity += entity->acceleration * dt_s;
+        if (glm::length(entity->velocity) < 0.01)
+        {
+            entity->velocity = glm::vec3(0.0);
+        }
+
+        entity->angularAcceleration = entity->inverseInertiaTensor * entity->torqueAccum;
+        entity->angularVelocity += entity->angularAcceleration * dt_s;
+        entity->angularVelocity = entity->angularDamping * entity->angularVelocity;
+        if (glm::length(entity->angularVelocity) < 0.01)
+        {
+            entity->angularVelocity = glm::vec3(0.0);
+        }
+    }
+
+
+
+
+    void integrate(Entity* entity, float dt_s)
+    {
+        if (glm::length(entity->velocity) < 0.01)
+        {
+            entity->velocity = glm::vec3(0.0);
+        }
+
+        entity->position += dt_s * entity->velocity;
+
+
+
+        if (glm::length(entity->angularVelocity) < 0.01)
+        {
+            entity->angularVelocity = glm::vec3(0.0);
+        }
+
+        float angularMag = glm::length(entity->angularVelocity);
+        if (angularMag != 0)
+        {
+            // https://math.stackexchange.com/questions/22437/combining-two-3d-rotations
+            entity->updateOrientation(entity->angularVelocity, dt_s);
+            entity->transformInertiaTensor();
+        }
+
+
+        // update matrices with the new position and orientation
+        entity->forceAccum = glm::vec3(0, 0, 0);
+        entity->torqueAccum = glm::vec3(0, 0, 0);
+    }
+
+
+#if 0
     // Game Physics Enginer Development 
     // although the proper formula is x' = x + vt + 0.5 * a * t^2
     // 3.31 the acceleration is often neglecgible. so we just ignore the acceleration term
@@ -346,12 +404,22 @@ namespace GameCode
     {        
         // velocity has damping
         // you can consider removing the damping term altogether if you have lots of entities
+        
+    //    entity->lastAcceleration = entity->acceleration;
         entity->acceleration = entity->forceAccum / entity->mass;
+
         entity->velocity += entity->acceleration * dt_s;
 
+       // utl::debug("        acceleration ", entity->acceleration * dt_s);
+       // utl::debug("        velocity ", entity->velocity);
+
+
         // damping 
-        entity->velocity = entity->velocityDamping * entity->velocity;
+        // entity->velocity = entity->velocityDamping * entity->velocity;
         
+       // utl::debug("        after damping velocity ", entity->velocity);
+
+
         if ( glm::length(entity->velocity) < 0.01)
         {
             entity->velocity = glm::vec3(0.0);
@@ -394,7 +462,7 @@ namespace GameCode
         entity->forceAccum = glm::vec3(0, 0, 0);
         entity->torqueAccum = glm::vec3(0, 0, 0);        
     }
-
+#endif
 
     void CopyContactPoints(GameState* gameState, Physics::CollisionData* contact)
     {
@@ -416,11 +484,38 @@ namespace GameCode
             {
                 Entity* entity = &gameState->entities[i];
                 {
-                    gameState->entities[i].velocity += GRAVITY;
+                    gameState->entities[i].forceAccum += gameState->entities[i].mass * GRAVITY;
+
+
+                    // adding drag
+                    glm::vec3 drag = gameState->entities[i].velocity;
+
+
+                    if (glm::length(drag) != 0)
+                    {
+                        float dragCoeff = glm::length(drag);
+                        dragCoeff = 0.1 * dragCoeff;
+
+                        drag = glm::normalize(drag);
+                        drag *= -dragCoeff;
+
+                        gameState->entities[i].forceAccum += drag;
+
+                    //    utl::debug("forceAccum ", gameState->entities[i].forceAccum);
+                    }
                 }
             }
         }
         
+
+        for (int i = 0; i < gameState->numEntities; i++)
+        {
+            if (!(gameState->entities[i].flags & EntityFlag_Static))
+            {
+                PreIntegrate(&gameState->entities[i], gameInput.dt_s);
+            }
+        }
+
 
         for (int i = 0; i < gameState->numEntities; i++)
         {
@@ -448,15 +543,15 @@ namespace GameCode
                 {                    
                     CopyContactPoints(gameState, &contact);
 
-                    cout << "Resolving contact" << endl;
+                    cout << "\n\nResolving contact" << endl;
 
                     if (gameState->entities[j].flags & EntityFlag_Static)
                     {
-                        Physics::Resolve(contact, &gameState->entities[i], NULL);
+                        Physics::Resolve(contact, &gameState->entities[i], NULL, gameInput.dt_s);
                     }
                     else
                     {
-                        Physics::Resolve(contact, &gameState->entities[i], &gameState->entities[j]);
+                        Physics::Resolve(contact, &gameState->entities[i], &gameState->entities[j], gameInput.dt_s);
                     }
                 }
                 
