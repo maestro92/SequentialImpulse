@@ -710,9 +710,9 @@ namespace Physics
                 // change in contact velocity
                 glm::vec3 deltaVelocity = linearChange[i] + glm::cross(angularChange[i], cp.relativeContactPositions[i]);
 
-                glm::mat3 m = glm::mat3(glm::inverse(cp.worldToContact));
+                //glm::mat3 m = glm::mat3(glm::inverse(cp.worldToContact));
 
-                cp.closingVelocity += sign * m * deltaVelocity;
+                cp.closingVelocity += sign * glm::mat3(cp.worldToContact) * deltaVelocity;
                 cp.desiredDeltaVelocity = CalculateDesiredDeltaVelocity(cp, a, b, dt_s);
             }
         }
@@ -812,7 +812,7 @@ namespace Physics
         glm::vec3 angularChange[2];
 
         
-        int iterations = contact.numContactPoints * 1;
+        int iterations = contact.numContactPoints * 4;
         for (int i = 0; i < iterations; i++)
         {
 #if DEBUGGING
