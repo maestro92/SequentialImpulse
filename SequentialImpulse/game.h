@@ -190,8 +190,8 @@ namespace GameCode
         entity->invMass = 1 / (float)entity->mass;
 
         entity->position = glm::vec3(x, y, 0);
-//        glm::mat4 om = glm::rotate(30.0f, glm::vec3(0, 0, 1));
-        glm::mat4 om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
+        glm::mat4 om = glm::rotate(30.0f, glm::vec3(0, 0, 1));
+    //    glm::mat4 om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
 
         entity->orientation = glm::toQuat(om);
         entity->SyncOrientationMat();
@@ -380,6 +380,18 @@ namespace GameCode
             entity->angularVelocity = glm::vec3(0.0);
         }
 
+        /*
+        if (entity->velocity != glm::vec3(0.0))
+        {
+            utl::debug(">>>> resolving position ", entity->position);
+            utl::debug("        velocity ", entity->velocity);
+            utl::debug("        angularVelocity ", entity->angularVelocity);
+            utl::debug("        orientation ", entity->orientation);
+            utl::debug("        orientationMat ", entity->orientationMat);
+        }
+        */
+
+
         float angularMag = glm::length(entity->angularVelocity);
         if (angularMag != 0)
         {
@@ -461,6 +473,8 @@ namespace GameCode
         // update matrices with the new position and orientation
         entity->forceAccum = glm::vec3(0, 0, 0);
         entity->torqueAccum = glm::vec3(0, 0, 0);        
+
+        entity->normalizeQuat();
     }
 #endif
 
@@ -468,7 +482,7 @@ namespace GameCode
     {
         for (int i = 0; i < contact->numContactPoints; i++)
         {
-            gameState->contactPoints[gameState->numContactPoints++] = contact->contactPoints[i];
+            gameState->contactPoints[gameState->numContactPoints++] = contact->contactPoints[i].position;
         }
     }
     

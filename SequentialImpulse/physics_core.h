@@ -15,33 +15,18 @@ namespace Physics
         glm::mat4 orientation;
     };
 
-    // assuming all contact points have the same normal. 
-    // for this application, this may be true
-    // for for advance complicated convex shape, this wont be
-    struct CollisionData
-    {
-        glm::vec3 normal;
-
-        int numContactPoints;
-        glm::vec3 contactPoints[16];
-
-        float penetration;
-
-        CollisionData()
-        {
-            normal = glm::vec3(0.0);
-            numContactPoints = 0;
-            penetration = 0;
-        }
-    };
 
     struct ContactPoint
     {
         glm::vec3 position;
         glm::vec3 normal;
         float penetration;
-        glm::vec3 relativeContactPositions[2];
+        glm::mat4 worldToContact;
 
+        // this is in local contact coordinates
+        glm::vec3 closingVelocity;
+        float desiredDeltaVelocity;
+        glm::vec3 relativeContactPositions[2];
 
         ContactPoint()
         {
@@ -64,6 +49,27 @@ namespace Physics
     };
 
 
+    // assuming all contact points have the same normal. 
+    // for this application, this may be true
+    // for for advance complicated convex shape, this wont be
+    struct CollisionData
+    {
+        //    glm::vec3 normal;
+
+        int numContactPoints;
+        ContactPoint contactPoints[16];
+
+        //    glm::vec3 contactPoints[16];
+
+     //   float penetration;
+
+        CollisionData()
+        {
+            //    normal = glm::vec3(0.0);
+            numContactPoints = 0;
+            //    penetration = 0;
+        }
+    };
 
     struct Sphere
     {

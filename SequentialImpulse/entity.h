@@ -180,7 +180,49 @@ struct Entity
 
             orientation = glm::normalize(orientation);
 
+            if (orientation.w == 1)
+            {
+                if (abs(orientation.x) < 0.001)
+                {
+                    orientation.x = 0;
+                }
+                if (abs(orientation.y) < 0.001)
+                {
+                    orientation.y = 0;
+                }
+                if (abs(orientation.z) < 0.001)
+                {
+                    orientation.z = 0;
+                }
+
+            }
+
+//            orientation = normalizeQuat(orientation);
+            
+            orientation = normalizeQuat(orientation);
             SyncOrientationMat();
+        }
+
+        glm::quat normalizeQuat(glm::quat q)
+        {
+            q = glm::normalize(q);
+
+            if (q.w == 1)
+            {
+                if (abs(q.x) < 0.001)
+                {
+                    q.x = 0;
+                }
+                if (abs(q.y) < 0.001)
+                {
+                    q.y = 0;
+                }
+                if (abs(q.z) < 0.001)
+                {
+                    q.z = 0;
+                }
+            }
+            return q;
         }
 
 
