@@ -176,22 +176,36 @@ namespace GameCode
         // the box
         int x = 0;
         int y = 10;
-        int size = 3;
+        int size = 1;
         int w = size * 2;
-        int h = size;
+        int h = size * 2;
         int d = 1;
         index = gameState->numEntities++;
         entity = &gameState->entities[index];
         entity->id = index;
         entity->entityType = EntityType::Box;
         entity->flags = EntityFlag_Collides;
-
+        entity->SetAwake(true);
         entity->mass = 1;
         entity->invMass = 1 / (float)entity->mass;
 
         entity->position = glm::vec3(x, y, 0);
-        glm::mat4 om = glm::rotate(30.0f, glm::vec3(0, 0, 1));
-    //    glm::mat4 om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
+    //    glm::mat4 om = glm::rotate(30.0f, glm::vec3(0, 0, 1));
+        glm::mat4 om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
+
+        /*
+        glm::vec3 xAxis = glm::vec3(0, 1, 0);
+        xAxis = glm::normalize(xAxis);
+        glm::vec3 yAxis = glm::vec3(-1, 0, 0);
+        yAxis = glm::normalize(yAxis);
+        glm::vec3 zAxis = glm::vec3(0, 0, 1);
+
+        // world to contact local matrix
+        glm::mat4 om = utl::axes2GLMMat(xAxis, yAxis, zAxis);
+        */
+
+
+
 
         entity->orientation = glm::toQuat(om);
         entity->SyncOrientationMat();
@@ -341,6 +355,12 @@ namespace GameCode
 
     void PreIntegrate(Entity* entity, float dt_s)
     {
+        std::cout << "awake " << entity->isAwake << std::endl;
+
+        if (!entity->isAwake)
+            return;
+
+
         // velocity has damping
         // you can consider removing the damping term altogether if you have lots of entities
 
@@ -366,6 +386,10 @@ namespace GameCode
 
     void integrate(Entity* entity, float dt_s)
     {
+        if (!entity->isAwake)
+            return;
+
+
         if (glm::length(entity->velocity) < 0.01)
         {
             entity->velocity = glm::vec3(0.0);
@@ -404,6 +428,30 @@ namespace GameCode
         // update matrices with the new position and orientation
         entity->forceAccum = glm::vec3(0, 0, 0);
         entity->torqueAccum = glm::vec3(0, 0, 0);
+
+        std::cout << "      motion " << entity->motion << std::endl;
+
+
+        // recency-weighted average (RWA)
+        float currentMotion = glm::dot(entity->velocity, entity->velocity) + glm::dot(entity->angularVelocity, entity->angularVelocity);
+
+        // this makes RWA dependent on the duration of the frame. 
+        float bias = pow(0.5, dt_s);
+        entity->motion = bias * entity->motion + (1 - bias) * currentMotion;
+
+
+
+        if (entity->motion < sleepEpislon)
+        {
+            entity->SetAwake(false);
+        }
+        else if (entity->motion > 10 * sleepEpislon)
+        {
+            entity->motion = 10 * sleepEpislon;
+        }
+
+        std::cout << "      motion " << entity->motion << std::endl;
+
     }
 
 
@@ -498,7 +546,7 @@ namespace GameCode
             {
                 Entity* entity = &gameState->entities[i];
                 {
-                    gameState->entities[i].forceAccum += gameState->entities[i].mass * GRAVITY;
+                    gameState->entities[i].addForce(gameState->entities[i].mass * GRAVITY, false);
 
 
                     // adding drag
@@ -513,7 +561,10 @@ namespace GameCode
                         drag = glm::normalize(drag);
                         drag *= -dragCoeff;
 
-                        gameState->entities[i].forceAccum += drag;
+                        // gameState->entities[i].forceAccum += drag;
+                        gameState->entities[i].addForce(drag, false);
+
+
 
                     //    utl::debug("forceAccum ", gameState->entities[i].forceAccum);
                     }

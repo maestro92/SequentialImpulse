@@ -37,7 +37,7 @@ namespace Physics
     }
     */
 
-    float restitution = 0.9;
+    float restitution = 0.0;
 
     glm::mat3 GetBoxInertiaTensor(float mass, float xDim, float yDim, float zDim)
     {
@@ -330,6 +330,8 @@ namespace Physics
         glm::vec3 zAxis = glm::vec3(0, 0, 1);
         glm::vec3 yAxis = glm::cross(zAxis, xAxis);
     
+
+
         // world to contact local matrix
         return utl::axes2GLMMat(xAxis, yAxis, zAxis);    
     }
@@ -446,8 +448,15 @@ namespace Physics
             closingVelocity = glm::cross(b->angularVelocity, cp.relativeContactPositions[1]);
             closingVelocity += b->velocity;
         }
-
+#if DEBUGGING
+        utl::debug("               worldToContact3x3 ", cp.worldToContact);
+#endif
         glm::mat3 worldToContact3x3 = glm::mat3(cp.worldToContact);
+
+#if DEBUGGING
+        utl::debug("               a->velocity ", a->velocity);
+        utl::debug("               worldToContact3x3 ", worldToContact3x3);
+#endif
 
         return worldToContact3x3 * closingVelocity;
     }
@@ -474,7 +483,14 @@ namespace Physics
         {
             usedRestitution = 0;
         }
-        // utl::debug("               velocityFromAcc ", velocityFromAcc);
+#if DEBUGGING
+        utl::debug("               cp.closingVelocity ", cp.closingVelocity.x);
+        utl::debug("               usedRestitution ", usedRestitution);
+        utl::debug("               velocityFromAcc ", velocityFromAcc);
+
+        float result = -cp.closingVelocity.x - usedRestitution * (cp.closingVelocity.x - velocityFromAcc);
+        utl::debug("               final delta Velo ", result);
+#endif
         return -cp.closingVelocity.x - usedRestitution * (cp.closingVelocity.x - velocityFromAcc);
     }
 
@@ -525,9 +541,9 @@ namespace Physics
     {
         glm::vec3 impulse = CalculateFrictionlessImpulse(cp, a, b, dt_s);
 #if DEBUGGING
-        utl::debug("                impulse ", impulse);
-        utl::debug("                a->velocity ", a->velocity);
-        utl::debug("                a->angularVelocity ", a->angularVelocity);
+        utl::debug("                    impulse ", impulse);
+        utl::debug("                    a->velocity ", a->velocity);
+        utl::debug("                    a->angularVelocity ", a->angularVelocity);
 #endif       
 
         glm::vec3 velocityChange = impulse * a->invMass;
@@ -542,12 +558,12 @@ namespace Physics
 
         
 #if DEBUGGING
-        utl::debug("                impulsiveTorque ", impulsiveTorque);
-        utl::debug("                velocityChange ", velocityChange);
-        utl::debug("                angularVelocityChange ", angularVelocityChange);
-        utl::debug("                after ", 0);
-        utl::debug("                a->velocity ", a->velocity);
-        utl::debug("                a->angularVelocity ", a->angularVelocity);
+        utl::debug("                        impulsiveTorque ", impulsiveTorque);
+        utl::debug("                        velocityChange ", velocityChange);
+        utl::debug("                        angularVelocityChange ", angularVelocityChange);
+        utl::debug("                        after ", 0);
+        utl::debug("                        a->velocity ", a->velocity);
+        utl::debug("                        a->angularVelocity ", a->angularVelocity);
 #endif       
 
         if (b != NULL)
@@ -671,8 +687,20 @@ namespace Physics
         {
             cp.relativeContactPositions[1] = cp.position - b->position;
         }
+#if DEBUGGING
+        utl::debug("a.velocity", a->velocity);
+#endif
+
 
         cp.closingVelocity = computeClosingVelocityInContactCoordinates(cp, a, b);
+
+
+#if DEBUGGING
+        utl::debug("cp.closingVelocity", cp.closingVelocity);
+        utl::debug("cp.worldToContact", cp.worldToContact);
+#endif
+
+
         cp.desiredDeltaVelocity = CalculateDesiredDeltaVelocity(cp, a, b, dt_s);
     }
 
@@ -697,10 +725,19 @@ namespace Physics
         }
     }
 
-    
+
+
     void UpdateContactVelocityForContactPoint(ContactPoint& cp, Entity* a, Entity* b, 
                                                 glm::vec3 linearChange[2], glm::vec3 angularChange[2], float dt_s)
     {
+#if DEBUGGING
+        utl::debug("        UpdateContactVelocityForContactPoint", cp.position);
+
+        utl::debug("        UpdateContactVelocityForContactPoint", cp.closingVelocity);
+
+        glm::vec3 worldClosingVel = cp.ContactToWorld() * cp.closingVelocity;
+        utl::debug("        world coord", worldClosingVel);
+#endif
         Entity* bodies[2] = { a, b };
         for (int i = 0; i < 2; i++)
         {
@@ -710,9 +747,34 @@ namespace Physics
                 // change in contact velocity
                 glm::vec3 deltaVelocity = linearChange[i] + glm::cross(angularChange[i], cp.relativeContactPositions[i]);
 
+#if DEBUGGING
+                utl::debug("                closingVelocity", cp.closingVelocity);
+                utl::debug("                deltaVelocity", deltaVelocity);
+                utl::debug("                linearChange[i]", linearChange[i]);
                 //glm::mat3 m = glm::mat3(glm::inverse(cp.worldToContact));
 
+                utl::debug("                angularChange[i]", angularChange[i]);
+                utl::debug("                relativeContactPositions", cp.relativeContactPositions[i]);
+                utl::debug("                velocity from angularChange[i]", glm::cross(angularChange[i], cp.relativeContactPositions[i]));
+#endif
+                glm::vec3 deltaVelocityContactCoord = glm::mat3(cp.worldToContact) * deltaVelocity;
+      
+#if DEBUGGING
+
+                utl::debug("                deltaVelocityContactCoord", deltaVelocityContactCoord);
+#endif
                 cp.closingVelocity += sign * glm::mat3(cp.worldToContact) * deltaVelocity;
+
+#if DEBUGGING
+                utl::debug("                closingVelocity", cp.closingVelocity);
+#endif
+
+                glm::vec3 worldClosingVel2 = cp.ContactToWorld() * cp.closingVelocity;
+
+#if DEBUGGING
+                utl::debug("                world coord2", worldClosingVel2);
+#endif
+
                 cp.desiredDeltaVelocity = CalculateDesiredDeltaVelocity(cp, a, b, dt_s);
             }
         }
@@ -772,18 +834,37 @@ namespace Physics
     ContactPoint* FindContactWithMostDesiredVelocityChange(ContactPoint* contactPoints, int numContactPoints)
     {
         ContactPoint* worstContact = NULL;
-        float worstPenetration = 0;
+        float max = -0.01;
         // find worst contact
         for (int j = 0; j < numContactPoints; j++)
         {
-            if (contactPoints[j].penetration > worstPenetration)
+            if (contactPoints[j].desiredDeltaVelocity < max)
             {
                 worstContact = &contactPoints[j];
-                worstPenetration = contactPoints[j].penetration;
+                max = contactPoints[j].desiredDeltaVelocity;
             }
         }
 
         return worstContact;
+    }
+
+
+
+    void CheckAwakeState(Entity* a, Entity* b)
+    {
+        if (b == NULL)
+            return;
+
+        if (!a->isAwake)
+        {
+            a->SetAwake(true);
+        }
+
+        if (!b->isAwake)
+        {
+            b->SetAwake(true);
+        }
+
     }
 
 
@@ -827,42 +908,51 @@ namespace Physics
             utl::debug("                worstContact position", worstContact->position);
             utl::debug("                worstContact penetration", worstContact->penetration);
 #endif
+
+            CheckAwakeState(a, b);
+
             ResolveInterpenetrationForContactPoint(*worstContact, a, b, linearChange, angularChange);
 
             UpdatePenetrations(worstContact, contact.numContactPoints, a, b, linearChange, angularChange);
         }
         
+#if DEBUGGING
+        cout << "########## resolving velocity for each contact points" << endl;
+
+#endif
 
         glm::vec3 linearVelocityChange[2];
         glm::vec3 angularVelocityChange[2];
-        bool done = false;
-        iterations = 1;
+
+        iterations = 4;
         for (int i = 0; i < iterations; i++)
         {
-        //    cout << "       >>>>>>> Resolving velocity iteration " << i << endl;
-            for (int j = 0; j < contact.numContactPoints; j++)
-            {
-#if DEBUGGING
-                utl::debug("                resolving velocity for contact", contact.contactPoints[j].position);
-#endif                
-                if (contact.contactPoints[j].desiredDeltaVelocity > 0.01)
-                {
-                    done = true;
-                    break;
-                }
+            ContactPoint* worstContact = FindContactWithMostDesiredVelocityChange(contact.contactPoints, contact.numContactPoints);          
 
-                ResolveVelocityForContactPoint(contact.contactPoints[j], a, b, linearVelocityChange, angularVelocityChange, dt_s);
-#if DEBUGGING
-                cout << "\n\n" << endl;
-#endif       
-
-                UpdateContactVelocities(contact.contactPoints, contact.numContactPoints, &contact.contactPoints[j], a, b, angularVelocityChange, angularChange, dt_s);
-            }
-
-            if (done)
+            if (worstContact == NULL)
             {
                 break;
             }
+
+
+#if DEBUGGING
+            cout << "       >>>>>>> Resolving velocity iteration " << i << endl;
+            utl::debug("                    resolving velocity for contact", worstContact->position);
+            utl::debug("                    desiredDeltaVelocity", worstContact->desiredDeltaVelocity);
+#endif    
+
+            CheckAwakeState(a, b);
+
+            ResolveVelocityForContactPoint(*worstContact, a, b, linearVelocityChange, angularVelocityChange, dt_s);
+
+
+            UpdateContactVelocities(contact.contactPoints, contact.numContactPoints, worstContact, 
+                a, b, linearVelocityChange, angularVelocityChange, dt_s);
+            
+#if DEBUGGING
+            cout << "\n\n" << endl;
+#endif       
+
         }
 
 

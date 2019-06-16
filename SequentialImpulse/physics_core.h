@@ -37,6 +37,18 @@ namespace Physics
             relativeContactPositions[1] = glm::vec3(0.0);
         }
 
+
+        glm::mat3 WorldToContact()
+        {
+            return glm::mat3(worldToContact);
+        }
+
+        glm::mat3 ContactToWorld()
+        {
+            return glm::mat3(glm::inverse(worldToContact));
+        }
+
+
         void PrintDebug()
         {
             cout << "########## priting contactpoint " << endl;

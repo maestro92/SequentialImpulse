@@ -68,6 +68,7 @@ class Player
 };
 */
 
+static float sleepEpislon = 0.3;
 
 struct Entity
 {
@@ -86,13 +87,13 @@ struct Entity
         float mass;
         float invMass;
 
-		glm::vec3 position;
-		glm::vec3 velocity;
+        glm::vec3 position;
+        glm::vec3 velocity;
         glm::vec3 acceleration;
-		glm::vec3 scale;
+        glm::vec3 scale;
         glm::quat orientation;
         glm::mat4 orientationMat;
-		glm::mat4 modelMatrix;
+        glm::mat4 modelMatrix;
         glm::vec3 lastAcceleration;
 
         glm::vec3 angularVelocity;
@@ -108,10 +109,14 @@ struct Entity
         // r is the rate of angular change, axis is the axis it is rotating
 
 
+        float motion;
+        bool isAwake;
+        bool canSleep;
+
 
         Physics::PhysBody physBody;
 
-		bool active;
+        bool active;
 
         Model* m_model;
       
@@ -155,15 +160,22 @@ struct Entity
         // so much so that it is worth the storage space to keep a copy with the rigid body.
 
         // page 206
-        void addForce(glm::vec3 f)
+        void addForce(glm::vec3 f, bool awakesEntity)
         {
             forceAccum += f;
+            if (awakesEntity)
+            {
+                isAwake = true;
+            }
         }
 
-        void addTorqueFromForce(glm::vec3 f, glm::vec3 vecToForce)
+        void addTorqueFromForce(glm::vec3 f, glm::vec3 vecToForce, bool awakesEntity)
         {
             torqueAccum += glm::cross(vecToForce, f);
-
+            if (awakesEntity)
+            {
+                isAwake = true;
+            }
             utl::debug("    torqueAccum is ", torqueAccum);
         }
         
@@ -227,6 +239,7 @@ struct Entity
 
 
 
+
         void SyncOrientationMat()
         {
             orientationMat = glm::toMat4(orientation);
@@ -251,10 +264,24 @@ struct Entity
         //    utl::debug("inverseInertiaTensor ", inverseInertiaTensor);
         }
 
+
+        void SetAwake(bool awake)
+        {
+            if (awake)
+            {
+                isAwake = awake;                
+                motion = sleepEpislon * 2.0f;
+            }
+            else
+            {
+                isAwake = false;
+                velocity = glm::vec3(0, 0, 0);
+                angularVelocity = glm::vec3(0, 0, 0);
+            }
+        }
+
         
 };
-
-
 
 
 

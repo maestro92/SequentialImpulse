@@ -60,7 +60,14 @@ namespace GameRendering
             }
             else if (entities[i].entityType == EntityType::Box)
             {
-                p_renderer->setData(R_FULL_COLOR::u_color, COLOR_BLUE);
+                if (entities[i].isAwake)
+                {
+                    p_renderer->setData(R_FULL_COLOR::u_color, COLOR_BLUE);
+                }
+                else
+                {
+                    p_renderer->setData(R_FULL_COLOR::u_color, COLOR_LIGHT_BLUE_2);
+                }
             }
 
             gameState->entities[i].renderCore(gameState->mainCamera.getPipeline(), p_renderer);
