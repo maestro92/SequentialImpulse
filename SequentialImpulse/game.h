@@ -190,8 +190,8 @@ namespace GameCode
         entity->invMass = 1 / (float)entity->mass;
 
         entity->position = glm::vec3(x, y, 0);
-    //    glm::mat4 om = glm::rotate(30.0f, glm::vec3(0, 0, 1));
-        glm::mat4 om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
+        glm::mat4 om = glm::rotate(30.0f, glm::vec3(0, 0, 1));
+     //   glm::mat4 om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
 
         /*
         glm::vec3 xAxis = glm::vec3(0, 1, 0);
@@ -353,178 +353,79 @@ namespace GameCode
 
 
 
-    void PreIntegrate(Entity* entity, float dt_s)
+    void integrateVelocity(Entity* entity, float dt_s)
     {
-        std::cout << "awake " << entity->isAwake << std::endl;
+   //     std::cout << "awake " << entity->isAwake << std::endl;
 
-        if (!entity->isAwake)
-            return;
+   //     if (!entity->isAwake)
+   //         return;
+
+        float linearDamping = 0.0f;
+        float angularDamping = 0.0f;
+
+        entity->velocity += entity->forceAccum / entity->mass * dt_s;      
+        // apply linear damping        
+     //   entity->velocity = entity->velocity * 1.0f / (1.0f + linearDamping * dt_s);
+
+        entity->angularVelocity += entity->inverseInertiaTensor * entity->torqueAccum * dt_s;
+        // apply angular damping
+    //    entity->angularVelocity = entity->angularVelocity * 1.0f / (1.0f + linearDamping * dt_s);
 
 
-        // velocity has damping
-        // you can consider removing the damping term altogether if you have lots of entities
-
-    //    entity->lastAcceleration = entity->acceleration;
-        entity->acceleration = entity->forceAccum / entity->mass;
-        entity->velocity += entity->acceleration * dt_s;
-        if (glm::length(entity->velocity) < 0.01)
-        {
-            entity->velocity = glm::vec3(0.0);
-        }
-
-        entity->angularAcceleration = entity->inverseInertiaTensor * entity->torqueAccum;
-        entity->angularVelocity += entity->angularAcceleration * dt_s;
-        entity->angularVelocity = entity->angularDamping * entity->angularVelocity;
-        if (glm::length(entity->angularVelocity) < 0.01)
-        {
-            entity->angularVelocity = glm::vec3(0.0);
-        }
     }
 
 
 
-
-    void integrate(Entity* entity, float dt_s)
+    void integratePosition(Entity* entity, float dt_s)
     {
-        if (!entity->isAwake)
-            return;
+        float maxTranslation = 2.0f;
 
-
-        if (glm::length(entity->velocity) < 0.01)
+        
+//        if (glm::dot(entity->velocity, entity->velocity) > 0.001)
+        if (true)
         {
-            entity->velocity = glm::vec3(0.0);
+
+            glm::vec3 translation = dt_s * entity->velocity;
+            //    std::cout << "glm::length(translation) " << glm::length(translation) << std::endl;
+
+
+
+            if (glm::dot(translation, translation) > (maxTranslation * maxTranslation))
+            {
+
+                //    utl::debug("        clamping velocity");
+                float ratio = maxTranslation / glm::length(translation);
+                entity->velocity *= ratio;
+            }
+            /*
+            utl::debug("        entityVelocity", entity->velocity);
+            float vellength = glm::dot(entity->velocity, entity->velocity);
+            utl::debug("        vellength", vellength);
+
+            utl::debug("        entity->velocity * dt_s", entity->velocity * dt_s);
+            */
+
+            entity->position += entity->velocity * dt_s;
         }
-
-        entity->position += dt_s * entity->velocity;
-
-
-
-        if (glm::length(entity->angularVelocity) < 0.01)
+        else
         {
-            entity->angularVelocity = glm::vec3(0.0);
+            entity->velocity = glm::vec3(0,0,0);
         }
+    //    utl::debug("        entity->position", entity->position);
 
-        /*
-        if (entity->velocity != glm::vec3(0.0))
-        {
-            utl::debug(">>>> resolving position ", entity->position);
-            utl::debug("        velocity ", entity->velocity);
-            utl::debug("        angularVelocity ", entity->angularVelocity);
-            utl::debug("        orientation ", entity->orientation);
-            utl::debug("        orientationMat ", entity->orientationMat);
-        }
-        */
+        // do the same for orientation
 
-
+    
         float angularMag = glm::length(entity->angularVelocity);
         if (angularMag != 0)
         {
             // https://math.stackexchange.com/questions/22437/combining-two-3d-rotations
-            entity->updateOrientation(entity->angularVelocity, dt_s);
+            entity->addRotation(entity->angularVelocity, dt_s);
             entity->transformInertiaTensor();
         }
-
-
-        // update matrices with the new position and orientation
-        entity->forceAccum = glm::vec3(0, 0, 0);
-        entity->torqueAccum = glm::vec3(0, 0, 0);
-
-        std::cout << "      motion " << entity->motion << std::endl;
-
-
-        // recency-weighted average (RWA)
-        float currentMotion = glm::dot(entity->velocity, entity->velocity) + glm::dot(entity->angularVelocity, entity->angularVelocity);
-
-        // this makes RWA dependent on the duration of the frame. 
-        float bias = pow(0.5, dt_s);
-        entity->motion = bias * entity->motion + (1 - bias) * currentMotion;
-
-
-
-        if (entity->motion < sleepEpislon)
-        {
-            entity->SetAwake(false);
-        }
-        else if (entity->motion > 10 * sleepEpislon)
-        {
-            entity->motion = 10 * sleepEpislon;
-        }
-
-        std::cout << "      motion " << entity->motion << std::endl;
-
     }
 
 
-#if 0
-    // Game Physics Enginer Development 
-    // although the proper formula is x' = x + vt + 0.5 * a * t^2
-    // 3.31 the acceleration is often neglecgible. so we just ignore the acceleration term
-    // so we just ignore the acceleration term
-    void integrate(Entity* entity, float dt_s)
-    {        
-        // velocity has damping
-        // you can consider removing the damping term altogether if you have lots of entities
-        
-    //    entity->lastAcceleration = entity->acceleration;
-        entity->acceleration = entity->forceAccum / entity->mass;
-
-        entity->velocity += entity->acceleration * dt_s;
-
-       // utl::debug("        acceleration ", entity->acceleration * dt_s);
-       // utl::debug("        velocity ", entity->velocity);
-
-
-        // damping 
-        // entity->velocity = entity->velocityDamping * entity->velocity;
-        
-       // utl::debug("        after damping velocity ", entity->velocity);
-
-
-        if ( glm::length(entity->velocity) < 0.01)
-        {
-            entity->velocity = glm::vec3(0.0);
-        }
-
-        /*
-        if (entity->velocity != glm::vec3(0.0))
-        {
-            utl::debug(">>>> resolving position ", entity->position);
-            utl::debug("        velocity ", entity->velocity);
-            utl::debug("        orientation ", entity->orientation);
-            utl::debug("        orientationMat ", entity->orientationMat);
-        }
-        */
-
-        entity->position += dt_s * entity->velocity;
-
-        
-        entity->angularAcceleration = entity->inverseInertiaTensor * entity->torqueAccum;
-        entity->angularVelocity += entity->angularAcceleration * dt_s;
-
-        // damping
-        entity->angularVelocity = entity->angularDamping * entity->angularVelocity;
-
-        if (glm::length(entity->angularVelocity) < 0.01)
-        {
-            entity->angularVelocity = glm::vec3(0.0);
-        }
-
-        float angularMag = glm::length(entity->angularVelocity);
-        if (angularMag != 0)
-        {
-            // https://math.stackexchange.com/questions/22437/combining-two-3d-rotations
-            entity->updateOrientation(entity->angularVelocity, dt_s);
-            entity->transformInertiaTensor();
-        }
-        
-
-        // update matrices with the new position and orientation
-        entity->forceAccum = glm::vec3(0, 0, 0);
-        entity->torqueAccum = glm::vec3(0, 0, 0);        
-
-        entity->normalizeQuat();
-    }
-#endif
 
     void CopyContactPoints(GameState* gameState, Physics::CollisionData* contact)
     {
@@ -548,7 +449,7 @@ namespace GameCode
                 {
                     gameState->entities[i].addForce(gameState->entities[i].mass * GRAVITY, false);
 
-
+/*
                     // adding drag
                     glm::vec3 drag = gameState->entities[i].velocity;
 
@@ -566,21 +467,25 @@ namespace GameCode
 
 
 
-                    //    utl::debug("forceAccum ", gameState->entities[i].forceAccum);
+                 //       utl::debug("forceAccum ", gameState->entities[i].forceAccum);
                     }
+                    */
                 }
             }
         }
         
 
+
         for (int i = 0; i < gameState->numEntities; i++)
         {
             if (!(gameState->entities[i].flags & EntityFlag_Static))
             {
-                PreIntegrate(&gameState->entities[i], gameInput.dt_s);
+                integrateVelocity(&gameState->entities[i], gameInput.dt_s);
+        //        integratePosition(&gameState->entities[i], gameInput.dt_s);
             }
         }
 
+        vector<Physics::CollisionData> contactsThisTick;
 
         for (int i = 0; i < gameState->numEntities; i++)
         {
@@ -603,25 +508,45 @@ namespace GameCode
                 }
                 */
                 
-                Physics::GenerateContactInfo(gameState->entities[i], gameState->entities[j], contact);
+                Physics::GenerateContactInfo(&gameState->entities[i], &gameState->entities[j], contact);
                 if (contact.numContactPoints > 0)
                 {                    
                     CopyContactPoints(gameState, &contact);
+                    contactsThisTick.push_back(contact);
 
-                    cout << "\n\nResolving contact" << endl;
+              //      cout << "\n\nResolving contact" << endl;
 
                     if (gameState->entities[j].flags & EntityFlag_Static)
                     {
-                        Physics::Resolve(contact, &gameState->entities[i], NULL, gameInput.dt_s);
+                        Physics::PrepareContactPoints(contact, &gameState->entities[i], NULL);
+                        Physics::ResolveVelocity(contact, &gameState->entities[i], NULL, gameInput.dt_s);
+                    //    Physics::ResolvePosition(contact, &gameState->entities[i], NULL, gameInput.dt_s);
                     }
                     else
                     {
-                        Physics::Resolve(contact, &gameState->entities[i], &gameState->entities[j], gameInput.dt_s);
+                        Physics::PrepareContactPoints(contact, &gameState->entities[i], &gameState->entities[j]);
+                        Physics::ResolveVelocity(contact, &gameState->entities[i], &gameState->entities[j], gameInput.dt_s);
+                    //    Physics::ResolvePosition(contact, &gameState->entities[i], &gameState->entities[j], gameInput.dt_s);
                     }
                 }
-                
-                
             }
+        }
+
+
+        
+        // by applying velocity first, we may get to skip doing position resolution. so this saves us some computation
+        for (int i = 0; i < gameState->numEntities; i++)
+        {
+            if (!(gameState->entities[i].flags & EntityFlag_Static))
+            {
+                // integrateVelocity(&gameState->entities[i], gameInput.dt_s);
+                integratePosition(&gameState->entities[i], gameInput.dt_s);
+            }
+        }
+
+        for (int i = 0; i < contactsThisTick.size(); i++)
+        {
+            Physics::ResolvePosition(contactsThisTick[i], contactsThisTick[i].a, contactsThisTick[i].b, gameInput.dt_s);
         }
 
 
@@ -629,9 +554,32 @@ namespace GameCode
         {
             if (!(gameState->entities[i].flags & EntityFlag_Static))
             {
-                integrate(&gameState->entities[i], gameInput.dt_s);
+                gameState->entities[i].forceAccum = glm::vec3(0.0);
+                gameState->entities[i].torqueAccum = glm::vec3(0.0);
+
             }
         }
+
+
+        /*
+        for (int i = 0; i < contactsThisTick.size(); i++)
+        {
+
+        }
+        */
+
+        /*
+
+        for (int i = 0; i < gameState->numEntities; i++)
+        {
+            if (!(gameState->entities[i].flags & EntityFlag_Static))
+            {
+                integratePosition(&gameState->entities[i], gameInput.dt_s);
+            }
+        }
+        
+  //      Physics::Resolve(contact, &gameState->entities[i], NULL, gameInput.dt_s);
+  */
     }
 };
 

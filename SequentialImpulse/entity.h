@@ -89,15 +89,15 @@ struct Entity
 
         glm::vec3 position;
         glm::vec3 velocity;
-        glm::vec3 acceleration;
+   //     glm::vec3 acceleration;
         glm::vec3 scale;
         glm::quat orientation;
         glm::mat4 orientationMat;
         glm::mat4 modelMatrix;
-        glm::vec3 lastAcceleration;
+   //     glm::vec3 lastAcceleration;
 
         glm::vec3 angularVelocity;
-        glm::vec3 angularAcceleration;
+   //     glm::vec3 angularAcceleration;
         // position, velocity,
         // Orientation, angular Velocity (aka rotation)
         // Game Physics Engine Development
@@ -179,7 +179,7 @@ struct Entity
             utl::debug("    torqueAccum is ", torqueAccum);
         }
         
-        void updateOrientation(glm::vec3 angularVelocity, float dtSec)
+        void addRotation(glm::vec3 angularVelocity, float dtSec)
         {           
             glm::quat q(0, angularVelocity.x * dtSec, angularVelocity.y * dtSec, angularVelocity.z * dtSec);
 

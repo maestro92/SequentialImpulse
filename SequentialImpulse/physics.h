@@ -6,12 +6,81 @@
 
 namespace Physics
 {
- 
 
-    // separating-axis test
-    // only the axis parallel to the plane normal n need to be tested 
-    
+    struct ContactPoint
+    {
+        glm::vec3 position;
+        glm::vec3 normal;
+        float penetration;   // positive if they are separate, negative if they penetrate
+        glm::mat4 worldToContact;
 
+        // this is in local contact coordinates
+    //    glm::vec3 closingVelocity;
+        float desiredSeparatingVelocity;
+        glm::vec3 relativeContactPositions[2];
+
+        // when we are doing sequentual impulse, we need to our impulse history
+        // this actually causes jitter
+        // refer to GDC2006, Erin Cattor Fast and Simple Physics using Sequential Impulses
+        float normalImpulse;
+
+        ContactPoint()
+        {
+            position = glm::vec3(0.0);
+            normal = glm::vec3(0.0);
+            penetration = 0;
+            relativeContactPositions[0] = glm::vec3(0.0);
+            relativeContactPositions[1] = glm::vec3(0.0);
+
+            normalImpulse = 0;
+        }
+
+
+        glm::mat3 WorldToContact()
+        {
+            return glm::mat3(worldToContact);
+        }
+
+        glm::mat3 ContactToWorld()
+        {
+            return glm::mat3(glm::inverse(worldToContact));
+        }
+
+
+        void PrintDebug()
+        {
+            cout << "########## priting contactpoint " << endl;
+            utl::debug("position", position);
+            utl::debug("normal", normal);
+            utl::debug("penetration", penetration);
+            utl::debug("relativeContactPositions[0]", relativeContactPositions[0]);
+            utl::debug("relativeContactPositions[1]", relativeContactPositions[1]);
+        }
+    };
+
+
+    // assuming all contact points have the same normal. 
+    // for this application, this may be true
+    // for for advance complicated convex shape, this wont be
+    struct CollisionData
+    {
+        //    glm::vec3 normal;
+
+        int numContactPoints;
+        ContactPoint contactPoints[16];
+        Entity* a;
+        Entity* b;
+        //    glm::vec3 contactPoints[16];
+
+     //   float penetration;
+
+        CollisionData()
+        {
+            //    normal = glm::vec3(0.0);
+            numContactPoints = 0;
+            //    penetration = 0;
+        }
+    };
 
     /*
     for detailed explanation, see the graph on page 162, figure 5.16
@@ -37,7 +106,7 @@ namespace Physics
     }
     */
 
-    float restitution = 0.0;
+    float restitution = 0.5;
 
     glm::mat3 GetBoxInertiaTensor(float mass, float xDim, float yDim, float zDim)
     {
@@ -139,8 +208,8 @@ namespace Physics
 
 
 
-    void GetOBBPlaneContacts(OBB b, PhysBodyTransform bTransform,
-        Plane p, PhysBodyTransform pTransform, CollisionData& contact)
+    void GetOBBPlaneContacts(Entity* bEntity, OBB b, PhysBodyTransform bTransform,
+        Entity* pEntity, Plane p, PhysBodyTransform pTransform, CollisionData& contact)
     {
         if (!TestOBBPlane(b, bTransform, p, pTransform))
         {
@@ -210,134 +279,6 @@ namespace Physics
         
 
     };
-
-
-
-
-
-
-
-    int TestSphereOBB()
-    {
-        return 0;
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-
-    // impulsve for lienar motion
-    // impulsive torque for angular motion
-
-    // w is angular velocity
-    // dw = I^-1 * impulsive torque
-
-
-    float CalculateSeparatingVelocity(Entity* a, Entity* b, glm::vec3 contactNormal)
-    {
-        glm::vec3 relativeVelocity = a->velocity;
-        if (!b->flags & EntityFlag_Static)
-        {
-            relativeVelocity -= b->velocity;
-        }
-
-        return glm::dot(relativeVelocity, contactNormal);
-    }
-
-    // note separatingVelocity, newSeparatingVelocity, deltaVelocity are all along contact normal
-    void ResolveVelocityLinearOnly(ContactPoint& cp, Entity* a, Entity* b)
-    {
-        float separatingVelocity = CalculateSeparatingVelocity(a, b, cp.normal);
-
-        if (separatingVelocity > 0)
-        {
-            // no impulse required
-            return;
-        }
-
-        float newSeparatingVelocity = -separatingVelocity;// *0.5f;
-                
-        float deltaVelocity = newSeparatingVelocity - separatingVelocity;
-
-        float totalInverseMass = a->invMass;
-        if (!b->flags & EntityFlag_Static)
-        {
-            totalInverseMass += b->invMass;
-        }
-
-        if (totalInverseMass <= 0)
-            return;
-
-        float impulse = deltaVelocity / totalInverseMass;
-        glm::vec3 impulsePerInvMass = cp.normal * impulse;
-
-        a->velocity = a->velocity + impulsePerInvMass * a->invMass;
-
-        if (!(b->flags & EntityFlag_Static))
-        {
-            b->velocity = b->velocity - impulsePerInvMass * b->invMass;
-        }
-
-        return;
-    }
-
-    void ResolveInterpenetrationLinearOnly(ContactPoint& cp, Entity* a, Entity* b)
-    {
-        if (cp.penetration < 0)
-        {
-            return;
-        }
-
-        float totalInverseMass = a->invMass;
-        if (!b->flags & EntityFlag_Static)
-        {
-            totalInverseMass += b->invMass;
-        }
-
-        if (totalInverseMass <= 0)
-            return;
-
-        glm::vec3 movePerInvMass = cp.normal * (cp.penetration / totalInverseMass);
-
-        // do we want to resolve position or combine this into the velocity?
-        a->position = a->position + movePerInvMass * a->invMass;
-        if (!b->flags & EntityFlag_Static)
-        {
-            b->position = b->position - movePerInvMass * b->invMass;
-        }
-    }
-
-    /*
-    14.2.1
-    inverting a matrix is complex yet, if your matrix is only rotation, and it doesnt have translational
-    also no skewing or scaling, since our rotation matrix is orthonormal, then the transpose is the same as 
-    the inverse
-    */
-
-    glm::mat4 CreateContactCoordinateBasis(ContactPoint& cp)
-    {
-        // page 311
-        // since we are in 2d, our z axis is just pointing out of the world
-        glm::vec3 xAxis = cp.normal;
-        glm::vec3 zAxis = glm::vec3(0, 0, 1);
-        glm::vec3 yAxis = glm::cross(zAxis, xAxis);
-    
-
-
-        // world to contact local matrix
-        return utl::axes2GLMMat(xAxis, yAxis, zAxis);    
-    }
-
-
-
 
 
 
@@ -430,423 +371,129 @@ namespace Physics
     we need to use last frame's acceleration. because this current frame's collision
     is caused by last frame's acceleration and velocity.
     */
-#define DEBUGGING 0
+#define DEBUGGING 1
 
-    glm::vec3 computeClosingVelocityInContactCoordinates(ContactPoint& cp, Entity* a, Entity* b)
+
+
+
+
+    float computeEffectiveMass(ContactPoint& cp, Entity* a, Entity* b)
     {
-        // velocity induced from angular part
-        glm::vec3 closingVelocity = glm::cross(a->angularVelocity, cp.relativeContactPositions[0]);
+        float totalInvMass = a->invMass;
+        glm::vec3 rxn = glm::cross(cp.relativeContactPositions[0], cp.normal);
+        glm::vec3 rotation = a->inverseInertiaTensor * rxn;
+        totalInvMass += glm::dot(rxn, rotation);
 
-     //   utl::debug("               velocity from rotation ", closingVelocity);
+       /*        
+        utl::debug("       cp.relativeContactPositions[0] ", cp.relativeContactPositions[0]);
+        utl::debug("       rotation ", rotation);
+        utl::debug("       totalInvMass ", totalInvMass);
+        */
 
 
-        closingVelocity += a->velocity;
-     //   utl::debug("               velocity ", a->velocity);
+
 
         if (b != NULL)
         {
-            closingVelocity = glm::cross(b->angularVelocity, cp.relativeContactPositions[1]);
-            closingVelocity += b->velocity;
+            totalInvMass += b->invMass;
+            rxn = glm::cross(cp.relativeContactPositions[1], -cp.normal);
+            rotation = b->inverseInertiaTensor * rxn;
+            totalInvMass += glm::dot(rxn, rotation);            
         }
-#if DEBUGGING
-        utl::debug("               worldToContact3x3 ", cp.worldToContact);
-#endif
-        glm::mat3 worldToContact3x3 = glm::mat3(cp.worldToContact);
 
-#if DEBUGGING
-        utl::debug("               a->velocity ", a->velocity);
-        utl::debug("               worldToContact3x3 ", worldToContact3x3);
-#endif
-
-        return worldToContact3x3 * closingVelocity;
+        return 1 / totalInvMass;
     }
 
 
 
 
-    float CalculateDesiredDeltaVelocity(ContactPoint& cp, Entity* a, Entity* b, float dt_s)
-    {
-        // utl::debug("               worldToContact3x3 ", worldToContact3x3);
-        // utl::debug("               closingVelocityInContactCoordinate ", closingVelocityInContactCoordinate);
-        const static float velocityLimit = 0.25;
 
-        // calculate the acceleration induced velocity
-        float velocityFromAcc = glm::dot(a->acceleration, cp.normal) * dt_s;
+    float ComputeRelativeVelocity(ContactPoint& cp, Entity* a, Entity* b)
+    {
+        glm::vec3 relativeVelocity = glm::cross(a->angularVelocity, cp.relativeContactPositions[0]);
+        relativeVelocity += a->velocity;
 
         if (b != NULL)
         {
-            velocityFromAcc -= glm::dot(b->acceleration, cp.normal) * dt_s;
+            relativeVelocity += glm::cross(b->angularVelocity, cp.relativeContactPositions[1]);
+            relativeVelocity += b->velocity;
         }
 
-        float usedRestitution = restitution;
-        if (abs(cp.closingVelocity.x) < velocityLimit)
-        {
-            usedRestitution = 0;
-        }
-#if DEBUGGING
-        utl::debug("               cp.closingVelocity ", cp.closingVelocity.x);
-        utl::debug("               usedRestitution ", usedRestitution);
-        utl::debug("               velocityFromAcc ", velocityFromAcc);
-
-        float result = -cp.closingVelocity.x - usedRestitution * (cp.closingVelocity.x - velocityFromAcc);
-        utl::debug("               final delta Velo ", result);
-#endif
-        return -cp.closingVelocity.x - usedRestitution * (cp.closingVelocity.x - velocityFromAcc);
+        return glm::dot(cp.normal, relativeVelocity);
     }
 
-
-    // we will do the same thing in ResolveVelocityLinearOnly
-    // we calcualte the desired separating velocity, deltaV
-    // then calcualte the impulse for each contact point 
-
-    // TODO: accout for physbody offset
-    glm::vec3 CalculateFrictionlessImpulse(ContactPoint& cp, Entity* a, Entity* b, float dt_s)
-    {
-        glm::vec3 velocityFromRotPerUnitImpulse = glm::cross(cp.relativeContactPositions[0], cp.normal);
-        velocityFromRotPerUnitImpulse = a->inverseInertiaTensor * velocityFromRotPerUnitImpulse;
-        velocityFromRotPerUnitImpulse = glm::cross(velocityFromRotPerUnitImpulse, cp.relativeContactPositions[0]);
-
-        float deltaVelocityPerUnitImpulse = glm::dot(velocityFromRotPerUnitImpulse, cp.normal);
-    //    utl::debug("               rot ", deltaVelocityPerUnitImpulse);
-        deltaVelocityPerUnitImpulse += a->invMass;
-    //    utl::debug("               linear ", a->invMass);
-        if (b != NULL)
-        {
-            // ######### should I use -normal here?
-            velocityFromRotPerUnitImpulse = glm::cross(cp.relativeContactPositions[1], -cp.normal);
-            velocityFromRotPerUnitImpulse = b->inverseInertiaTensor * velocityFromRotPerUnitImpulse;
-            velocityFromRotPerUnitImpulse = glm::cross(velocityFromRotPerUnitImpulse, cp.relativeContactPositions[1]);
-
-            deltaVelocityPerUnitImpulse += glm::dot(velocityFromRotPerUnitImpulse, -cp.normal);
-            deltaVelocityPerUnitImpulse += b->invMass;
-        }
-
-        
-        // compute desired separating velocity
-    //    float deltaVelocity = CalculateDesiredDeltaVelocity(cp, a, b, dt_s);
-    //    utl::debug("               closingVelocity ", cp.closingVelocity);
-    //    utl::debug("               deltaVelocity ", cp.desiredDeltaVelocity);
-        glm::vec3 impulse(cp.desiredDeltaVelocity / deltaVelocityPerUnitImpulse, 0, 0);
-
-
-        impulse = glm::vec3(glm::inverse(cp.worldToContact) * glm::vec4(impulse.x, impulse.y, impulse.z, 0));
-        return impulse;
-    }
-
-
-
-
-
-    void ResolveVelocityForContactPoint(ContactPoint& cp, Entity* a, Entity* b, glm::vec3 linearChange[2], glm::vec3 angularChange[2], float dt_s)
-    {
-        glm::vec3 impulse = CalculateFrictionlessImpulse(cp, a, b, dt_s);
-#if DEBUGGING
-        utl::debug("                    impulse ", impulse);
-        utl::debug("                    a->velocity ", a->velocity);
-        utl::debug("                    a->angularVelocity ", a->angularVelocity);
-#endif       
-
-        glm::vec3 velocityChange = impulse * a->invMass;
-
-        glm::vec3 impulsiveTorque = glm::cross(cp.relativeContactPositions[0], impulse);
-        glm::vec3 angularVelocityChange = a->inverseInertiaTensor * impulsiveTorque;
-
-        linearChange[0] = velocityChange;
-        angularChange[0] = angularVelocityChange;
-        a->velocity += velocityChange;
-        a->angularVelocity += angularVelocityChange;
-
-        
-#if DEBUGGING
-        utl::debug("                        impulsiveTorque ", impulsiveTorque);
-        utl::debug("                        velocityChange ", velocityChange);
-        utl::debug("                        angularVelocityChange ", angularVelocityChange);
-        utl::debug("                        after ", 0);
-        utl::debug("                        a->velocity ", a->velocity);
-        utl::debug("                        a->angularVelocity ", a->angularVelocity);
-#endif       
-
-        if (b != NULL)
-        {
-
-        }
-
-    }
-
-    // move both objects in the direction of the contact normal until they are no longer 
-    // interpenetrating. The movement is both linear and augular
-    // penetration depth of the contact is the total amount of movement we need to resolve
-    // our goal is to find the proportion of this movement that will be contributed by linear and angular motion
-    // for each object.
-    void ResolveInterpenetrationForContactPoint(ContactPoint& cp, Entity* a, Entity* b,
-                                                glm::vec3 linearChange[2], glm::vec3 angularChange[2])
-    {
-        Entity* bodies[2] = { a, b };
-
-        float linearInertia[2];
-        float angularInertia[2];
-
-    //    utl::debug("            @@@@@@ cp Penetration", cp.penetration);
-        float totalInertia = 0;
-        for (int i = 0; i < 2; i++)
-        {
-            if (bodies[i])
-            {
-                glm::vec3 impulsiveTorque = glm::cross(cp.relativeContactPositions[i], cp.normal);
-                glm::vec3 angularChange = a->inverseInertiaTensor * impulsiveTorque;
-                glm::vec3 angularInducedVelocity = glm::cross(angularChange, cp.relativeContactPositions[i]);
-#if DEBUGGING                
-                utl::debug("                cp.relativeContactPositions[i] ", cp.relativeContactPositions[i]);
-                utl::debug("                impulsiveTorque ", impulsiveTorque);
-                utl::debug("                angularChange[i] ", angularChange);
-                utl::debug("                angularInducedVelocity[i] ", angularInducedVelocity);
-#endif                
-                angularInertia[i] = glm::dot(angularInducedVelocity, cp.normal);
-                linearInertia[i] = bodies[i]->invMass;
-
-                totalInertia += linearInertia[i] + angularInertia[i];
-            }
-        }
-
-
-        float inverseTotalInertia = 1 / totalInertia;
-        float linearMove[2];
-        float angularMove[2];
-        int sign = 0;
-        for (int i = 0; i < 2; i++)
-        {
-            if (bodies[i])
-            {
-                sign = 1 - 2 * i;
-                linearMove[i] = sign * cp.penetration * linearInertia[i] * inverseTotalInertia;
-                angularMove[i] = sign * cp.penetration * angularInertia[i] * inverseTotalInertia;
-#if DEBUGGING
-                cout << "               linearInertia[i] " << linearInertia[i] << endl;
-                cout << "               angularInertia[i] " << angularInertia[i] << endl;
-#endif
-
-                linearChange[i] = cp.normal * linearMove[i];
-                bodies[i]->position += linearChange[i];
-
-                if (angularMove[i] != 0)
-                {
-                    glm::vec3 impulsiveTorque = glm::cross(cp.relativeContactPositions[i], cp.normal);
-                    glm::vec3 angularChangePerUnitImpulseTorque = bodies[i]->inverseInertiaTensor * impulsiveTorque;
-
-#if DEBUGGING                    
-                    utl::debug("                impulsiveTorque", impulsiveTorque);
-                    utl::debug("                angularChangePerUnitImpulseTorque", angularChangePerUnitImpulseTorque);
-                    utl::debug("                cp.relativeContactPositions[i]", cp.relativeContactPositions[i]);
-
-                    utl::debug("                angularMove", angularMove[i]);
-                    utl::debug("                angularInertia", angularInertia[i]);
-#endif
-                    // this is the impulses needed to cover angularMove amount of distance
-                    float impulseNeeded = angularMove[i] / angularInertia[i];
-
-                    glm::vec3 rotation = impulseNeeded * angularChangePerUnitImpulseTorque;
-
-
-#if DEBUGGING
-                    utl::debug("                rotation", rotation);
-#endif
-
-                    if (glm::length(rotation) > 0.01)
-                    {
-                        angularChange[i] = rotation;
-                        bodies[i]->updateOrientation(rotation, 1.0f);
-                    }
-                    else
-                    {
-                        angularChange[i] = glm::vec3(0,0,0);
-                    }
-#if DEBUGGING
-                    utl::debug("                bodies[i] orientation", bodies[i]->orientation);
-                    utl::debug("                bodies[i] rot", bodies[i]->orientationMat);
-#endif
-                }
-            }
-        }
-
-        
-    }
-
-
-    void PrepareContactPoint(ContactPoint& cp, Entity* a, Entity* b, float dt_s)
-    {
-        if (abs(cp.penetration) < 0.0001)
-        {
-            cp.penetration = 0;
-        }
-
-        cp.worldToContact = CreateContactCoordinateBasis(cp);
-       
-        cp.relativeContactPositions[0] = cp.position - a->position;
-
-        if (b != NULL)
-        {
-            cp.relativeContactPositions[1] = cp.position - b->position;
-        }
-#if DEBUGGING
-        utl::debug("a.velocity", a->velocity);
-#endif
-
-
-        cp.closingVelocity = computeClosingVelocityInContactCoordinates(cp, a, b);
-
-
-#if DEBUGGING
-        utl::debug("cp.closingVelocity", cp.closingVelocity);
-        utl::debug("cp.worldToContact", cp.worldToContact);
-#endif
-
-
-        cp.desiredDeltaVelocity = CalculateDesiredDeltaVelocity(cp, a, b, dt_s);
-    }
-
-    // to calcualte the new penetration value, we calculate the new position of the relative contact point
-    // for each object, based on the linear and angular movements we applied.
-
-    // i am assuming all the contact points come from entity a or entity b
-    // not sure if this is the right assumption?
-    void UpdatePenetrations(ContactPoint* cp, int numContactPoints, Entity* a, Entity* b, 
-                            glm::vec3 linearChange[2], glm::vec3 angularChange[2])
-    {
-        Entity* bodies[2] = { a, b };
-        for (int j = 0; j < 2; j++)
-        {
-            if (bodies)
-            {
-                int sign = j ? 1 : -1;
-
-                glm::vec3 deltaPosition = linearChange[j] + glm::cross(angularChange[j], cp->relativeContactPositions[j]);
-                cp->penetration += sign * glm::dot(deltaPosition, cp->normal);
-            }
-        }
-    }
-
-
-
-    void UpdateContactVelocityForContactPoint(ContactPoint& cp, Entity* a, Entity* b, 
-                                                glm::vec3 linearChange[2], glm::vec3 angularChange[2], float dt_s)
-    {
-#if DEBUGGING
-        utl::debug("        UpdateContactVelocityForContactPoint", cp.position);
-
-        utl::debug("        UpdateContactVelocityForContactPoint", cp.closingVelocity);
-
-        glm::vec3 worldClosingVel = cp.ContactToWorld() * cp.closingVelocity;
-        utl::debug("        world coord", worldClosingVel);
-#endif
-        Entity* bodies[2] = { a, b };
-        for (int i = 0; i < 2; i++)
-        {
-            if (bodies[i])
-            {
-                int sign = 1 - 2 * i;
-                // change in contact velocity
-                glm::vec3 deltaVelocity = linearChange[i] + glm::cross(angularChange[i], cp.relativeContactPositions[i]);
-
-#if DEBUGGING
-                utl::debug("                closingVelocity", cp.closingVelocity);
-                utl::debug("                deltaVelocity", deltaVelocity);
-                utl::debug("                linearChange[i]", linearChange[i]);
-                //glm::mat3 m = glm::mat3(glm::inverse(cp.worldToContact));
-
-                utl::debug("                angularChange[i]", angularChange[i]);
-                utl::debug("                relativeContactPositions", cp.relativeContactPositions[i]);
-                utl::debug("                velocity from angularChange[i]", glm::cross(angularChange[i], cp.relativeContactPositions[i]));
-#endif
-                glm::vec3 deltaVelocityContactCoord = glm::mat3(cp.worldToContact) * deltaVelocity;
-      
-#if DEBUGGING
-
-                utl::debug("                deltaVelocityContactCoord", deltaVelocityContactCoord);
-#endif
-                cp.closingVelocity += sign * glm::mat3(cp.worldToContact) * deltaVelocity;
-
-#if DEBUGGING
-                utl::debug("                closingVelocity", cp.closingVelocity);
-#endif
-
-                glm::vec3 worldClosingVel2 = cp.ContactToWorld() * cp.closingVelocity;
-
-#if DEBUGGING
-                utl::debug("                world coord2", worldClosingVel2);
-#endif
-
-                cp.desiredDeltaVelocity = CalculateDesiredDeltaVelocity(cp, a, b, dt_s);
-            }
-        }
-    }
 
     // for the two bodies just involved in the the contact Which we just resolved, 
     // if they were invovled in other contacts, we have to recompute the closing velocities
-    void UpdateContactVelocities(ContactPoint* contactPoints, int numContactPoints, ContactPoint* contactPointJustResolved, 
-                                Entity* a, Entity* b, glm::vec3 linearChange[2], glm::vec3 angularChange[2], float dt_s)
+    void SolveVelocityConstraints(ContactPoint& cp, Entity* a, Entity* b, float dt_s, int j)
     {
-        for (int i = 0; i < numContactPoints; i++)
-        {
-            UpdateContactVelocityForContactPoint(contactPoints[i], a, b, linearChange, angularChange, dt_s);
-
-            // recompute cp desired deltaVelocity
-
-        }
-        
         /*
-        for (int j = 0; j < 2; j++)
+        glm::vec3 relativeVelocity = glm::cross(a->angularVelocity, cp.relativeContactPositions[0]);
+        relativeVelocity += a->velocity;
+
+        if (b != NULL)
         {
-            if (bodies)
-            {
-                int sign = j ? 1 : -1;
+            relativeVelocity += glm::cross(b->angularVelocity, cp.relativeContactPositions[1]);
+            relativeVelocity += b->velocity;
+        }
 
-                glm::vec3 deltaPosition = linearChange[j] + glm::cross(angularChange[j], cp->relativeContactPositions[j]);
-                cp->penetration += sign * glm::dot(deltaPosition, cp->normal);
+        float relV = glm::dot(cp.normal, relativeVelocity);
+        */
+        float dv = cp.desiredSeparatingVelocity - ComputeRelativeVelocity(cp, a, b);
 
-                if (abs(cp->penetration) < 0.0001)
-                {
-                    cp->penetration = 0;
-                }
-            }
+        /*
+        if (flag)
+        {
+            utl::debug(">>>>>>>>> here", cp.position);
+            utl::debug("        a->angularVelocity", a->angularVelocity);
+            utl::debug("        a->velocity", a->velocity);
+            cout << "       relV " << relV << endl;
+            cout << "       newRelV " << newRelV << endl;
+            cout << "       dv " << dv << endl;
         }
         */
-    }
+        // this is the lambda for the impulse
+        float effectiveMass = computeEffectiveMass(cp, a, b);
+        float lambda = effectiveMass * dv;
 
-
-    ContactPoint* FindContactWithMostPenetration(ContactPoint* contactPoints, int numContactPoints)
-    {
-        ContactPoint* worstContact = NULL;
-        float worstPenetration = 0.01;
-        // find worst contact
-        for (int j = 0; j < numContactPoints; j++)
+    //    if (flag)
+     /* 
         {
-            if (contactPoints[j].penetration > worstPenetration)
-            {
-                worstContact = &contactPoints[j];
-                worstPenetration = contactPoints[j].penetration;
-            }
+            cout << "##########" << j << endl;
+            cout << "       effectiveMass " << effectiveMass << endl;
+
+            cout << "       lambda " << lambda << endl;
+        }
+        */
+
+        float newImpulse = std::max(cp.normalImpulse + lambda, 0.0f);
+        lambda = newImpulse - cp.normalImpulse;
+        cp.normalImpulse = newImpulse;
+
+
+    //    if (flag) 
+        {
+    //        cout << "       newImpulse " << newImpulse << endl << endl;
         }
 
-        return worstContact;
-    }
+        glm::vec3 newImpulseVec = lambda * cp.normal;
 
 
-    ContactPoint* FindContactWithMostDesiredVelocityChange(ContactPoint* contactPoints, int numContactPoints)
-    {
-        ContactPoint* worstContact = NULL;
-        float max = -0.01;
-        // find worst contact
-        for (int j = 0; j < numContactPoints; j++)
+
+    //    utl::debug("         before a->velocity", a->velocity);
+
+        a->velocity += newImpulseVec * a->invMass;
+        a->angularVelocity += a->inverseInertiaTensor * glm::cross(cp.relativeContactPositions[0], newImpulseVec);
+
+    //    utl::debug("         after a->velocity", a->velocity);
+
+        if (b != NULL)
         {
-            if (contactPoints[j].desiredDeltaVelocity < max)
-            {
-                worstContact = &contactPoints[j];
-                max = contactPoints[j].desiredDeltaVelocity;
-            }
+            b->velocity = b->velocity - newImpulseVec * b->invMass;
+            b->angularVelocity += b->inverseInertiaTensor * glm::cross(cp.relativeContactPositions[1], newImpulseVec);
         }
-
-        return worstContact;
     }
+
 
 
 
@@ -871,15 +518,41 @@ namespace Physics
     // equation 9.5 is crucial
     // q_vel = angular_velocity x (q_pos - object_origin) + object_velo [9.5]
 
-    void Resolve(CollisionData& contact, Entity* a, Entity* b, float dt_s)
-    {
 
-        // this is assuming all contacts have the same basis
+    void PrepareContactPoints(CollisionData& contact, Entity* a, Entity* b)
+    {
+        float INELASTIC_COLLISION_THRESHOLD = 1.0;
         for (int i = 0; i < contact.numContactPoints; i++)
         {
-            PrepareContactPoint(contact.contactPoints[i], a, b, dt_s);
-        }
+            ContactPoint& cp = contact.contactPoints[i];
+            //     cp.worldToContact = CreateContactCoordinateBasis(cp);
+            cp.relativeContactPositions[0] = cp.position - a->position;
+
+            if (b != NULL)
+            {
+                cp.relativeContactPositions[1] = cp.position - b->position;
+            }
+
+
+            // needs to be after relativeContactPositions are set
+            float vRel = ComputeRelativeVelocity(cp, a, b);
+        //    cout << "vRel " << vRel << endl;
+
+            if (vRel > -INELASTIC_COLLISION_THRESHOLD)
+            {
+                cp.desiredSeparatingVelocity = 0;
+            }
+            else
+            {
+                cp.desiredSeparatingVelocity = -restitution * vRel;
+            }
         
+        }
+    }
+
+    void ResolveVelocity(CollisionData& contact, Entity* a, Entity* b, float dt_s)
+    {
+       /*
 #if DEBUGGING
         cout << "########## resolving " << contact.numContactPoints << " contact points" << endl;
 
@@ -888,129 +561,104 @@ namespace Physics
             cout << "           penetration at start up " << contact.contactPoints[i].penetration << endl;
         }
 #endif
-
-        glm::vec3 linearChange[2];
-        glm::vec3 angularChange[2];
-
-        
-        int iterations = contact.numContactPoints * 4;
-        for (int i = 0; i < iterations; i++)
+*/
+    //    cout << "########## newTick " << endl;
+        int velocityIterations = 4;
+        for (int i = 0; i < velocityIterations; i++)
         {
-#if DEBUGGING
-            cout << "       >>>>>>> iteration " << i << endl;
-#endif            
-            ContactPoint* worstContact = FindContactWithMostPenetration(contact.contactPoints, contact.numContactPoints);
-            if (worstContact == NULL)
-            {
-                break;
-            }
-#if DEBUGGING
-            utl::debug("                worstContact position", worstContact->position);
-            utl::debug("                worstContact penetration", worstContact->penetration);
-#endif
-
-            CheckAwakeState(a, b);
-
-            ResolveInterpenetrationForContactPoint(*worstContact, a, b, linearChange, angularChange);
-
-            UpdatePenetrations(worstContact, contact.numContactPoints, a, b, linearChange, angularChange);
-        }
-        
-#if DEBUGGING
-        cout << "########## resolving velocity for each contact points" << endl;
-
-#endif
-
-        glm::vec3 linearVelocityChange[2];
-        glm::vec3 angularVelocityChange[2];
-
-        iterations = 4;
-        for (int i = 0; i < iterations; i++)
-        {
-            ContactPoint* worstContact = FindContactWithMostDesiredVelocityChange(contact.contactPoints, contact.numContactPoints);          
-
-            if (worstContact == NULL)
-            {
-                break;
-            }
-
-
-#if DEBUGGING
-            cout << "       >>>>>>> Resolving velocity iteration " << i << endl;
-            utl::debug("                    resolving velocity for contact", worstContact->position);
-            utl::debug("                    desiredDeltaVelocity", worstContact->desiredDeltaVelocity);
-#endif    
-
-            CheckAwakeState(a, b);
-
-            ResolveVelocityForContactPoint(*worstContact, a, b, linearVelocityChange, angularVelocityChange, dt_s);
-
-
-            UpdateContactVelocities(contact.contactPoints, contact.numContactPoints, worstContact, 
-                a, b, linearVelocityChange, angularVelocityChange, dt_s);
-            
-#if DEBUGGING
-            cout << "\n\n" << endl;
-#endif       
-
-        }
-
-
-
-        /*
-        iterations = 1;
-        for (int i = 0; i < iterations; i++)
-        {
-            cout << "       >>>>>>> Resolving velocity iteration " << i << endl;
             for (int j = 0; j < contact.numContactPoints; j++)
             {
-                utl::debug("                resolving velocity for contact", contact.contactPoints[j].position);
-                ResolveVelocityForContactPoint(contact.contactPoints[j], a, b, dt_s);
-                cout << "\n\n" << endl;
-
+                SolveVelocityConstraints(contact.contactPoints[j], a, b, dt_s, j);
             }
         }
-        */
-
-        //adjustPositions();
-
-        //adjustVelocities();
-
-
-        /*
-        for (int i = 0; i < contact.numContactPoints; i++)
-        {
-            ContactPoint cp = {};
-            PrepareContactPoint(cp, contact.contactPoints[i], contact.normal, contact.penetration, a, b);
-
-            ResolveVelocityForConactPoint(cp, worldToContact, a, b);
-            ResolveInterpenetrationForContactPoint(cp, worldToContact, a, b);
-        }
-        */
     }
 
 
+    void ResolvePosition(CollisionData& contact, Entity* a, Entity* b, float dt_s)
+    {
+        float baumgarte = 0.2;
+        float linearSlop = 0.005f;
+        float maxLinearCorrection = 0.2f;
 
-    void GenerateContactInfo(Entity a, Entity b, CollisionData& contact)
-    {        
-        if (a.entityType == EntityType::Floor && b.entityType == EntityType::Box)
+        int positionIterations = 3;
+        for (int i = 0; i < positionIterations; i++)
         {
-            glm::vec3 bCenter = b.position + b.physBody.obb.center;
-            PhysBodyTransform bTransform = { bCenter , b.orientationMat};
-            PhysBodyTransform aTransform = { a.position, a.orientationMat };
+            float largestPenetration = 0.0f;
+            for (int j = 0; j < contact.numContactPoints; j++)
+            {                
+                ContactPoint cp = contact.contactPoints[j];
 
-            GetOBBPlaneContacts(b.physBody.obb, bTransform, a.physBody.plane, aTransform, contact);
+                // we track the largest penetration
+                largestPenetration = min(largestPenetration, cp.penetration);
+
+                // even at max, we only want to resolve cp.penetrate - linearSlop of penetration
+                float positionCorrection = baumgarte * (cp.penetration - linearSlop);
+                positionCorrection = max(0.0f, positionCorrection);
+                positionCorrection = min(maxLinearCorrection, positionCorrection);
+
+                /*
+                cout << ">>>>>>> j " << j << endl;
+                cout << "       cp.penetration " << cp.penetration << endl;
+                cout << "       positionCorrection " << positionCorrection << endl;
+                */
+
+                float effectiveMass = computeEffectiveMass(cp, a, b);
+
+                float impulsePerInvMass = positionCorrection / effectiveMass;
+
+                glm::vec3 impulsePerInvMassVec = impulsePerInvMass * cp.normal;
+
+                // utl::debug("        impulsePerInvMassVec ", impulsePerInvMassVec);
+                // cout << "positionCorrection " << positionCorrection << endl;
+
+
+                a->position += a->invMass * impulsePerInvMassVec;
+                glm::vec3 rotation = glm::cross(cp.relativeContactPositions[0], impulsePerInvMassVec);
+                a->addRotation(rotation, 1.0);
+
+                if (b != NULL)
+                {
+                    b->position += b->invMass * impulsePerInvMassVec;
+                    rotation = glm::cross(cp.relativeContactPositions[1], impulsePerInvMassVec);
+                    b->addRotation(rotation, 1.0);
+                }
+            }
+
+            if (largestPenetration < 3 * linearSlop)
+            {
+                break;
+            }
         }
-        else if (a.entityType == EntityType::Box && b.entityType == EntityType::Floor)
-        {
-            glm::vec3 aCenter = a.position + a.physBody.obb.center;
-            PhysBodyTransform aTransform = { aCenter , a.orientationMat };
-            PhysBodyTransform bTransform = { b.position , b.orientationMat };
+    }
 
-            GetOBBPlaneContacts(a.physBody.obb, aTransform, b.physBody.plane, bTransform, contact);
+
+    void GenerateContactInfo(Entity* a, Entity* b, CollisionData& contact)
+    {
+        /*
+        if (a->entityType == EntityType::Floor && b->entityType == EntityType::Box)
+        {
+            glm::vec3 bCenter = b->position + b->physBody.obb.center;
+            PhysBodyTransform bTransform = { bCenter , b->orientationMat };
+            PhysBodyTransform aTransform = { a->position, a->orientationMat };
+
+            contact->a = bEntity;
+            contact->b = NULL;
+
+            GetOBBPlaneContacts(b, b->physBody.obb, bTransform, a, a->physBody.plane, aTransform, contact);
+        }
+        */
+        if (a->entityType == EntityType::Box && b->entityType == EntityType::Floor)
+        {
+            glm::vec3 aCenter = a->position + a->physBody.obb.center;
+            PhysBodyTransform aTransform = { aCenter , a->orientationMat };
+            PhysBodyTransform bTransform = { b->position , b->orientationMat };
+
+            contact.a = a;
+            contact.b = NULL;
+
+            GetOBBPlaneContacts(a, a->physBody.obb, aTransform, b, b->physBody.plane, bTransform, contact);
         }
     };
-
 };
 
 #endif

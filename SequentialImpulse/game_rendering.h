@@ -87,6 +87,7 @@ namespace GameRendering
 
 
 
+
         // Rendering wireframes
         p_renderer = &global.rendererMgr->r_fullVertexColor;
         p_renderer->enableShader();
