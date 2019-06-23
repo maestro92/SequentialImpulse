@@ -38,6 +38,7 @@ namespace GameCode
     glm::vec3 GRAVITY = glm::vec3(0, -10, 0);
     bool appliedForce = false;
 
+    /*
     void addRandomBall(GameState* gameState)
     {
         Entity entity;
@@ -54,7 +55,7 @@ namespace GameCode
         entity.setModel(global.modelMgr->get(ModelEnum::circle));
         gameState->entities[gameState->numEntities++] = entity;
     }
-
+    
     void addRandomBox(GameState* gameState)
     {
         Entity entity;
@@ -71,7 +72,7 @@ namespace GameCode
         entity.setModel(global.modelMgr->get(ModelEnum::centeredQuad));
         gameState->entities[gameState->numEntities++] = entity;
     }
-
+    */
 
     void ProcessInputRaycast(GameState* gameState, glm::vec3 raycastDirection)
     {
@@ -83,10 +84,10 @@ namespace GameCode
                 continue;
             }
             
-            if (entity->physBody.type == Physics::PhysBodyType::PB_OBB)
+            if (entity->physBody.shapeData.shape == Physics::PhysBodyShape::PB_OBB)
             {
                 
-                if (Physics::testPointInsideOBB2D(raycastDirection, entity->physBody.obb, entity->orientationMat, entity->position))
+                if (Physics::testPointInsideOBB2D(raycastDirection, entity->physBody.shapeData.obb, entity->physBody.orientationMat, entity->physBody.position))
                 {
                     
                     gameState->draggedEntity = entity;
@@ -124,7 +125,9 @@ namespace GameCode
         gameState->worldWidth = 50;
         gameState->worldHeight = 50;
         gameState->numEntities = 0;
-        gameState->entities = new Entity[4096];
+
+
+        gameState->entities = (Entity*)malloc(4096); // new Entity[4096];
 
         gameState->numContactPoints = 0;
         gameState->contactPoints = new glm::vec3[1024];
@@ -135,44 +138,19 @@ namespace GameCode
         float scale = 100.0;
         int index = gameState->numEntities++;
         Entity* entity = &gameState->entities[index];
+        entity->init();
         entity->id = gameState->numEntities;
         entity->entityType = EntityType::XYZAxis;
-        entity->scale = glm::vec3(scale, scale, scale);
         entity->flags = EntityFlag_Static;
         entity->setModel(global.modelMgr->get(ModelEnum::xyzAxis));
 
-        if (global.modelMgr->get(ModelEnum::xyzAxis) == NULL)
-        {
-            cout << "XYZ is null" << endl;
-        }
-        else
-        {
-            cout << "XYZ is not null" << endl;
-        }
-
-        cout << "name is " << gameState->entities[0].entityType << endl;
-        if (gameState->entities[0].m_model != NULL)
-        {
-            cout << "   Can render0" << endl;
-        }
-        else
-        {
-            cout << "   Cant render0" << endl;
-        }
-
-        if (gameState->entities[0].m_model != NULL)
-        {
-            cout << "   Can render01" << endl;
-        }
-        else
-        {
-            cout << "   Cant render01" << endl;
-        }
-
-        //        gameState->entities[gameState->numEntities++] = entity;
-
-
+        Physics::PhysBody* pb = &entity->physBody;
+        pb->Init();
         
+        pb->scale = glm::vec3(scale, scale, scale);
+
+
+
         // the box
         int x = 0;
         int y = 10;
@@ -182,14 +160,18 @@ namespace GameCode
         int d = 1;
         index = gameState->numEntities++;
         entity = &gameState->entities[index];
+        entity->init();
         entity->id = index;
         entity->entityType = EntityType::Box;
         entity->flags = EntityFlag_Collides;
-        entity->SetAwake(true);
-        entity->mass = 1;
-        entity->invMass = 1 / (float)entity->mass;
+        entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
 
-        entity->position = glm::vec3(x, y, 0);
+
+        pb = &entity->physBody;
+        pb->Init();
+        pb->mass = 1;
+        pb->invMass = 1 / (float)pb->mass;
+        pb->position = glm::vec3(x, y, 0);
         glm::mat4 om = glm::rotate(30.0f, glm::vec3(0, 0, 1));
      //   glm::mat4 om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
 
@@ -203,75 +185,81 @@ namespace GameCode
         // world to contact local matrix
         glm::mat4 om = utl::axes2GLMMat(xAxis, yAxis, zAxis);
         */
+        pb->orientation = glm::toQuat(om);
+        pb->SyncOrientationMat();
+        pb->scale = glm::vec3(w, h, d);
 
+        pb->velocityDamping = 0.95f;
+        pb->angularDamping = 0.80f;
 
-
-
-        entity->orientation = glm::toQuat(om);
-        entity->SyncOrientationMat();
-
-        entity->scale = glm::vec3(w, h, d);
-
-        entity->velocityDamping = 0.95f;
-        entity->angularDamping = 0.80f;
-
-        entity->inertiaTensor = Physics::GetBoxInertiaTensor(entity->mass, w * 2, h * 2, d * 2);
-        entity->transformInertiaTensor();
-        
-        
-        
-        entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
-        
-        entity->physBody.type = Physics::PhysBodyType::PB_OBB;
-        entity->physBody.obb.center = glm::vec3(0, 0, 0);
-        entity->physBody.obb.axes[0] = glm::vec3(1, 0, 0);
-        entity->physBody.obb.axes[1] = glm::vec3(0, 1, 0);
-        entity->physBody.obb.axes[2] = glm::vec3(0, 0, 1);
-        entity->physBody.obb.halfEdges = glm::vec3(w, h, d);
+        pb->inertiaTensor = Physics::GetBoxInertiaTensor(pb->mass, w * 2, h * 2, d * 2);
+        pb->transformInertiaTensor();
         
 
+        pb->shapeData.shape = Physics::PhysBodyShape::PB_OBB;
+        pb->shapeData.obb.center = glm::vec3(0, 0, 0);
+        pb->shapeData.obb.axes[0] = glm::vec3(1, 0, 0);
+        pb->shapeData.obb.axes[1] = glm::vec3(0, 1, 0);
+        pb->shapeData.obb.axes[2] = glm::vec3(0, 0, 1);
+        pb->shapeData.obb.halfEdges = glm::vec3(w, h, d);
 
 
 
-        gameState->boxIndex = index;
 
         // the floor 
         index = gameState->numEntities++;
         entity = &gameState->entities[index];
+        entity->init();
         entity->id = index;
         entity->entityType = EntityType::Floor;
-        entity->position = glm::vec3(0, 0, 0);
+
+
+        pb = &entity->physBody;
+        pb->Init();
+        pb->shapeData.shape = Physics::PhysBodyShape::PB_PLANE;
+        pb->shapeData.plane.normal = glm::vec3(0, 1, 0);
+        pb->shapeData.plane.offset = 0;       // dot(glm::vec3(0, 1, 0),  glm::vec3(0, 0, 0));
+
+        pb->position = glm::vec3(0, 0, 0);
+        pb->scale = glm::vec3(gameState->worldWidth, 0.2, 1);
+
         entity->flags = EntityFlag_Collides | EntityFlag_Static;
-        entity->scale = glm::vec3(gameState->worldWidth, 0.2, 1);
         entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
 
-        entity->physBody.type = Physics::PhysBodyType::PB_PLANE;
-        entity->physBody.plane.normal = glm::vec3(0, 1, 0);
-        entity->physBody.plane.offset = 0;       // dot(glm::vec3(0, 1, 0),  glm::vec3(0, 0, 0));
 
 
         // the wall
         index = gameState->numEntities++;
         entity = &gameState->entities[index];
+        entity->init();
         entity->id = index;
         entity->entityType = EntityType::Wall;
-        entity->position = glm::vec3(gameState->worldWidth / 2, gameState->worldHeight / 2, 0);
         entity->flags = EntityFlag_Collides | EntityFlag_Static;
-        entity->scale = glm::vec3(2, gameState->worldHeight, 1);
         entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
+
+        pb = &entity->physBody;
+        pb->Init();
+        pb->position = glm::vec3(gameState->worldWidth / 2, gameState->worldHeight / 2, 0);
+        pb->scale = glm::vec3(2, gameState->worldHeight, 1);
+
 
 
         index = gameState->numEntities++;
         entity = &gameState->entities[index];
+        entity->init();
         entity->id = index;
         entity->entityType = EntityType::Wall;
-        entity->position = glm::vec3(-gameState->worldWidth / 2, gameState->worldHeight / 2, 0);
         entity->flags = EntityFlag_Collides | EntityFlag_Static;
-        entity->scale = glm::vec3(2, gameState->worldHeight, 1);
         entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
-    }
+    
+        pb = &entity->physBody;
+        pb->Init();
+        pb->position = glm::vec3(-gameState->worldWidth / 2, gameState->worldHeight / 2, 0);
+        pb->scale = glm::vec3(2, gameState->worldHeight, 1);
 
+}
 
+    /*
     void demo2Init(GameState* gameState)
     {
         gameState->worldWidth = 50;
@@ -282,8 +270,9 @@ namespace GameCode
         gameState->numContactPoints = 0;
         gameState->contactPoints = new glm::vec3[1024];
 
+
         float scale = 100.0;
-        Entity entity;
+        Entity* entity = gameState[
         entity.entityType = EntityType::XYZAxis;
         entity.scale = glm::vec3(scale, scale, scale);
         entity.flags = EntityFlag_Static;
@@ -321,7 +310,7 @@ namespace GameCode
         entity.setModel(global.modelMgr->get(ModelEnum::centeredQuad));
         gameState->entities[gameState->numEntities++] = entity;
     }
-
+    */
 
     glm::vec3 screenToWorldPoint(GameState* gameState, glm::vec2 screenPoint)
     {
@@ -353,7 +342,7 @@ namespace GameCode
 
 
 
-    void integrateVelocity(Entity* entity, float dt_s)
+    void integrateVelocity(Physics::PhysBody* pb, float dt_s)
     {
    //     std::cout << "awake " << entity->isAwake << std::endl;
 
@@ -363,11 +352,11 @@ namespace GameCode
         float linearDamping = 0.0f;
         float angularDamping = 0.0f;
 
-        entity->velocity += entity->forceAccum / entity->mass * dt_s;      
+        pb->velocity += pb->forceAccum / pb->mass * dt_s;
         // apply linear damping        
      //   entity->velocity = entity->velocity * 1.0f / (1.0f + linearDamping * dt_s);
 
-        entity->angularVelocity += entity->inverseInertiaTensor * entity->torqueAccum * dt_s;
+        pb->angularVelocity += pb->inverseInertiaTensor * pb->torqueAccum * dt_s;
         // apply angular damping
     //    entity->angularVelocity = entity->angularVelocity * 1.0f / (1.0f + linearDamping * dt_s);
 
@@ -376,7 +365,7 @@ namespace GameCode
 
 
 
-    void integratePosition(Entity* entity, float dt_s)
+    void integratePosition(Physics::PhysBody* pb, float dt_s)
     {
         float maxTranslation = 2.0f;
 
@@ -385,7 +374,7 @@ namespace GameCode
         if (true)
         {
 
-            glm::vec3 translation = dt_s * entity->velocity;
+            glm::vec3 translation = dt_s * pb->velocity;
             //    std::cout << "glm::length(translation) " << glm::length(translation) << std::endl;
 
 
@@ -395,7 +384,7 @@ namespace GameCode
 
                 //    utl::debug("        clamping velocity");
                 float ratio = maxTranslation / glm::length(translation);
-                entity->velocity *= ratio;
+                pb->velocity *= ratio;
             }
             /*
             utl::debug("        entityVelocity", entity->velocity);
@@ -405,23 +394,23 @@ namespace GameCode
             utl::debug("        entity->velocity * dt_s", entity->velocity * dt_s);
             */
 
-            entity->position += entity->velocity * dt_s;
+            pb->position += pb->velocity * dt_s;
         }
         else
         {
-            entity->velocity = glm::vec3(0,0,0);
+            pb->velocity = glm::vec3(0,0,0);
         }
     //    utl::debug("        entity->position", entity->position);
 
         // do the same for orientation
 
     
-        float angularMag = glm::length(entity->angularVelocity);
+        float angularMag = glm::length(pb->angularVelocity);
         if (angularMag != 0)
         {
             // https://math.stackexchange.com/questions/22437/combining-two-3d-rotations
-            entity->addRotation(entity->angularVelocity, dt_s);
-            entity->transformInertiaTensor();
+            pb->addRotation(pb->angularVelocity, dt_s);
+            pb->transformInertiaTensor();
         }
     }
 
@@ -447,7 +436,7 @@ namespace GameCode
             {
                 Entity* entity = &gameState->entities[i];
                 {
-                    gameState->entities[i].addForce(gameState->entities[i].mass * GRAVITY, false);
+                    gameState->entities[i].physBody.addForce(gameState->entities[i].physBody.mass * GRAVITY, false);
 
 /*
                     // adding drag
@@ -480,7 +469,7 @@ namespace GameCode
         {
             if (!(gameState->entities[i].flags & EntityFlag_Static))
             {
-                integrateVelocity(&gameState->entities[i], gameInput.dt_s);
+                integrateVelocity(&gameState->entities[i].physBody, gameInput.dt_s);
         //        integratePosition(&gameState->entities[i], gameInput.dt_s);
             }
         }
@@ -508,7 +497,7 @@ namespace GameCode
                 }
                 */
                 
-                Physics::GenerateContactInfo(&gameState->entities[i], &gameState->entities[j], contact);
+                Physics::GenerateContactInfo(&gameState->entities[i].physBody, &gameState->entities[j].physBody, contact);
                 if (contact.numContactPoints > 0)
                 {                    
                     CopyContactPoints(gameState, &contact);
@@ -518,15 +507,13 @@ namespace GameCode
 
                     if (gameState->entities[j].flags & EntityFlag_Static)
                     {
-                        Physics::PrepareContactPoints(contact, &gameState->entities[i], NULL);
-                        Physics::ResolveVelocity(contact, &gameState->entities[i], NULL, gameInput.dt_s);
-                    //    Physics::ResolvePosition(contact, &gameState->entities[i], NULL, gameInput.dt_s);
+                        Physics::PrepareContactPoints(contact, &gameState->entities[i].physBody, NULL);
+                        Physics::ResolveVelocity(contact, &gameState->entities[i].physBody, NULL, gameInput.dt_s);
                     }
                     else
                     {
-                        Physics::PrepareContactPoints(contact, &gameState->entities[i], &gameState->entities[j]);
-                        Physics::ResolveVelocity(contact, &gameState->entities[i], &gameState->entities[j], gameInput.dt_s);
-                    //    Physics::ResolvePosition(contact, &gameState->entities[i], &gameState->entities[j], gameInput.dt_s);
+                        Physics::PrepareContactPoints(contact, &gameState->entities[i].physBody, &gameState->entities[j].physBody);
+                        Physics::ResolveVelocity(contact, &gameState->entities[i].physBody, &gameState->entities[j].physBody, gameInput.dt_s);
                     }
                 }
             }
@@ -539,8 +526,7 @@ namespace GameCode
         {
             if (!(gameState->entities[i].flags & EntityFlag_Static))
             {
-                // integrateVelocity(&gameState->entities[i], gameInput.dt_s);
-                integratePosition(&gameState->entities[i], gameInput.dt_s);
+                integratePosition(&gameState->entities[i].physBody, gameInput.dt_s);
             }
         }
 
@@ -554,8 +540,8 @@ namespace GameCode
         {
             if (!(gameState->entities[i].flags & EntityFlag_Static))
             {
-                gameState->entities[i].forceAccum = glm::vec3(0.0);
-                gameState->entities[i].torqueAccum = glm::vec3(0.0);
+                gameState->entities[i].physBody.forceAccum = glm::vec3(0.0);
+                gameState->entities[i].physBody.torqueAccum = glm::vec3(0.0);
 
             }
         }

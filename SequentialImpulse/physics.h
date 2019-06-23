@@ -68,8 +68,8 @@ namespace Physics
 
         int numContactPoints;
         ContactPoint contactPoints[16];
-        Entity* a;
-        Entity* b;
+        PhysBody* a;
+        PhysBody* b;
         //    glm::vec3 contactPoints[16];
 
      //   float penetration;
@@ -189,29 +189,29 @@ namespace Physics
 
 
 
-    int TestOBBPlane(OBB b, PhysBodyTransform bTransform,
-        Plane p, PhysBodyTransform pTransform)
+    int TestOBBPlane(OBB b, PhysBody* bTransform,
+        Plane p, PhysBody* pTransform)
     {
-        glm::vec3 realAxes[3] = { glm::vec3(bTransform.orientation * glm::vec4(b.axes[0], 0)),
-            glm::vec3(bTransform.orientation * glm::vec4(b.axes[1], 0)),
-            glm::vec3(bTransform.orientation * glm::vec4(b.axes[2], 0)) };
+        glm::vec3 realAxes[3] = { glm::vec3(bTransform->orientation * glm::vec4(b.axes[0], 0)),
+            glm::vec3(bTransform->orientation * glm::vec4(b.axes[1], 0)),
+            glm::vec3(bTransform->orientation * glm::vec4(b.axes[2], 0)) };
 
         float r = b.halfEdges[0] * abs(glm::dot(p.normal, realAxes[0])) +
             b.halfEdges[1] * abs(glm::dot(p.normal, realAxes[1])) +
             b.halfEdges[2] * abs(glm::dot(p.normal, realAxes[2]));
 
         // distance from box center to the plane
-        float s = glm::dot(p.normal, bTransform.position) - p.offset;
+        float s = glm::dot(p.normal, bTransform->position) - p.offset;
 
         return abs(s) <= r;
     };
 
 
 
-    void GetOBBPlaneContacts(Entity* bEntity, OBB b, PhysBodyTransform bTransform,
-        Entity* pEntity, Plane p, PhysBodyTransform pTransform, CollisionData& contact)
+    void GetOBBPlaneContacts(OBB b, PhysBody* bBody,
+                            Plane p, PhysBody* pBody, CollisionData& contact)
     {
-        if (!TestOBBPlane(b, bTransform, p, pTransform))
+        if (!TestOBBPlane(b, bBody, p, pBody))
         {
             return;
         }
@@ -221,9 +221,9 @@ namespace Physics
                                    glm::vec3(1,-1,0),
                                    glm::vec3(-1,-1,0) };
 
-        glm::vec3 realAxes[3] = { glm::vec3(bTransform.orientation * glm::vec4(b.axes[0], 0)),
-                                glm::vec3(bTransform.orientation * glm::vec4(b.axes[1], 0)),
-                                glm::vec3(bTransform.orientation * glm::vec4(b.axes[2], 0)) };
+        glm::vec3 realAxes[3] = { glm::vec3(bBody->orientation * glm::vec4(b.axes[0], 0)),
+                                glm::vec3(bBody->orientation * glm::vec4(b.axes[1], 0)),
+                                glm::vec3(bBody->orientation * glm::vec4(b.axes[2], 0)) };
 
    //     cout << "in here " << endl;
         
@@ -248,7 +248,7 @@ namespace Physics
             utl::debug("        vertexOffset", vertexOffset);
             */
 
-            glm::vec3 vertexPos = bTransform.position + b.center + GetBoxVertexOffset(realAxes, b.halfEdges, dirs[i]);
+            glm::vec3 vertexPos = bBody->position + b.center + GetBoxVertexOffset(realAxes, b.halfEdges, dirs[i]);
 
             /*
             utl::debug("        bTransform.position", bTransform.position);
@@ -377,7 +377,7 @@ namespace Physics
 
 
 
-    float computeEffectiveMass(ContactPoint& cp, Entity* a, Entity* b)
+    float computeEffectiveMass(ContactPoint& cp, PhysBody* a, PhysBody* b)
     {
         float totalInvMass = a->invMass;
         glm::vec3 rxn = glm::cross(cp.relativeContactPositions[0], cp.normal);
@@ -408,7 +408,7 @@ namespace Physics
 
 
 
-    float ComputeRelativeVelocity(ContactPoint& cp, Entity* a, Entity* b)
+    float ComputeRelativeVelocity(ContactPoint& cp, PhysBody* a, PhysBody* b)
     {
         glm::vec3 relativeVelocity = glm::cross(a->angularVelocity, cp.relativeContactPositions[0]);
         relativeVelocity += a->velocity;
@@ -425,7 +425,7 @@ namespace Physics
 
     // for the two bodies just involved in the the contact Which we just resolved, 
     // if they were invovled in other contacts, we have to recompute the closing velocities
-    void SolveVelocityConstraints(ContactPoint& cp, Entity* a, Entity* b, float dt_s, int j)
+    void SolveVelocityConstraints(ContactPoint& cp, PhysBody* a, PhysBody* b, float dt_s, int j)
     {
         /*
         glm::vec3 relativeVelocity = glm::cross(a->angularVelocity, cp.relativeContactPositions[0]);
@@ -496,7 +496,7 @@ namespace Physics
 
 
 
-
+    /*
     void CheckAwakeState(Entity* a, Entity* b)
     {
         if (b == NULL)
@@ -511,21 +511,19 @@ namespace Physics
         {
             b->SetAwake(true);
         }
-
     }
-
+    */
 
     // equation 9.5 is crucial
     // q_vel = angular_velocity x (q_pos - object_origin) + object_velo [9.5]
 
 
-    void PrepareContactPoints(CollisionData& contact, Entity* a, Entity* b)
+    void PrepareContactPoints(CollisionData& contact, PhysBody* a, PhysBody* b)
     {
         float INELASTIC_COLLISION_THRESHOLD = 1.0;
         for (int i = 0; i < contact.numContactPoints; i++)
         {
             ContactPoint& cp = contact.contactPoints[i];
-            //     cp.worldToContact = CreateContactCoordinateBasis(cp);
             cp.relativeContactPositions[0] = cp.position - a->position;
 
             if (b != NULL)
@@ -533,10 +531,8 @@ namespace Physics
                 cp.relativeContactPositions[1] = cp.position - b->position;
             }
 
-
             // needs to be after relativeContactPositions are set
             float vRel = ComputeRelativeVelocity(cp, a, b);
-        //    cout << "vRel " << vRel << endl;
 
             if (vRel > -INELASTIC_COLLISION_THRESHOLD)
             {
@@ -550,7 +546,7 @@ namespace Physics
         }
     }
 
-    void ResolveVelocity(CollisionData& contact, Entity* a, Entity* b, float dt_s)
+    void ResolveVelocity(CollisionData& contact, PhysBody* a, PhysBody* b, float dt_s)
     {
        /*
 #if DEBUGGING
@@ -574,7 +570,7 @@ namespace Physics
     }
 
 
-    void ResolvePosition(CollisionData& contact, Entity* a, Entity* b, float dt_s)
+    void ResolvePosition(CollisionData& contact, PhysBody* a, PhysBody* b, float dt_s)
     {
         float baumgarte = 0.2;
         float linearSlop = 0.005f;
@@ -632,31 +628,17 @@ namespace Physics
     }
 
 
-    void GenerateContactInfo(Entity* a, Entity* b, CollisionData& contact)
+    void GenerateContactInfo(PhysBody* a, PhysBody* b, CollisionData& contact)
     {
-        /*
-        if (a->entityType == EntityType::Floor && b->entityType == EntityType::Box)
-        {
-            glm::vec3 bCenter = b->position + b->physBody.obb.center;
-            PhysBodyTransform bTransform = { bCenter , b->orientationMat };
-            PhysBodyTransform aTransform = { a->position, a->orientationMat };
 
-            contact->a = bEntity;
-            contact->b = NULL;
-
-            GetOBBPlaneContacts(b, b->physBody.obb, bTransform, a, a->physBody.plane, aTransform, contact);
-        }
-        */
-        if (a->entityType == EntityType::Box && b->entityType == EntityType::Floor)
+        if (a->shapeData.shape == PhysBodyShape::PB_OBB && b->shapeData.shape == PhysBodyShape::PB_PLANE)
         {
-            glm::vec3 aCenter = a->position + a->physBody.obb.center;
-            PhysBodyTransform aTransform = { aCenter , a->orientationMat };
-            PhysBodyTransform bTransform = { b->position , b->orientationMat };
+            glm::vec3 aCenter = a->position + a->shapeData.obb.center;
 
             contact.a = a;
             contact.b = NULL;
 
-            GetOBBPlaneContacts(a, a->physBody.obb, aTransform, b, b->physBody.plane, bTransform, contact);
+            GetOBBPlaneContacts(a->shapeData.obb, a, b->shapeData.plane, b, contact);
         }
     };
 };

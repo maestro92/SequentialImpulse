@@ -60,7 +60,7 @@ namespace GameRendering
             }
             else if (entities[i].entityType == EntityType::Box)
             {
-                if (entities[i].isAwake)
+                if (entities[i].physBody.isAwake)
                 {
                     p_renderer->setData(R_FULL_COLOR::u_color, COLOR_BLUE);
                 }
@@ -97,9 +97,9 @@ namespace GameRendering
         for (int i = 1; i < gameState->numEntities; i++)
         {
             render(global.modelMgr->get(ModelEnum::xyzAxis), gameState->mainCamera.getPipeline(),
-                gameState->entities[i].position,
-                gameState->entities[i].orientationMat,
-                gameState->entities[i].scale,
+                gameState->entities[i].physBody.position,
+                gameState->entities[i].physBody.orientationMat,
+                gameState->entities[i].physBody.scale,
                 p_renderer);
         }
         p_renderer->disableShader();

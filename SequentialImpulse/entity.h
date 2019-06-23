@@ -73,31 +73,18 @@ static float sleepEpislon = 0.3;
 struct Entity
 {
     public:
-        Entity();
 
-        static Entity* getOne();
 
-		
         int id;
         unsigned int flags;
 
      //   char name[16];
         EntityType entityType;
 
-        float mass;
-        float invMass;
+        void init();
 
-        glm::vec3 position;
-        glm::vec3 velocity;
-   //     glm::vec3 acceleration;
-        glm::vec3 scale;
-        glm::quat orientation;
-        glm::mat4 orientationMat;
         glm::mat4 modelMatrix;
-   //     glm::vec3 lastAcceleration;
 
-        glm::vec3 angularVelocity;
-   //     glm::vec3 angularAcceleration;
         // position, velocity,
         // Orientation, angular Velocity (aka rotation)
         // Game Physics Engine Development
@@ -110,7 +97,7 @@ struct Entity
 
 
         float motion;
-        bool isAwake;
+
         bool canSleep;
 
 
@@ -136,22 +123,9 @@ struct Entity
 
         void renderCore(Pipeline& p, Renderer* r);
 
-        
-
-        
         // p211, holds the amount of damping applied to angular motion. Damping
         // is required to remove energy added through numerical instability in the integrator
-        float velocityDamping;
-        float angularDamping;
 
-        // this is in local coordinate
-        glm::mat3 inertiaTensor;
-
-        // this is in world cooridnates
-        glm::mat3 inverseInertiaTensor;
-
-        glm::vec3 forceAccum;
-        glm::vec3 torqueAccum;
 
         // Game Physics Engine Development
         // page 194
@@ -160,127 +134,7 @@ struct Entity
         // so much so that it is worth the storage space to keep a copy with the rigid body.
 
         // page 206
-        void addForce(glm::vec3 f, bool awakesEntity)
-        {
-            forceAccum += f;
-            if (awakesEntity)
-            {
-                isAwake = true;
-            }
-        }
-
-        void addTorqueFromForce(glm::vec3 f, glm::vec3 vecToForce, bool awakesEntity)
-        {
-            torqueAccum += glm::cross(vecToForce, f);
-            if (awakesEntity)
-            {
-                isAwake = true;
-            }
-            utl::debug("    torqueAccum is ", torqueAccum);
-        }
-        
-        void addRotation(glm::vec3 angularVelocity, float dtSec)
-        {           
-            glm::quat q(0, angularVelocity.x * dtSec, angularVelocity.y * dtSec, angularVelocity.z * dtSec);
-
-            q = q * orientation;
-
-            orientation.w += q.w * 0.5;
-            orientation.x += q.x * 0.5;
-            orientation.y += q.y * 0.5;
-            orientation.z += q.z * 0.5;
-
-            orientation = glm::normalize(orientation);
-
-            if (orientation.w == 1)
-            {
-                if (abs(orientation.x) < 0.001)
-                {
-                    orientation.x = 0;
-                }
-                if (abs(orientation.y) < 0.001)
-                {
-                    orientation.y = 0;
-                }
-                if (abs(orientation.z) < 0.001)
-                {
-                    orientation.z = 0;
-                }
-
-            }
-
-//            orientation = normalizeQuat(orientation);
-            
-            orientation = normalizeQuat(orientation);
-            SyncOrientationMat();
-        }
-
-        glm::quat normalizeQuat(glm::quat q)
-        {
-            q = glm::normalize(q);
-
-            if (q.w == 1)
-            {
-                if (abs(q.x) < 0.001)
-                {
-                    q.x = 0;
-                }
-                if (abs(q.y) < 0.001)
-                {
-                    q.y = 0;
-                }
-                if (abs(q.z) < 0.001)
-                {
-                    q.z = 0;
-                }
-            }
-            return q;
-        }
-
-
-
-
-        void SyncOrientationMat()
-        {
-            orientationMat = glm::toMat4(orientation);
-        }
-
-        // not really needed in 2D, but we will keep this code for completeness
-        // still need to verify whether this is correct
-        void transformInertiaTensor()
-        {
-            // convert this to world coordinates
-            // the world 3 axes is just (1,0,0), (0,1,0), and (0,0,1)
-
-            glm::mat3 orientation3x3 = glm::mat3(orientationMat);
-        //    utl::debug("orientation ", orientation);
-        //    utl::debug("orientation3x3 ", orientation3x3);
-        //    utl::debug("inertiaTensor ", inertiaTensor);
-
-            inverseInertiaTensor = glm::inverse(orientation3x3) * inertiaTensor;
-            // then inverse it 
-            inverseInertiaTensor = glm::inverse(inverseInertiaTensor);
-
-        //    utl::debug("inverseInertiaTensor ", inverseInertiaTensor);
-        }
-
-
-        void SetAwake(bool awake)
-        {
-            if (awake)
-            {
-                isAwake = awake;                
-                motion = sleepEpislon * 2.0f;
-            }
-            else
-            {
-                isAwake = false;
-                velocity = glm::vec3(0, 0, 0);
-                angularVelocity = glm::vec3(0, 0, 0);
-            }
-        }
-
-        
+       
 };
 
 
@@ -289,18 +143,6 @@ struct Entity
 // velocity of a point is
 
 
-inline void Entity::setOrientation(glm::mat4 rot)
-{
-	m_xAxis = glm::vec3(rot[0][0], rot[0][1], rot[0][2]);
-	m_yAxis = glm::vec3(rot[1][0], rot[1][1], rot[1][2]);
-	m_zAxis = glm::vec3(rot[2][0], rot[2][1], rot[2][2]);
-
-	float temp[16] = {rot[0][0], rot[0][1], rot[0][2], 0.0,
-                      rot[1][0], rot[1][1], rot[1][2], 0.0,
-                      rot[2][0], rot[2][1], rot[2][2], 0.0,
-                      0.0,       0.0,       0.0,       1.0};
-    orientationMat = glm::make_mat4(temp);
-}
 
 
 inline void Entity::setModel(Model* model)
@@ -317,7 +159,7 @@ inline void Entity::resetModel()
 
 inline void Entity::updateModelMatrix()
 {
-	modelMatrix = glm::translate(position) * orientationMat * glm::scale(scale);
+	modelMatrix = glm::translate(physBody.position) * physBody.orientationMat * glm::scale(physBody.scale);
 }
 
 #endif
