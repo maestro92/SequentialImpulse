@@ -172,7 +172,7 @@ namespace GameCode
         pb->mass = 1;
         pb->invMass = 1 / (float)pb->mass;
         pb->position = glm::vec3(x, y, 0);
-        glm::mat4 om = glm::rotate(30.0f, glm::vec3(0, 0, 1));
+        glm::mat4 om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
      //   glm::mat4 om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
 
         /*
@@ -202,6 +202,54 @@ namespace GameCode
         pb->shapeData.obb.axes[1] = glm::vec3(0, 1, 0);
         pb->shapeData.obb.axes[2] = glm::vec3(0, 0, 1);
         pb->shapeData.obb.halfEdges = glm::vec3(w, h, d);
+
+
+
+
+
+        // the box
+        x = 0;
+        y = 14.5;
+        size = 1;
+        w = size * 2;
+        h = size * 2;
+        d = 1;
+        index = gameState->numEntities++;
+        entity = &gameState->entities[index];
+        entity->init();
+        entity->id = index;
+        entity->entityType = EntityType::Box;
+        entity->flags = EntityFlag_Collides;
+        entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
+
+        pb = &entity->physBody;
+        pb->Init();
+        pb->mass = 1;
+        pb->invMass = 1 / (float)pb->mass;
+        pb->position = glm::vec3(x, y, 0);
+        om = glm::rotate(45.0f, glm::vec3(0, 0, 1));
+//         om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
+
+        pb->orientation = glm::toQuat(om);
+        pb->SyncOrientationMat();
+        pb->scale = glm::vec3(w, h, d);
+
+        pb->velocityDamping = 0.95f;
+        pb->angularDamping = 0.80f;
+
+        pb->inertiaTensor = Physics::GetBoxInertiaTensor(pb->mass, w * 2, h * 2, d * 2);
+        pb->transformInertiaTensor();
+
+
+        pb->shapeData.shape = Physics::PhysBodyShape::PB_OBB;
+        pb->shapeData.obb.center = glm::vec3(0, 0, 0);
+        pb->shapeData.obb.axes[0] = glm::vec3(1, 0, 0);
+        pb->shapeData.obb.axes[1] = glm::vec3(0, 1, 0);
+        pb->shapeData.obb.axes[2] = glm::vec3(0, 0, 1);
+        pb->shapeData.obb.halfEdges = glm::vec3(w, h, d);
+
+
+
 
 
 
@@ -416,7 +464,7 @@ namespace GameCode
 
 
 
-    void CopyContactPoints(GameState* gameState, Physics::CollisionData* contact)
+    void CopyContactPoints(GameState* gameState, Physics::ContactManifold* contact)
     {
         for (int i = 0; i < contact->numContactPoints; i++)
         {
@@ -436,7 +484,7 @@ namespace GameCode
             {
                 Entity* entity = &gameState->entities[i];
                 {
-                    gameState->entities[i].physBody.addForce(gameState->entities[i].physBody.mass * GRAVITY, false);
+            //        gameState->entities[i].physBody.addForce(gameState->entities[i].physBody.mass * GRAVITY, false);
 
 /*
                     // adding drag
@@ -474,8 +522,8 @@ namespace GameCode
             }
         }
 
-        vector<Physics::CollisionData> contactsThisTick;
-
+        vector<Physics::ContactManifold> contactsThisTick;
+    //    cout << "gameState->numEntities " << gameState->numEntities << endl;
         for (int i = 0; i < gameState->numEntities; i++)
         {
             if (!gameState->entities[i].flags & EntityFlag_Static)
@@ -485,7 +533,7 @@ namespace GameCode
 
             for (int j = i + 1; j < gameState->numEntities; j++)
             {                
-                Physics::CollisionData contact;
+                Physics::ContactManifold contact;
 
                 /*
                 if (Physics::TestContactInfo(gameState->entities[i], gameState->entities[j], contact))
@@ -500,6 +548,9 @@ namespace GameCode
                 Physics::GenerateContactInfo(&gameState->entities[i].physBody, &gameState->entities[j].physBody, contact);
                 if (contact.numContactPoints > 0)
                 {                    
+
+                    cout << "Colliding" << endl;
+
                     CopyContactPoints(gameState, &contact);
                     contactsThisTick.push_back(contact);
 

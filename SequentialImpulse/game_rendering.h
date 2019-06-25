@@ -60,7 +60,7 @@ namespace GameRendering
             }
             else if (entities[i].entityType == EntityType::Box)
             {
-                if (entities[i].physBody.isAwake)
+                if (i % 2 == 0)
                 {
                     p_renderer->setData(R_FULL_COLOR::u_color, COLOR_BLUE);
                 }

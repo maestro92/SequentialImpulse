@@ -10,13 +10,19 @@ namespace Physics
         PB_CIRCLE = 2
     };
 
-    /*
+    
     struct PhysBodyTransform
     {
         glm::vec3 position;
-        glm::mat4 orientation;
+        glm::vec3 axes[3];
     };
-    */
+    
+
+    struct LineSegment
+    {
+        glm::vec3 v0;
+        glm::vec3 v1;
+    };
 
     struct Sphere
     {

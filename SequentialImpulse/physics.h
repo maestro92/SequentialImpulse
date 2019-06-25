@@ -1,11 +1,14 @@
-#ifndef PHYSICS_H_
-#define PHYSICS_H_
+﻿#pragma once
+
 
 #include "entity.h"
 #include "physics_core.h"
 
 namespace Physics
 {
+    const int MAX_CONTACT_POINTS = 16;
+
+
 
     struct ContactPoint
     {
@@ -13,6 +16,8 @@ namespace Physics
         glm::vec3 normal;
         float penetration;   // positive if they are separate, negative if they penetrate
         glm::mat4 worldToContact;
+
+
 
         // this is in local contact coordinates
     //    glm::vec3 closingVelocity;
@@ -59,22 +64,40 @@ namespace Physics
     };
 
 
+    // http://box2d.org/files/GDC2015/DirkGregorius_Contacts.pdf
+
+
+
+
+
+
+
+
     // assuming all contact points have the same normal. 
     // for this application, this may be true
     // for for advance complicated convex shape, this wont be
-    struct CollisionData
+    struct ContactManifold
     {
+        enum Type
+        {
+
+            FACE_A,
+            FACE_B,
+        };
+
+
         //    glm::vec3 normal;
 
         int numContactPoints;
-        ContactPoint contactPoints[16];
+        ContactPoint contactPoints[MAX_CONTACT_POINTS];
+        Type type;
         PhysBody* a;
         PhysBody* b;
         //    glm::vec3 contactPoints[16];
 
      //   float penetration;
 
-        CollisionData()
+        ContactManifold()
         {
             //    normal = glm::vec3(0.0);
             numContactPoints = 0;
@@ -163,7 +186,7 @@ namespace Physics
 
 
 
-    void TestSphereSphere(CollisionData& contact)
+    void TestSphereSphere(ContactManifold& contact)
     {
         // to be done.
     }
@@ -207,9 +230,510 @@ namespace Physics
     };
 
 
+    void GetSpherePlaneContacts(Sphere s, PhysBody* bBody, Plane p, PhysBody* pBody, ContactManifold& contact)
+    {
+
+    }
+
+
+
+
+    float ProjectToAxis(OBB b, glm::vec3 axes[3], glm::vec3 testAxis)
+    {
+        return b.halfEdges[0] * abs(glm::dot(testAxis, axes[0])) +
+            b.halfEdges[1] * abs(glm::dot(testAxis, axes[1])) +
+            b.halfEdges[2] * abs(glm::dot(testAxis, axes[2]));
+    }
+
+    float TestOverlapOnAxis(OBB a, glm::vec3 aAxes[3],
+                            OBB b, glm::vec3 bAxes[3], glm::vec3 aTob, glm::vec3 testAxis)
+    {
+        // Project the half-size of one onto axis
+        float projectionA = ProjectToAxis(a, aAxes, testAxis);
+        float projectionB = ProjectToAxis(b, bAxes, testAxis);
+
+        // Project this onto the axis
+        float distance = abs(glm::dot(aTob, testAxis));
+
+        // Check for overlap
+        return (distance < projectionA + projectionB);
+    }
+
+
+    /*
+    in 2D, the test cam be performed by checking if the vertices of box A are all on the outside of the planes defined by the faces of box B
+    and vice verca.
+
+    in 3D, this wont work, we have to a bunch of separating axis test.
+    we need to make 15 separating axes test to determine if OBB overlap.
+
+    3 axes of A
+    3 axes of B
+    nine axes perpendicular to an axis from each. 
+
+    */
+
+    bool TestOBBOBB(OBB a, glm::vec3 aPos, glm::vec3 aAxes[3],
+                    OBB b, glm::vec3 bPos, glm::vec3 bAxes[3])
+    {
+        glm::vec3 aTob = bPos - aPos;
+
+        /*
+        bool b0 = TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, aAxes[0]);
+        bool b1 = TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, aAxes[1]);
+        bool b2 = TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, aAxes[2]);
+
+        bool b3 = TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, bAxes[0]);
+        bool b4 = TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, bAxes[1]);
+        bool b5 = TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, bAxes[2]);
+
+        bool b6 = TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, glm::cross(aAxes[0], bAxes[0]));
+        bool b7 = TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, glm::cross(aAxes[0], bAxes[1]));
+        bool b8 = TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, glm::cross(aAxes[0], bAxes[2]));
+
+        bool b9 = TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, glm::cross(aAxes[1], bAxes[0]));
+        bool ba = TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, glm::cross(aAxes[1], bAxes[1]));
+        bool bb = TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, glm::cross(aAxes[1], bAxes[2]));
+
+        bool bc = TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, glm::cross(aAxes[2], bAxes[0]));
+        bool bd = TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, glm::cross(aAxes[2], bAxes[1]));
+        bool be = TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, glm::cross(aAxes[2], bAxes[2]));
+
+        // its possible that two axis are the same: aAxes[0] == bAxes[0]
+
+        return TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, aAxes[0]) &&
+            TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, aAxes[1]) &&
+            TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, aAxes[2]) &&
+
+            TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, bAxes[0]) &&
+            TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, bAxes[1]) &&
+            TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, bAxes[2]) &&
+
+            TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, glm::cross(aAxes[0], bAxes[0])) &&
+            TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, glm::cross(aAxes[0], bAxes[1])) &&
+            TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, glm::cross(aAxes[0], bAxes[2])) &&
+            
+            TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, glm::cross(aAxes[1], bAxes[0])) &&
+            TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, glm::cross(aAxes[1], bAxes[1])) &&
+            TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, glm::cross(aAxes[1], bAxes[2])) &&
+
+            TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, glm::cross(aAxes[2], bAxes[0])) &&
+            TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, glm::cross(aAxes[2], bAxes[1])) &&
+            TestOverlapOnAxis(a, aAxes, b, bAxes, aTob, glm::cross(aAxes[2], bAxes[2]));
+            */
+
+        return 0;
+    }
+
+
+
+    /*
+    the few possible types 
+
+    1. point-face contact
+    2. edge-edge contact
+    3. face-face    4 points
+    4. edge-face    2 contact points
+    5. point-point  ignored
+    6. point-edge   ignored
+    */
+
+    /*
+    int GetOBBPointFaceContact(OBB box, glm::vec3 boxPos, glm::vec3 boxAxes[3], glm::vec3 point, CollisionData& contact)
+    {
+        // transform the point into box coordinate
+        glm::mat3 om = utl::axes2GLMMat3(boxAxes[0], boxAxes[1], boxAxes[2]);
+        glm::vec3 relPt = om * point;
+
+        glm::vec3 normal; 
+        
+        // check each axis, looking for the axis on which the penetration is least deep
+        float minPenetration = box.halfEdges.x - abs(relPt.x);
+        if (minPenetration < 0)
+            return 0;
+        normal = boxAxes[0] * (float)((relPt.x < 0) ? - 1 : 1);
+
+        float penetration = 0;
+        for (int i = 1; i < 3; i++)
+        {
+            penetration = box.halfEdges[i] - abs(relPt[i]);
+            if (penetration < 0)
+            {
+                return 0;
+            }
+            else if (penetration < minPenetration)
+            {
+                minPenetration = penetration;
+                normal = boxAxes[i] * (float)((relPt[i] < 0) ? -1 : 1);
+            }
+        }
+
+        assert(contact.numContactPoints < 16);
+        ContactPoint* cp = &contact.contactPoints[contact.numContactPoints];        
+        cp->normal = normal;
+        cp->position = point;
+        cp->penetration = minPenetration;
+
+        return 1;
+    }
+    */
+
+
+    /*
+
+    // https://www.randygaul.net/2014/05/22/deriving-obb-to-obb-intersection-sat/
+
+    int GetPointFaceOBBContact(OBB a, glm::vec3 aPos, glm::vec3 aAxes[3],
+                               OBB b, glm::vec3 bPos, glm::vec3 bAxes[3], int collisionAxisIndex, float penetration, ContactManifold& contact)
+    {
+        // transform the point into box coordinate
+        glm::mat3 om = utl::axes2GLMMat3(aAxes[0], aAxes[1], aAxes[2]);
+        glm::vec3 relPt = om * point;
+
+        glm::vec3  normal = boxAxes[collisionAxisIndex] * (float)((relPt[collisionAxisIndex] < 0) ? -1 : 1);
+        
+        assert(contact.numContactPoints < 16);
+        ContactPoint* cp = &contact.contactPoints[contact.numContactPoints];
+        cp->normal = normal;
+        cp->position = point;
+        cp->penetration = penetration;
+
+        return 1;
+    }
+
+    */
+
+
+
+    
+
+
+    float GetOverlapPenetrationOnAxis(OBB a, glm::vec3 aAxes[3],
+        OBB b, glm::vec3 bAxes[3], glm::vec3 aTob, glm::vec3 testAxis)
+    {
+        // Project the half-size of one onto axis
+        float projectionA = ProjectToAxis(a, aAxes, testAxis);
+        float projectionB = ProjectToAxis(b, bAxes, testAxis);
+
+        // Project this onto the axis
+        float distance = abs(glm::dot(aTob, testAxis));
+
+        // Check for overlap
+        return projectionA + projectionB - distance;
+    }
+
+    // returns true if there is a separating axis so the two are not intersecting
+    bool SATOnFaceAxis(OBB a, glm::vec3 aAxes[3],
+                             OBB b, glm::vec3 bAxes[3], glm::vec3 aTob, glm::vec3 testAxis, 
+                        float& minPenetration, glm::vec3& normal, int& minPenetrationIndex, int axisIndex)
+    {
+        if (glm::length2(testAxis) < 0.0001)
+            return true;
+
+        float penetration = GetOverlapPenetrationOnAxis(a, aAxes, b, bAxes, aTob, testAxis);
+   //     cout << "penetration " << penetration << endl;
+        if (penetration < 0)
+            return true;
+
+        if (penetration < minPenetration)
+        {
+            minPenetration = penetration;
+            minPenetrationIndex = axisIndex;
+            normal = testAxis;
+        }
+
+        return false;
+    }
+
+
+
+    LineSegment GetFace(OBB a, glm::vec3 aAxes[3], PhysBody* aBody, int axisIndex, int axisDirection)
+    {
+        int axisIndex2 = 1 - axisIndex;
+
+        glm::vec3 v0 = aAxes[axisIndex] * (float)axisDirection * a.halfEdges[axisIndex] + axisIndex2 * a.halfEdges[axisIndex2];
+        glm::vec3 v1 = aAxes[axisIndex] * (float)axisDirection * a.halfEdges[axisIndex] - axisIndex2 * a.halfEdges[axisIndex2];
+
+        v0 += aBody->position;
+        v1 += aBody->position;
+
+        return { v0, v1 };
+    }
+
+
+
+
+
+    LineSegment GetIncidentFace(OBB b, glm::vec3 bAxes[3], PhysBody* bBody, glm::vec3 referenceFaceNormal)
+    {
+        vector <glm::vec3> normals = { bAxes[0],  -bAxes[0], bAxes[1] -bAxes[1]};
+        int sign = 1;
+        int axisIndex = -1;
+        float minDotProduct = FLT_MAX;
+        
+        for (int i = 0; i < 2; i++)
+        {            
+            float dotProduct = glm::dot(referenceFaceNormal, bAxes[i]);
+            if (dotProduct < minDotProduct)
+            {
+                minDotProduct = dotProduct;
+                axisIndex = i;
+                sign = 1;
+            }
+
+
+            dotProduct = glm::dot(referenceFaceNormal, -bAxes[i]);
+            if (dotProduct < minDotProduct)
+            {
+                minDotProduct = dotProduct;
+                axisIndex = i;
+                sign = -1;
+            }
+        }
+
+        return GetFace(b, bAxes, bBody, axisIndex, sign);
+    }
+
+
+
+
+    // Sutherland-Hodgman clipping
+    int ClipLineSegmentToLine(glm::vec3 lineSegment[2], Plane p, glm::vec3 clippedVertices[2])
+    {
+        int numVerticesOut = 0;
+
+        // compute the distance of line segment ends points to the plane
+        float dist0 = glm::dot(p.normal, lineSegment[0]) - p.offset;
+        float dist1 = glm::dot(p.normal, lineSegment[1]) - p.offset;
+
+        if (dist0 <= 0.0f)
+            clippedVertices[numVerticesOut++] = lineSegment[0];
+
+        if (dist1 <= 0.0f)
+            clippedVertices[numVerticesOut++] = lineSegment[1];
+
+        // if one point is in, the other point is outside of the plane
+        if (dist0 * dist1 < 0.0f)
+        {
+            // find the intersection point of line segment and the plane
+
+            // the order of v0 and v1 doesn't really matter, becuz the one point that is inside the plane
+            // is already added to the clippedVertices array.
+            
+            float interpolation = dist0 / (dist0 - dist1);
+
+            // just doing interpolation here
+            clippedVertices[numVerticesOut] = lineSegment[0] + interpolation * (lineSegment[1] - lineSegment[0]);
+            numVerticesOut++;
+        }
+
+        return numVerticesOut;
+    }
+
+
+    void GetOBBOBBContacts(OBB a, PhysBody* aBody,
+        OBB b, PhysBody* bBody, ContactManifold& contactManifold)
+    {
+        // early out test using principle of separating axes
+        glm::vec3 aAxes[3] = { glm::vec3(aBody->orientation * glm::vec4(a.axes[0], 0)),
+                               glm::vec3(aBody->orientation * glm::vec4(a.axes[1], 0)),
+                               glm::vec3(aBody->orientation * glm::vec4(a.axes[2], 0)) };
+
+        glm::vec3 bAxes[3] = { glm::vec3(bBody->orientation * glm::vec4(b.axes[0], 0)),
+                               glm::vec3(bBody->orientation * glm::vec4(b.axes[1], 0)),
+                               glm::vec3(bBody->orientation * glm::vec4(b.axes[2], 0)) };
+        /*
+        PhysBodyTransform aTransform = {};
+        aTransform.position = aBody->position;
+        aTransform.axes[0] = aAxes[0];
+        aTransform.axes[1] = aAxes[1];
+        aTransform.axes[2] = aAxes[2];
+
+
+        PhysBodyTransform bTransform = {};
+        bTransform.position = bBody->position;
+        bTransform.axes[0] = bAxes[0];
+        bTransform.axes[1] = bAxes[1];
+        bTransform.axes[2] = bAxes[2];
+        */
+
+
+
+        // 2015 Dirk physics talk page 96:
+        // we prefer face contacts over edge contacts and one face axis over another
+        float minPenetration = FLT_MAX;
+        int minPenetrationAxisIndex = -1;
+        glm::vec3 normal;
+
+        glm::vec3 aTob = bBody->position - aBody->position;
+
+
+        // we find the axis of least penetration
+
+        // face axis checks. face normals and face axis are the same
+        // testing a's x axis
+        if (SATOnFaceAxis(a, aAxes, b, bAxes, aTob, aAxes[0], minPenetration, normal, minPenetrationAxisIndex, 0))
+            return;
+
+        // testing a's y axis
+        if (SATOnFaceAxis(a, aAxes, b, bAxes, aTob, aAxes[1], minPenetration, normal, minPenetrationAxisIndex, 1))
+            return;
+
+        // the face normals of polyhedron B
+        // testing b's x axis
+        if (SATOnFaceAxis(a, aAxes, b, bAxes, aTob, bAxes[0], minPenetration, normal, minPenetrationAxisIndex, 2))
+            return;
+
+        // testing b's y axis
+        if (SATOnFaceAxis(a, aAxes, b, bAxes, aTob, bAxes[1], minPenetration, normal, minPenetrationAxisIndex, 3))
+            return;
+
+        //    assert(b0 && b1 && b2 && b3 &&b4 && b5 && b6 && b7 && b8 && b9 && ba && bb && bc && bd && bd);
+
+        assert(0 <= minPenetrationAxisIndex && minPenetrationAxisIndex < 4);
+
+        /*
+        need to correct the direction of the normal if necessary
+        see example below:
+
+        lets say we tested the x-axis, and we set n to be xAxis
+        if b is actually opposite of n, then we need to flip the sign
+
+             ___________         ___________
+            |           | n     |           |
+            |     A     |---->  |     B     |
+            |___________|       |___________|
+
+             ___________         ___________
+            |           |       |           |
+            |     B     |       |     A     |----->
+            |___________|       |___________|
+        
+        we do that check by doing a dot product of vectorA2B and normal
+        */
+        int axisDirection = 1;
+        if (glm::dot(normal, aTob) < 0.0f)
+        {
+            normal = -normal;
+            axisDirection = -1;
+        }
+
+        LineSegment referenceFace;
+        LineSegment incidentFace;
+
+        OBB referenceOBB;
+        glm::vec3* referencesAxes;
+        PhysBody* referencePhysBody;
+
+        // for 2D, we are not doing edge contacts. so just faceA and faceB
+        if (minPenetrationAxisIndex < 2)
+        {
+            // a has reference face
+            // b has incident face
+            contactManifold.type = ContactManifold::Type::FACE_A;
+            
+            referenceOBB = a;
+            referencesAxes = aAxes;
+            referencePhysBody = aBody;
+
+            referenceFace = GetFace(a, aAxes, aBody, minPenetrationAxisIndex, axisDirection);            
+            incidentFace = GetIncidentFace(b, bAxes, bBody, normal);            
+        }
+        else  
+        {
+            // b has reference face
+            // a has incident face
+            contactManifold.type = ContactManifold::Type::FACE_B;
+
+            referenceOBB = b;
+            referencesAxes = bAxes;
+            referencePhysBody = bBody;
+
+            referenceFace = GetFace(b, bAxes, bBody, minPenetrationAxisIndex, axisDirection);
+            incidentFace = GetIncidentFace(a, aAxes, aBody, normal);
+        }
+
+
+        // we do Sutherland-Hodgman clipping
+
+        // side planes for reference plane
+        int planeNormalIndex = 1 - minPenetrationAxisIndex;
+
+
+        float cos = 0;
+        float sin = 1;
+
+        glm::vec3 planeNormal = glm::vec3(cos * normal.x - sin * normal.y,
+                                          sin * normal.x + cos * normal.y,
+                                          0);
+        
+        glm::vec3 p0 = referencePhysBody->position + planeNormal * referenceOBB.halfEdges[planeNormalIndex];
+        glm::vec3 p1 = referencePhysBody->position - planeNormal * referenceOBB.halfEdges[planeNormalIndex];
+
+        Plane plane0 = { planeNormal, glm::dot(planeNormal, p0) };
+        Plane plane1 = { -planeNormal, glm::dot(-planeNormal, p1) };
+
+        glm::vec3 incidentVertices[2];
+        incidentVertices[0] = incidentFace.v0;
+        incidentVertices[1] = incidentFace.v1;
+
+        glm::vec3 clippedVertices[2];
+
+        int numVerticesOut = ClipLineSegmentToLine(incidentVertices, plane0, clippedVertices);
+        if (numVerticesOut < 2);
+            return;
+
+        glm::vec3 clippedVertices2[2];
+
+
+        numVerticesOut = ClipLineSegmentToLine(clippedVertices, plane1, clippedVertices2);
+        if (numVerticesOut < 2);
+            return;
+
+            
+        assert(numVerticesOut == 2);
+
+        float referencePlaneOffset = glm::dot(referenceFace.v0, normal);
+
+        for (int i = 0; i < numVerticesOut; i++)
+        {
+
+            int numContactPoints;
+            ContactPoint contactPoints[MAX_CONTACT_POINTS];
+
+
+            float distToReferencePlane = glm::dot(normal, clippedVertices2[i]) - referencePlaneOffset;
+
+            if (distToReferencePlane <= 0)
+            {
+                int contactPointIndex = contactManifold.numContactPoints;
+                ContactPoint* cp = &contactManifold.contactPoints[contactPointIndex];
+                cp->position = clippedVertices2[i];
+                cp->normal = normal;
+                cp->penetration = distToReferencePlane;
+            }
+
+        }
+            
+            
+            
+            
+        /*
+
+        glm::vec3 planeNormal = referencesAxes[planeNormalIndex];
+
+        glm::vec3 p0 = referencePhysBody->position + planeNormal * referenceOBB.halfEdges[planeNormalIndex];
+        glm::vec3 p1 = referencePhysBody->position - planeNormal * referenceOBB.halfEdges[planeNormalIndex];
+
+        Plane plane0 = { planeNormal, glm::dot(planeNormal, p0)};
+        Plane plane1 = { planeNormal, glm::dot(planeNormal, p1) };
+        */
+
+    }
+
 
     void GetOBBPlaneContacts(OBB b, PhysBody* bBody,
-                            Plane p, PhysBody* pBody, CollisionData& contact)
+                            Plane p, PhysBody* pBody, ContactManifold& contact)
     {
         if (!TestOBBPlane(b, bBody, p, pBody))
         {
@@ -225,43 +749,18 @@ namespace Physics
                                 glm::vec3(bBody->orientation * glm::vec4(b.axes[1], 0)),
                                 glm::vec3(bBody->orientation * glm::vec4(b.axes[2], 0)) };
 
-   //     cout << "in here " << endl;
-        
-//        cout << "bTransform.position " << bTransform.position << endl;
-
-  //      utl::debug("bTransform.position", bTransform.position);
 
         for (int i = 0; i < 4; i++)
         {
-            /*
-            cout << ">>>>>>>>>>> point" << endl;
-            utl::debug("        realAxes[0]", realAxes[0]);
-            utl::debug("        realAxes[1]", realAxes[1]);
-            utl::debug("        realAxes[2]", realAxes[2]);
-
-
-            utl::debug("        b.halfEdges", b.halfEdges);
-            utl::debug("        dirs", dirs[i]);
-
-            glm::vec3 vertexOffset = GetBoxVertexOffset(realAxes, b.halfEdges, dirs[i]);
-
-            utl::debug("        vertexOffset", vertexOffset);
-            */
 
             glm::vec3 vertexPos = bBody->position + b.center + GetBoxVertexOffset(realAxes, b.halfEdges, dirs[i]);
 
-            /*
-            utl::debug("        bTransform.position", bTransform.position);
-            utl::debug("        vertexPos", vertexPos);
-            */
-            
             // compute vertex distance from the plane
 
             // need to change penetration to be negative, cuz in academic papers, they use that convention
             float dist = p.offset - glm::dot(vertexPos, p.normal);
 
-            // every contact point having the same penetration is the wrong assumption
-            // fix it!
+
             // normal is from b to a
             if (dist >= 0)
             {
@@ -273,11 +772,8 @@ namespace Physics
                 contact.numContactPoints++;
 
                 // do I need to remember the two bodies between each contact?
-
             }
         }
-        
-
     };
 
 
@@ -518,7 +1014,7 @@ namespace Physics
     // q_vel = angular_velocity x (q_pos - object_origin) + object_velo [9.5]
 
 
-    void PrepareContactPoints(CollisionData& contact, PhysBody* a, PhysBody* b)
+    void PrepareContactPoints(ContactManifold& contact, PhysBody* a, PhysBody* b)
     {
         float INELASTIC_COLLISION_THRESHOLD = 1.0;
         for (int i = 0; i < contact.numContactPoints; i++)
@@ -546,18 +1042,9 @@ namespace Physics
         }
     }
 
-    void ResolveVelocity(CollisionData& contact, PhysBody* a, PhysBody* b, float dt_s)
+    void ResolveVelocity(ContactManifold& contact, PhysBody* a, PhysBody* b, float dt_s)
     {
-       /*
-#if DEBUGGING
-        cout << "########## resolving " << contact.numContactPoints << " contact points" << endl;
 
-        for (int i = 0; i < contact.numContactPoints; i++)
-        {
-            cout << "           penetration at start up " << contact.contactPoints[i].penetration << endl;
-        }
-#endif
-*/
     //    cout << "########## newTick " << endl;
         int velocityIterations = 4;
         for (int i = 0; i < velocityIterations; i++)
@@ -570,7 +1057,7 @@ namespace Physics
     }
 
 
-    void ResolvePosition(CollisionData& contact, PhysBody* a, PhysBody* b, float dt_s)
+    void ResolvePosition(ContactManifold& contact, PhysBody* a, PhysBody* b, float dt_s)
     {
         float baumgarte = 0.2;
         float linearSlop = 0.005f;
@@ -628,9 +1115,8 @@ namespace Physics
     }
 
 
-    void GenerateContactInfo(PhysBody* a, PhysBody* b, CollisionData& contact)
+    void GenerateContactInfo(PhysBody* a, PhysBody* b, ContactManifold& contact)
     {
-
         if (a->shapeData.shape == PhysBodyShape::PB_OBB && b->shapeData.shape == PhysBodyShape::PB_PLANE)
         {
             glm::vec3 aCenter = a->position + a->shapeData.obb.center;
@@ -640,7 +1126,24 @@ namespace Physics
 
             GetOBBPlaneContacts(a->shapeData.obb, a, b->shapeData.plane, b, contact);
         }
+        else if (a->shapeData.shape == PhysBodyShape::PB_CIRCLE && b->shapeData.shape == PhysBodyShape::PB_PLANE)
+        {
+            glm::vec3 aCenter = a->position + a->shapeData.sphere.center;
+
+            contact.a = a;
+            contact.b = NULL;
+
+            GetSpherePlaneContacts(a->shapeData.sphere, a, b->shapeData.plane, b, contact);
+        }
+        else if (a->shapeData.shape == PhysBodyShape::PB_OBB && b->shapeData.shape == PhysBodyShape::PB_OBB)
+        {
+            glm::vec3 aCenter = a->position + a->shapeData.obb.center;
+
+            contact.a = a;
+            contact.b = b;
+
+            GetOBBOBBContacts(a->shapeData.obb, a, b->shapeData.obb, b, contact);
+        }
     };
 };
 
-#endif
