@@ -14,6 +14,7 @@ namespace Physics
     {
         glm::vec3 position;
         glm::vec3 normal;   // we want normals to point from A to B
+        glm::vec3 tangent;
         float penetration;   // positive if they are separate, negative if they penetrate
         glm::mat4 worldToContact;
 
@@ -28,16 +29,19 @@ namespace Physics
         // this actually causes jitter
         // refer to GDC2006, Erin Cattor Fast and Simple Physics using Sequential Impulses
         float normalImpulse;
+        float tangentImpulse;
 
         ContactPoint()
         {
             position = glm::vec3(0.0);
             normal = glm::vec3(0.0);
+            tangent = glm::vec3(0.0);
             penetration = 0;
             relativeContactPositions[0] = glm::vec3(0.0);
             relativeContactPositions[1] = glm::vec3(0.0);
 
             normalImpulse = 0;
+            tangentImpulse = 0;
         }
 
 
@@ -129,7 +133,7 @@ namespace Physics
     }
     */
 
-    float restitution = 0.5;
+    float restitution = 0.2;
 
     glm::mat3 GetBoxInertiaTensor(float mass, float xDim, float yDim, float zDim)
     {
@@ -840,6 +844,8 @@ namespace Physics
                 // we want normals to point from A to B
                 // B is the plane, so we flip the sign
                 cp->normal = -p.normal;
+
+                cp->tangent = glm::cross(cp->normal, glm::vec3(0.0, 0.0, 1.0));
                 cp->penetration = dist;
                 contact.numContactPoints++;
 
@@ -951,16 +957,7 @@ namespace Physics
         glm::vec3 rxn = glm::cross(cp.relativeContactPositions[0], cp.normal);
         glm::vec3 rotation = a->inverseInertiaTensor * rxn;
         totalInvMass += glm::dot(rxn, rotation);
-
-       /*        
-        utl::debug("       cp.relativeContactPositions[0] ", cp.relativeContactPositions[0]);
-        utl::debug("       rotation ", rotation);
-        utl::debug("       totalInvMass ", totalInvMass);
-        */
-
-
-
-
+        
         if (b != NULL)
         {
             totalInvMass += b->invMass;
@@ -975,11 +972,34 @@ namespace Physics
 
 
 
+    float computeEffectiveTangentMass(ContactPoint& cp, PhysBody* a, PhysBody* b)
+    {
+        float totalInvMass = a->invMass;
+        glm::vec3 rxt = glm::cross(cp.relativeContactPositions[0], cp.tangent);
+        glm::vec3 rotation = a->inverseInertiaTensor * rxt;
+        totalInvMass += glm::dot(rxt, rotation);
+
+        if (b != NULL)
+        {
+            totalInvMass += b->invMass;
+            rxt = glm::cross(cp.relativeContactPositions[1], -cp.tangent);
+            rotation = b->inverseInertiaTensor * rxt;
+            totalInvMass += glm::dot(rxt, rotation);
+        }
+
+        return 1 / totalInvMass;
+    }
+
+
+
+
     // the contact relativeVelocity needs to be calculated along the direction of normal
     // our normal points from A to B
 
-    float ComputeRelativeVelocity(ContactPoint& cp, PhysBody* a, PhysBody* b)
+    float ComputeRelativeVelocityAlongNormal(ContactPoint& cp, PhysBody* a, PhysBody* b)
     {
+        // essentially  relV = vb + rb - va - rb.
+        // that way we are calculating the velocity along the normal
         glm::vec3 relativeVelocity = -glm::cross(a->angularVelocity, cp.relativeContactPositions[0]);
         relativeVelocity -= a->velocity;
 
@@ -993,13 +1013,12 @@ namespace Physics
     }
 
 
-    // for the two bodies just involved in the the contact Which we just resolved, 
-    // if they were invovled in other contacts, we have to recompute the closing velocities
-    void SolveVelocityConstraints(ContactPoint& cp, PhysBody* a, PhysBody* b, float dt_s, int j)
+    float ComputeRelativeVelocityAlongTangent(ContactPoint& cp, PhysBody* a, PhysBody* b)
     {
-        /*
-        glm::vec3 relativeVelocity = glm::cross(a->angularVelocity, cp.relativeContactPositions[0]);
-        relativeVelocity += a->velocity;
+        // essentially  relV = vb + rb - va - rb.
+        // that way we are calculating the velocity along the normal
+        glm::vec3 relativeVelocity = -glm::cross(a->angularVelocity, cp.relativeContactPositions[0]);
+        relativeVelocity -= a->velocity;
 
         if (b != NULL)
         {
@@ -1007,9 +1026,86 @@ namespace Physics
             relativeVelocity += b->velocity;
         }
 
-        float relV = glm::dot(cp.normal, relativeVelocity);
-        */
-        float dv = cp.desiredSeparatingVelocity - ComputeRelativeVelocity(cp, a, b);
+        return glm::dot(cp.tangent, relativeVelocity);
+    }
+
+
+    void SolveTangentVelocityConstraints(ContactPoint& cp, PhysBody* a, PhysBody* b, float dt_s)
+    {
+
+        float frictionCoefficient = 2.0;
+
+
+        // in box 2D, there is a conveyor belt, so it will have a tangent speed.
+        // currently we dont have it
+        float oldVelocityAlongTangent = ComputeRelativeVelocityAlongTangent(cp, a, b);
+        // so if you have tangent speed, you would have 
+        //  float oldVelocityAlongTangent = ComputeRelativeVelocityAlongTangent(cp, a, b) - tangentSpeed;
+    //    utl::debug("         after a->velocity", a->velocity);
+    //    std::cout << "      oldVelocityAlongTangent " << oldVelocityAlongTangent << endl;
+
+
+        
+
+        // since the old Velocity is traveling in one direction,
+        // we want friction to be in the other direction
+        float effectiveMass = computeEffectiveTangentMass(cp, a, b);
+        float lambda = -effectiveMass * oldVelocityAlongTangent;
+
+   //     std::cout << "      lambda " << lambda << endl;
+
+
+        // static friction is static coefficient * normal force
+        // we dont have normal force, but only normal impulse
+        // recall vel = impulse / mass
+        // we have the amount of velocity we need to remove, so we can calculate the impulse required to remove the normal impulse
+        //      impulse = force * t
+        //          f = dv * t * mass
+        //      so 
+        //          friction_impulse = normal_impulse * static coefficient 
+
+        // in the first iteration, cp.normalImpulse is 0. but we will be running a few iterations anyway
+        float maxFrictionImpulse = cp.normalImpulse * frictionCoefficient;
+        float newFrictionImpulse = cp.tangentImpulse + lambda;
+        newFrictionImpulse = max(-maxFrictionImpulse, newFrictionImpulse);
+        newFrictionImpulse = min(maxFrictionImpulse, newFrictionImpulse);
+    
+        lambda = newFrictionImpulse - cp.tangentImpulse;
+        cp.tangentImpulse = newFrictionImpulse;
+
+
+        glm::vec3 newImpulseVec = lambda * cp.tangent;
+
+    //    utl::debug("         newImpulseVec", newImpulseVec);
+   //     cout << endl;
+
+
+        a->velocity -= newImpulseVec * a->invMass;
+        a->angularVelocity -= a->inverseInertiaTensor * glm::cross(cp.relativeContactPositions[0], newImpulseVec);
+
+         
+        if (b != NULL)
+        {
+            b->velocity += newImpulseVec * b->invMass;
+            b->angularVelocity += b->inverseInertiaTensor * glm::cross(cp.relativeContactPositions[1], newImpulseVec);
+        }
+    }
+
+
+    // for the two bodies just involved in the the contact Which we just resolved, 
+    // if they were invovled in other contacts, we have to recompute the closing velocities
+    void SolveVelocityConstraints(ContactPoint& cp, PhysBody* a, PhysBody* b, float dt_s)
+    {
+
+
+    //    SolveTangentVelocityConstraints(cp, a, b, dt_s);
+
+        // desired velocity needs to be computed at the beginning
+        float numerator = cp.desiredSeparatingVelocity - ComputeRelativeVelocityAlongNormal(cp, a, b);
+
+
+        
+
 
         /*
         if (flag)
@@ -1024,7 +1120,7 @@ namespace Physics
         */
         // this is the lambda for the impulse
         float effectiveMass = computeEffectiveMass(cp, a, b);
-        float lambda = effectiveMass * dv;
+        float lambda = effectiveMass * numerator;
 
     //    if (flag)
      /* 
@@ -1066,6 +1162,10 @@ namespace Physics
 
 
 
+
+
+
+
     /*
     void CheckAwakeState(Entity* a, Entity* b)
     {
@@ -1102,7 +1202,7 @@ namespace Physics
             }
 
             // needs to be after relativeContactPositions are set
-            float vRel = ComputeRelativeVelocity(cp, a, b);
+            float vRel = ComputeRelativeVelocityAlongNormal(cp, a, b);
 
             if (vRel > -INELASTIC_COLLISION_THRESHOLD)
             {
@@ -1116,16 +1216,28 @@ namespace Physics
         }
     }
 
+
+
+
+
+
+
     void ResolveVelocity(ContactManifold& contact, PhysBody* a, PhysBody* b, float dt_s)
     {
 
-    //    cout << "########## newTick " << endl;
+    //   cout << "########## newTick " << endl;
         int velocityIterations = 4;
         for (int i = 0; i < velocityIterations; i++)
         {
             for (int j = 0; j < contact.numContactPoints; j++)
             {
-                SolveVelocityConstraints(contact.contactPoints[j], a, b, dt_s, j);
+                SolveTangentVelocityConstraints(contact.contactPoints[j], a, b, dt_s);
+            }
+
+            for (int j = 0; j < contact.numContactPoints; j++)
+            {
+
+                SolveVelocityConstraints(contact.contactPoints[j], a, b, dt_s);
             }
         }
     }

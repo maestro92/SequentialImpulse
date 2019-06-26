@@ -59,9 +59,11 @@ namespace GameCode
         */
     void addRandomBox(GameState* gameState)
     {
+
+
         int size = 1;
-        int w = size * 2;
-        int h = size * 2;
+        int w = size * utl::randInt(1, 2);
+        int h = size * utl::randInt(1, 2);
         int d = 1;
 
         int index = gameState->numEntities++;
@@ -69,7 +71,7 @@ namespace GameCode
 
         int x = utl::randFloat(-20, 20);
         int y = utl::randFloat(5, 20);
-
+        float rot = utl::randFloat(0, 360);
 
         entity->init();
         entity->id = index;
@@ -82,7 +84,7 @@ namespace GameCode
         pb->mass = 1;
         pb->invMass = 1 / (float)pb->mass;
         pb->position = glm::vec3(x, y, 0);
-        glm::mat4 om = glm::rotate(50.0f, glm::vec3(0, 0, 1));
+        glm::mat4 om = glm::rotate(rot, glm::vec3(0, 0, 1));
         //         om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
 
         pb->orientation = glm::toQuat(om);
@@ -206,7 +208,7 @@ namespace GameCode
 
 
 
-
+        
         // the box
         x = 0;
         y = 19.5; // 4.5
@@ -247,11 +249,11 @@ namespace GameCode
         pb->shapeData.obb.axes[1] = glm::vec3(0, 1, 0);
         pb->shapeData.obb.axes[2] = glm::vec3(0, 0, 1);
         pb->shapeData.obb.halfEdges = glm::vec3(w, h, d);
-
+        
 
 
         x = 0;
-        y = 2;
+        y = 10;
         index = gameState->numEntities++;
         entity = &gameState->entities[index];
         entity->init();
@@ -299,7 +301,7 @@ namespace GameCode
 
 
 
-        /*
+        
         addRandomBox(gameState);
         addRandomBox(gameState);
         addRandomBox(gameState);
@@ -308,7 +310,7 @@ namespace GameCode
         addRandomBox(gameState);
         addRandomBox(gameState);
         addRandomBox(gameState);
-        */
+        
 
 
 

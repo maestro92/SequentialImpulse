@@ -74,7 +74,7 @@ namespace GameRendering
         }
         
 
-
+        /*
         for (int i = 0; i < gameState->numContactManifolds; i++)
         {
             p_renderer->setData(R_FULL_COLOR::u_color, COLOR_RED);
@@ -106,7 +106,7 @@ namespace GameRendering
             }
         }
 
-
+        */
 
 
 
