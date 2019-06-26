@@ -16,6 +16,7 @@ namespace ModelEnum
 		cube,
 		quad,
         circle,
+        arrow,
 		centeredQuad,
         unitCenteredQuad,
         woodenBox,

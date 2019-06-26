@@ -72,7 +72,7 @@ namespace Asset
 
 
     void buildCircle(float radius, float thickness, vector<VertexData>& vertices, vector<unsigned int>& indices)
-    {
+    {        
         for (float i = 0; i < 360; i += 0.5f)
         {
             //phys
@@ -110,7 +110,7 @@ void ModelManager::init()
 	m_quad = new QuadModel(1, 1);
 	m_centeredQuad = new QuadModel(-0.5, 0.5, -0.5, 0.5);
     m_unitCenteredQuad = new QuadModel(-1, 1, -1, 1);
-    m_xyzAxis = buildXYZModel(); //new XYZAxisModel();
+    m_xyzAxis = buildXYZModel(); 
     
     std::vector<VertexData> vertices;
     std::vector<unsigned int> indices;
@@ -119,13 +119,14 @@ void ModelManager::init()
     Model* circleModel = new Model();
     circleModel->addMesh(m);
     
+
 	m_models.resize(ModelEnum::NUM_MODELS);
 	m_models[ModelEnum::quad] = m_quad;
     m_models[ModelEnum::centeredQuad] = m_centeredQuad;
 	m_models[ModelEnum::unitCenteredQuad] = m_unitCenteredQuad;
 	m_models[ModelEnum::xyzAxis] = m_xyzAxis;
     m_models[ModelEnum::circle] = circleModel;
-
+    m_models[ModelEnum::arrow] = buildArrowModel();
 
 }
 
@@ -183,6 +184,56 @@ Model* ModelManager::buildXYZModel()
 
     return model;
 }
+
+
+Model* ModelManager::buildArrowModel()
+{
+    Model* model = new Model();
+
+    model->setModelGemoetry(GL_LINES);
+
+    std::vector<VertexData> vertices;
+    std::vector<unsigned int> indices;
+    VertexData v;
+
+    float scale = 1;
+
+    /// X axis
+    v.position = glm::vec3(0.0, 0.0, 0.0);
+    vertices.push_back(v);
+
+    v.position = glm::vec3(scale, 0.0, 0.0);
+    vertices.push_back(v);
+
+    /// Y axis
+    v.position = glm::vec3(1.0, 0.0, 0.0);
+    vertices.push_back(v);;
+
+    v.position = glm::vec3(0.90, 0.15, 0.0);
+    vertices.push_back(v);;
+
+    /// Z axis
+    v.position = glm::vec3(1.0, 0.0, 0.0);
+    vertices.push_back(v);;
+
+    v.position = glm::vec3(0.90, -0.15, 0.0);
+    vertices.push_back(v);;
+
+
+    indices.push_back(0);
+    indices.push_back(1);
+    indices.push_back(2);
+    indices.push_back(3);
+    indices.push_back(4);
+    indices.push_back(5);
+
+    //   worldAxis = new mesh(&axisVertices, &axisIndices);
+    Mesh m(vertices, indices);
+    model->addMesh(m);
+
+    return model;
+}
+
 
 
 void ModelManager::enableVertexAttribArrays()

@@ -13,7 +13,7 @@ namespace Physics
     struct ContactPoint
     {
         glm::vec3 position;
-        glm::vec3 normal;
+        glm::vec3 normal;   // we want normals to point from A to B
         float penetration;   // positive if they are separate, negative if they penetrate
         glm::mat4 worldToContact;
 
@@ -81,8 +81,8 @@ namespace Physics
         enum Type
         {
 
-            FACE_A,
-            FACE_B,
+            REFERENCE_FACE_A,
+            REFERENCE_FACE_B,
         };
 
 
@@ -451,8 +451,10 @@ namespace Physics
     {
         int axisIndex2 = 1 - axisIndex;
 
-        glm::vec3 v0 = aAxes[axisIndex] * (float)axisDirection * a.halfEdges[axisIndex] + axisIndex2 * a.halfEdges[axisIndex2];
-        glm::vec3 v1 = aAxes[axisIndex] * (float)axisDirection * a.halfEdges[axisIndex] - axisIndex2 * a.halfEdges[axisIndex2];
+
+
+        glm::vec3 v0 = aAxes[axisIndex] * (float)axisDirection * a.halfEdges[axisIndex] + aAxes[axisIndex2] * a.halfEdges[axisIndex2];
+        glm::vec3 v1 = aAxes[axisIndex] * (float)axisDirection * a.halfEdges[axisIndex] - aAxes[axisIndex2] * a.halfEdges[axisIndex2];
 
         v0 += aBody->position;
         v1 += aBody->position;
@@ -592,6 +594,7 @@ namespace Physics
 
         assert(0 <= minPenetrationAxisIndex && minPenetrationAxisIndex < 4);
 
+
         /*
         need to correct the direction of the normal if necessary
         see example below:
@@ -612,11 +615,10 @@ namespace Physics
         we do that check by doing a dot product of vectorA2B and normal
         */
         int axisDirection = 1;
-        if (glm::dot(normal, aTob) < 0.0f)
-        {
-            normal = -normal;
-            axisDirection = -1;
-        }
+
+
+    //    utl::debug("minPenetrationAxisIndex ", minPenetrationAxisIndex);
+    //    utl::debug("normal ", normal);
 
         LineSegment referenceFace;
         LineSegment incidentFace;
@@ -628,22 +630,49 @@ namespace Physics
         // for 2D, we are not doing edge contacts. so just faceA and faceB
         if (minPenetrationAxisIndex < 2)
         {
+            if (glm::dot(normal, aTob) < 0.0f)
+            {
+                normal = -normal;
+                axisDirection = -1;
+            }
+
+
             // a has reference face
             // b has incident face
-            contactManifold.type = ContactManifold::Type::FACE_A;
+            contactManifold.type = ContactManifold::Type::REFERENCE_FACE_A;
             
             referenceOBB = a;
             referencesAxes = aAxes;
             referencePhysBody = aBody;
 
             referenceFace = GetFace(a, aAxes, aBody, minPenetrationAxisIndex, axisDirection);            
-            incidentFace = GetIncidentFace(b, bAxes, bBody, normal);            
+            incidentFace = GetIncidentFace(b, bAxes, bBody, normal);   
+
+            /*
+            cout << ">>>> referenceFace" << endl;
+
+            utl::debug("        referenceFace ", referenceFace.v0);
+            utl::debug("        referenceFace ", referenceFace.v1);
+
+            cout << ">>>> incidentFace" << endl;
+            utl::debug("        incidentFace ", incidentFace.v0);
+            utl::debug("        incidentFace ", incidentFace.v1);
+            */
         }
         else  
         {
+            if (glm::dot(normal, -aTob) < 0.0f)
+            {
+                normal = -normal;
+                axisDirection = -1;
+            }
+
+
+
+            minPenetrationAxisIndex -= 2;
             // b has reference face
             // a has incident face
-            contactManifold.type = ContactManifold::Type::FACE_B;
+            contactManifold.type = ContactManifold::Type::REFERENCE_FACE_B;
 
             referenceOBB = b;
             referencesAxes = bAxes;
@@ -651,6 +680,18 @@ namespace Physics
 
             referenceFace = GetFace(b, bAxes, bBody, minPenetrationAxisIndex, axisDirection);
             incidentFace = GetIncidentFace(a, aAxes, aBody, normal);
+
+
+            /*
+            cout << ">>>> referenceFace" << endl;
+
+            utl::debug("        referenceFace ", referenceFace.v0);
+            utl::debug("        referenceFace ", referenceFace.v1);
+
+            cout << ">>>> incidentFace" << endl;
+            utl::debug("        incidentFace ", incidentFace.v0);
+            utl::debug("        incidentFace ", incidentFace.v1);
+            */
         }
 
 
@@ -667,8 +708,13 @@ namespace Physics
                                           sin * normal.x + cos * normal.y,
                                           0);
         
+    //    utl::debug("        planeNormal ", planeNormal);
+
         glm::vec3 p0 = referencePhysBody->position + planeNormal * referenceOBB.halfEdges[planeNormalIndex];
         glm::vec3 p1 = referencePhysBody->position - planeNormal * referenceOBB.halfEdges[planeNormalIndex];
+
+   //     utl::debug("        p0 ", p0);
+   //     utl::debug("        p1 ", p1);
 
         Plane plane0 = { planeNormal, glm::dot(planeNormal, p0) };
         Plane plane1 = { -planeNormal, glm::dot(-planeNormal, p1) };
@@ -677,17 +723,21 @@ namespace Physics
         incidentVertices[0] = incidentFace.v0;
         incidentVertices[1] = incidentFace.v1;
 
+    //    utl::debug("        incidentVertices[0] ", incidentVertices[0]);
+     //   utl::debug("        incidentVertices[1] ", incidentVertices[1]);
+
+
         glm::vec3 clippedVertices[2];
 
         int numVerticesOut = ClipLineSegmentToLine(incidentVertices, plane0, clippedVertices);
-        if (numVerticesOut < 2);
+    //    utl::debug("        numVerticesOut ", numVerticesOut);
+        if (numVerticesOut < 2)
             return;
 
         glm::vec3 clippedVertices2[2];
-
-
         numVerticesOut = ClipLineSegmentToLine(clippedVertices, plane1, clippedVertices2);
-        if (numVerticesOut < 2);
+   //     utl::debug("        numVerticesOut ", numVerticesOut);
+        if (numVerticesOut < 2)
             return;
 
             
@@ -709,8 +759,27 @@ namespace Physics
                 int contactPointIndex = contactManifold.numContactPoints;
                 ContactPoint* cp = &contactManifold.contactPoints[contactPointIndex];
                 cp->position = clippedVertices2[i];
-                cp->normal = normal;
-                cp->penetration = distToReferencePlane;
+
+                // we want it to point from A to B
+                if (contactManifold.type == ContactManifold::Type::REFERENCE_FACE_A)
+                {
+                    cp->normal = normal;
+                }
+                else if(contactManifold.type == ContactManifold::Type::REFERENCE_FACE_B)
+                {
+                    // we want normal to point from A to B
+                    cp->normal = -normal;
+                }
+                else
+                {
+                    assert(false);
+                }
+
+                cp->penetration = -distToReferencePlane;
+
+//utl::debug("        distToReferencePlane ", distToReferencePlane);
+
+                contactManifold.numContactPoints++;
             }
 
         }
@@ -767,7 +836,10 @@ namespace Physics
                 ContactPoint* cp = &contact.contactPoints[contact.numContactPoints];
 
                 cp->position = vertexPos + 0.5f * dist * p.normal;
-                cp->normal = p.normal;
+  
+                // we want normals to point from A to B
+                // B is the plane, so we flip the sign
+                cp->normal = -p.normal;
                 cp->penetration = dist;
                 contact.numContactPoints++;
 
@@ -903,11 +975,13 @@ namespace Physics
 
 
 
+    // the contact relativeVelocity needs to be calculated along the direction of normal
+    // our normal points from A to B
 
     float ComputeRelativeVelocity(ContactPoint& cp, PhysBody* a, PhysBody* b)
     {
-        glm::vec3 relativeVelocity = glm::cross(a->angularVelocity, cp.relativeContactPositions[0]);
-        relativeVelocity += a->velocity;
+        glm::vec3 relativeVelocity = -glm::cross(a->angularVelocity, cp.relativeContactPositions[0]);
+        relativeVelocity -= a->velocity;
 
         if (b != NULL)
         {
@@ -978,14 +1052,14 @@ namespace Physics
 
     //    utl::debug("         before a->velocity", a->velocity);
 
-        a->velocity += newImpulseVec * a->invMass;
-        a->angularVelocity += a->inverseInertiaTensor * glm::cross(cp.relativeContactPositions[0], newImpulseVec);
+        a->velocity -= newImpulseVec * a->invMass;
+        a->angularVelocity -= a->inverseInertiaTensor * glm::cross(cp.relativeContactPositions[0], newImpulseVec);
 
-    //    utl::debug("         after a->velocity", a->velocity);
+    //    utl::debug("         after a->velo07city", a->velocity);
 
         if (b != NULL)
         {
-            b->velocity = b->velocity - newImpulseVec * b->invMass;
+            b->velocity += newImpulseVec * b->invMass;
             b->angularVelocity += b->inverseInertiaTensor * glm::cross(cp.relativeContactPositions[1], newImpulseVec);
         }
     }
@@ -1095,8 +1169,8 @@ namespace Physics
                 // cout << "positionCorrection " << positionCorrection << endl;
 
 
-                a->position += a->invMass * impulsePerInvMassVec;
-                glm::vec3 rotation = glm::cross(cp.relativeContactPositions[0], impulsePerInvMassVec);
+                a->position -= a->invMass * impulsePerInvMassVec;
+                glm::vec3 rotation = -glm::cross(cp.relativeContactPositions[0], impulsePerInvMassVec);
                 a->addRotation(rotation, 1.0);
 
                 if (b != NULL)

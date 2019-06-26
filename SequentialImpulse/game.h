@@ -19,8 +19,8 @@ struct GameState
     Entity* entities;
     int numEntities;
 
-    int numContactPoints;
-    glm::vec3* contactPoints;
+    int numContactManifolds;
+    Physics::ContactManifold* contactManifolds;
 
 
     Camera mainCamera;
@@ -30,6 +30,7 @@ struct GameState
     float angle;
     int boxIndex;
 };
+
 
 
 namespace GameCode
@@ -55,24 +56,56 @@ namespace GameCode
         entity.setModel(global.modelMgr->get(ModelEnum::circle));
         gameState->entities[gameState->numEntities++] = entity;
     }
-    
+        */
     void addRandomBox(GameState* gameState)
     {
-        Entity entity;
+        int size = 1;
+        int w = size * 2;
+        int h = size * 2;
+        int d = 1;
 
-        int x = utl::randFloat(0, 30);
-        int y = utl::randFloat(0, 30);
+        int index = gameState->numEntities++;
+        Entity* entity = &gameState->entities[index];
 
-        int size = utl::randFloat(1, 2);
+        int x = utl::randFloat(-20, 20);
+        int y = utl::randFloat(5, 20);
 
-        entity.entityType = EntityType::Ball;
-        entity.flags |= EntityFlag_Collides;
-        entity.position = glm::vec3(x, y, 0);
-        entity.scale = glm::vec3(size, size, size);
-        entity.setModel(global.modelMgr->get(ModelEnum::centeredQuad));
-        gameState->entities[gameState->numEntities++] = entity;
+
+        entity->init();
+        entity->id = index;
+        entity->entityType = EntityType::Box;
+        entity->flags = EntityFlag_Collides;
+        entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
+
+        Physics::PhysBody* pb = &entity->physBody;
+        pb->Init();
+        pb->mass = 1;
+        pb->invMass = 1 / (float)pb->mass;
+        pb->position = glm::vec3(x, y, 0);
+        glm::mat4 om = glm::rotate(50.0f, glm::vec3(0, 0, 1));
+        //         om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
+
+        pb->orientation = glm::toQuat(om);
+        pb->SyncOrientationMat();
+        pb->scale = glm::vec3(w, h, d);
+
+        pb->velocityDamping = 0.95f;
+        pb->angularDamping = 0.80f;
+
+        pb->inertiaTensor = Physics::GetBoxInertiaTensor(pb->mass, w * 2, h * 2, d * 2);
+        pb->transformInertiaTensor();
+
+
+        pb->shapeData.shape = Physics::PhysBodyShape::PB_OBB;
+        pb->shapeData.obb.center = glm::vec3(0, 0, 0);
+        pb->shapeData.obb.axes[0] = glm::vec3(1, 0, 0);
+        pb->shapeData.obb.axes[1] = glm::vec3(0, 1, 0);
+        pb->shapeData.obb.axes[2] = glm::vec3(0, 0, 1);
+        pb->shapeData.obb.halfEdges = glm::vec3(w, h, d);
+
+
     }
-    */
+
 
     void ProcessInputRaycast(GameState* gameState, glm::vec3 raycastDirection)
     {
@@ -120,17 +153,23 @@ namespace GameCode
 
 
 
+
+
     void demo1Init(GameState* gameState)
     {
+        srand(0);
+
         gameState->worldWidth = 50;
         gameState->worldHeight = 50;
         gameState->numEntities = 0;
 
+        int entitySize = sizeof(Entity);
+        gameState->entities = (Entity*)malloc(256 * entitySize); // new Entity[4096];
 
-        gameState->entities = (Entity*)malloc(4096); // new Entity[4096];
+        gameState->numContactManifolds = 0;
+    //    gameState->contactManifold = new contactManifoldglm::vec3[1024];
 
-        gameState->numContactPoints = 0;
-        gameState->contactPoints = new glm::vec3[1024];
+        gameState->contactManifolds = new Physics::ContactManifold[64];
 
         gameState->angle = 0;
         gameState->draggedEntity = NULL;
@@ -152,56 +191,17 @@ namespace GameCode
 
 
         // the box
-        int x = 0;
-        int y = 10;
+        glm::mat4 om;
+        int x, y;
+
+
+        x = 0;
+        y = 2;
         int size = 1;
         int w = size * 2;
         int h = size * 2;
         int d = 1;
-        index = gameState->numEntities++;
-        entity = &gameState->entities[index];
-        entity->init();
-        entity->id = index;
-        entity->entityType = EntityType::Box;
-        entity->flags = EntityFlag_Collides;
-        entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
 
-
-        pb = &entity->physBody;
-        pb->Init();
-        pb->mass = 1;
-        pb->invMass = 1 / (float)pb->mass;
-        pb->position = glm::vec3(x, y, 0);
-        glm::mat4 om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
-     //   glm::mat4 om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
-
-        /*
-        glm::vec3 xAxis = glm::vec3(0, 1, 0);
-        xAxis = glm::normalize(xAxis);
-        glm::vec3 yAxis = glm::vec3(-1, 0, 0);
-        yAxis = glm::normalize(yAxis);
-        glm::vec3 zAxis = glm::vec3(0, 0, 1);
-
-        // world to contact local matrix
-        glm::mat4 om = utl::axes2GLMMat(xAxis, yAxis, zAxis);
-        */
-        pb->orientation = glm::toQuat(om);
-        pb->SyncOrientationMat();
-        pb->scale = glm::vec3(w, h, d);
-
-        pb->velocityDamping = 0.95f;
-        pb->angularDamping = 0.80f;
-
-        pb->inertiaTensor = Physics::GetBoxInertiaTensor(pb->mass, w * 2, h * 2, d * 2);
-        pb->transformInertiaTensor();
-        
-
-        pb->shapeData.shape = Physics::PhysBodyShape::PB_OBB;
-        pb->shapeData.obb.center = glm::vec3(0, 0, 0);
-        pb->shapeData.obb.axes[0] = glm::vec3(1, 0, 0);
-        pb->shapeData.obb.axes[1] = glm::vec3(0, 1, 0);
-        pb->shapeData.obb.axes[2] = glm::vec3(0, 0, 1);
-        pb->shapeData.obb.halfEdges = glm::vec3(w, h, d);
 
 
 
@@ -209,7 +209,7 @@ namespace GameCode
 
         // the box
         x = 0;
-        y = 14.5;
+        y = 19.5; // 4.5
         size = 1;
         w = size * 2;
         h = size * 2;
@@ -227,8 +227,8 @@ namespace GameCode
         pb->mass = 1;
         pb->invMass = 1 / (float)pb->mass;
         pb->position = glm::vec3(x, y, 0);
-        om = glm::rotate(45.0f, glm::vec3(0, 0, 1));
-//         om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
+        om = glm::rotate(50.0f, glm::vec3(0, 0, 1));
+        //         om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
 
         pb->orientation = glm::toQuat(om);
         pb->SyncOrientationMat();
@@ -250,10 +250,69 @@ namespace GameCode
 
 
 
+        x = 0;
+        y = 2;
+        index = gameState->numEntities++;
+        entity = &gameState->entities[index];
+        entity->init();
+        entity->id = index;
+        entity->entityType = EntityType::Box;
+        entity->flags = EntityFlag_Collides;
+        entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
+
+
+        pb = &entity->physBody;
+        pb->Init();
+        pb->mass = 1;
+        pb->invMass = 1 / (float)pb->mass;
+        pb->position = glm::vec3(x, y, 0);
+        om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
+        //   glm::mat4 om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
+
+           /*
+           glm::vec3 xAxis = glm::vec3(0, 1, 0);
+           xAxis = glm::normalize(xAxis);
+           glm::vec3 yAxis = glm::vec3(-1, 0, 0);
+           yAxis = glm::normalize(yAxis);
+           glm::vec3 zAxis = glm::vec3(0, 0, 1);
+
+           // world to contact local matrix
+           glm::mat4 om = utl::axes2GLMMat(xAxis, yAxis, zAxis);
+           */
+        pb->orientation = glm::toQuat(om);
+        pb->SyncOrientationMat();
+        pb->scale = glm::vec3(w, h, d);
+
+        pb->velocityDamping = 0.95f;
+        pb->angularDamping = 0.80f;
+
+        pb->inertiaTensor = Physics::GetBoxInertiaTensor(pb->mass, w * 2, h * 2, d * 2);
+        pb->transformInertiaTensor();
+
+
+        pb->shapeData.shape = Physics::PhysBodyShape::PB_OBB;
+        pb->shapeData.obb.center = glm::vec3(0, 0, 0);
+        pb->shapeData.obb.axes[0] = glm::vec3(1, 0, 0);
+        pb->shapeData.obb.axes[1] = glm::vec3(0, 1, 0);
+        pb->shapeData.obb.axes[2] = glm::vec3(0, 0, 1);
+        pb->shapeData.obb.halfEdges = glm::vec3(w, h, d);
 
 
 
+        /*
+        addRandomBox(gameState);
+        addRandomBox(gameState);
+        addRandomBox(gameState);
+        addRandomBox(gameState);
+        addRandomBox(gameState);
+        addRandomBox(gameState);
+        addRandomBox(gameState);
+        addRandomBox(gameState);
+        */
 
+
+
+        
         // the floor 
         index = gameState->numEntities++;
         entity = &gameState->entities[index];
@@ -273,9 +332,9 @@ namespace GameCode
 
         entity->flags = EntityFlag_Collides | EntityFlag_Static;
         entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
+        
 
-
-
+        /*
         // the wall
         index = gameState->numEntities++;
         entity = &gameState->entities[index];
@@ -304,7 +363,7 @@ namespace GameCode
         pb->Init();
         pb->position = glm::vec3(-gameState->worldWidth / 2, gameState->worldHeight / 2, 0);
         pb->scale = glm::vec3(2, gameState->worldHeight, 1);
-
+        */
 }
 
     /*
@@ -462,20 +521,15 @@ namespace GameCode
         }
     }
 
-
-
-    void CopyContactPoints(GameState* gameState, Physics::ContactManifold* contact)
+    void CopyContactManifold(GameState* gameState, Physics::ContactManifold* contact)
     {
-        for (int i = 0; i < contact->numContactPoints; i++)
-        {
-            gameState->contactPoints[gameState->numContactPoints++] = contact->contactPoints[i].position;
-        }
+        gameState->contactManifolds[gameState->numContactManifolds] = *contact;
+        gameState->numContactManifolds++;
     }
     
-
     void tick(GameInput gameInput, GameState* gameState)
     {
-        gameState->numContactPoints = 0;
+        gameState->numContactManifolds = 0;
 
         // cout << "gameState->numEntities " << gameState->numEntities << endl;
         for (int i = 0; i < gameState->numEntities; i++)
@@ -484,8 +538,10 @@ namespace GameCode
             {
                 Entity* entity = &gameState->entities[i];
                 {
-            //        gameState->entities[i].physBody.addForce(gameState->entities[i].physBody.mass * GRAVITY, false);
-
+                //    if (i % 2 != 0)
+                    {
+                        gameState->entities[i].physBody.addForce(gameState->entities[i].physBody.mass * GRAVITY, false);
+                    }
 /*
                     // adding drag
                     glm::vec3 drag = gameState->entities[i].velocity;
@@ -533,7 +589,7 @@ namespace GameCode
 
             for (int j = i + 1; j < gameState->numEntities; j++)
             {                
-                Physics::ContactManifold contact;
+                Physics::ContactManifold contact = {};
 
                 /*
                 if (Physics::TestContactInfo(gameState->entities[i], gameState->entities[j], contact))
@@ -549,13 +605,13 @@ namespace GameCode
                 if (contact.numContactPoints > 0)
                 {                    
 
-                    cout << "Colliding" << endl;
+          //          cout << "Colliding" << i << " " << j << endl;
 
-                    CopyContactPoints(gameState, &contact);
+                    CopyContactManifold(gameState, &contact);
                     contactsThisTick.push_back(contact);
 
               //      cout << "\n\nResolving contact" << endl;
-
+                    
                     if (gameState->entities[j].flags & EntityFlag_Static)
                     {
                         Physics::PrepareContactPoints(contact, &gameState->entities[i].physBody, NULL);
@@ -566,6 +622,7 @@ namespace GameCode
                         Physics::PrepareContactPoints(contact, &gameState->entities[i].physBody, &gameState->entities[j].physBody);
                         Physics::ResolveVelocity(contact, &gameState->entities[i].physBody, &gameState->entities[j].physBody, gameInput.dt_s);
                     }
+                    
                 }
             }
         }

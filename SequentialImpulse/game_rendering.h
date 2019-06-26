@@ -73,15 +73,37 @@ namespace GameRendering
             gameState->entities[i].renderCore(gameState->mainCamera.getPipeline(), p_renderer);
         }
         
-        for (int i = 0; i < gameState->numContactPoints; i++)
+
+
+        for (int i = 0; i < gameState->numContactManifolds; i++)
         {
             p_renderer->setData(R_FULL_COLOR::u_color, COLOR_RED);
 
-            render(global.modelMgr->get(ModelEnum::centeredQuad), gameState->mainCamera.getPipeline(), 
-                gameState->contactPoints[i], 
-                glm::mat4(1.0), 
-                glm::vec3(0.5), 
-                p_renderer);
+
+            for (int j = 0; j < gameState->contactManifolds->numContactPoints; j++)
+            {
+                render(global.modelMgr->get(ModelEnum::centeredQuad), gameState->mainCamera.getPipeline(),
+                    gameState->contactManifolds[i].contactPoints[j].position,
+                    glm::mat4(1.0),
+                    glm::vec3(0.5),
+                    p_renderer);
+
+                glm::vec3 xAxis = gameState->contactManifolds[i].contactPoints[j].normal;
+                glm::vec3 zAxis = glm::vec3(0.0, 0.0, 1.0);
+                glm::vec3 yAxis = glm::cross(zAxis, xAxis);
+
+
+
+                glm::mat4 orientation = utl::axes2GLMMat4(xAxis, yAxis, zAxis);
+
+
+
+                render(global.modelMgr->get(ModelEnum::arrow), gameState->mainCamera.getPipeline(),
+                    gameState->contactManifolds[i].contactPoints[j].position,
+                    orientation,
+                    glm::vec3(10.0),
+                    p_renderer);
+            }
         }
 
 
