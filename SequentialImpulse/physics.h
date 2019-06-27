@@ -8,10 +8,31 @@ namespace Physics
 {
     const int MAX_CONTACT_POINTS = 16;
 
+    enum ContactFeature
+    {
+        vertex = 0,
+        face = 1,
+    };
+
+
+    union ContactManifoldPointId
+    {
+        struct Info
+        {
+            Uint8 featureIndexA;
+            Uint8 featureIndexB;
+            Uint8 contactFeatureTypeA;
+            Uint8 contactFeatureTypeB;
+        } info;
+        Uint32 key;
+
+    };
 
 
     struct ContactPoint
     {
+        ContactManifoldPointId id;
+
         glm::vec3 position;
         glm::vec3 normal;   // we want normals to point from A to B
         glm::vec3 tangent;
@@ -75,32 +96,32 @@ namespace Physics
 
 
 
-
-
     // assuming all contact points have the same normal. 
-    // for this application, this may be true
-    // for for advance complicated convex shape, this wont be
+    // but they will have different penetration depth
     struct ContactManifold
     {
         enum Type
         {
-
             REFERENCE_FACE_A,
             REFERENCE_FACE_B,
         };
 
 
+
         //    glm::vec3 normal;
+
 
         int numContactPoints;
         ContactPoint contactPoints[MAX_CONTACT_POINTS];
         Type type;
+
+        // glm::vec3 normal;
+        // glm::vec3 tangent;
+
+
         PhysBody* a;
         PhysBody* b;
-        //    glm::vec3 contactPoints[16];
-
-     //   float penetration;
-
+        
         ContactManifold()
         {
             //    normal = glm::vec3(0.0);
@@ -133,7 +154,7 @@ namespace Physics
     }
     */
 
-    float restitution = 0.2;
+    float restitution = 0.0;
 
     glm::mat3 GetBoxInertiaTensor(float mass, float xDim, float yDim, float zDim)
     {
@@ -276,6 +297,7 @@ namespace Physics
     nine axes perpendicular to an axis from each. 
 
     */
+
 
     bool TestOBBOBB(OBB a, glm::vec3 aPos, glm::vec3 aAxes[3],
                     OBB b, glm::vec3 bPos, glm::vec3 bAxes[3])
@@ -764,15 +786,28 @@ namespace Physics
                 ContactPoint* cp = &contactManifold.contactPoints[contactPointIndex];
                 cp->position = clippedVertices2[i];
 
+
                 // we want it to point from A to B
                 if (contactManifold.type == ContactManifold::Type::REFERENCE_FACE_A)
                 {
                     cp->normal = normal;
+
+                    cp->id.info.featureIndexA = minPenetrationAxisIndex;
+                    cp->id.info.featureIndexB = i;  // will this work?
+
+                    cp->id.info.contactFeatureTypeA = ContactFeature::face;
+                    cp->id.info.contactFeatureTypeB = ContactFeature::vertex;
                 }
                 else if(contactManifold.type == ContactManifold::Type::REFERENCE_FACE_B)
                 {
                     // we want normal to point from A to B
                     cp->normal = -normal;
+
+                    cp->id.info.featureIndexA = i;   // will this work?
+                    cp->id.info.featureIndexB = minPenetrationAxisIndex;
+
+                    cp->id.info.contactFeatureTypeA = ContactFeature::vertex;
+                    cp->id.info.contactFeatureTypeB = ContactFeature::face;
                 }
                 else
                 {
@@ -838,7 +873,7 @@ namespace Physics
             if (dist >= 0)
             {
                 ContactPoint* cp = &contact.contactPoints[contact.numContactPoints];
-
+                
                 cp->position = vertexPos + 0.5f * dist * p.normal;
   
                 // we want normals to point from A to B
@@ -849,9 +884,38 @@ namespace Physics
                 cp->penetration = dist;
                 contact.numContactPoints++;
 
+                cp->id.info.featureIndexA = i;
+                cp->id.info.featureIndexB = 0;
+
+                cp->id.info.contactFeatureTypeA = vertex;
+                cp->id.info.contactFeatureTypeB = face;
                 // do I need to remember the two bodies between each contact?
             }
         }
+
+        /*
+        for (int i = 0; i < contact.numContactPoints; i++)
+        {
+            ContactPoint* cp = &contact.contactPoints[contact.numContactPoints];
+
+            if (contact.numContactPoints == 2)
+            {
+                cp->id.info.featureIndexA = face;
+                cp->id.info.featureIndexB = face;
+
+                cp->id.info.contactFeatureTypeA = face;
+                cp->id.info.contactFeatureTypeB = face;
+            }
+            else if (contact.numContactPoints == 1)
+            {
+                cp->id.info.featureIndexA = face;
+                cp->id.info.featureIndexB = face;
+
+                cp->id.info.contactFeatureTypeA = vertex;
+                cp->id.info.contactFeatureTypeB = face;
+            }
+        }
+        */
     };
 
 
@@ -945,20 +1009,20 @@ namespace Physics
     we need to use last frame's acceleration. because this current frame's collision
     is caused by last frame's acceleration and velocity.
     */
-#define DEBUGGING 1
+#define DEBUGGING 0
 
 
 
 
 
-    float computeEffectiveMass(ContactPoint& cp, PhysBody* a, PhysBody* b)
+    float computeEffectiveInvMass(ContactPoint& cp, PhysBody* a, PhysBody* b)
     {
         float totalInvMass = a->invMass;
         glm::vec3 rxn = glm::cross(cp.relativeContactPositions[0], cp.normal);
         glm::vec3 rotation = a->inverseInertiaTensor * rxn;
         totalInvMass += glm::dot(rxn, rotation);
         
-        if (b != NULL)
+        if (!b->flags & Physics::PhysBodyFlag_Static)
         {
             totalInvMass += b->invMass;
             rxn = glm::cross(cp.relativeContactPositions[1], -cp.normal);
@@ -979,7 +1043,7 @@ namespace Physics
         glm::vec3 rotation = a->inverseInertiaTensor * rxt;
         totalInvMass += glm::dot(rxt, rotation);
 
-        if (b != NULL)
+        if (!b->flags & Physics::PhysBodyFlag_Static)
         {
             totalInvMass += b->invMass;
             rxt = glm::cross(cp.relativeContactPositions[1], -cp.tangent);
@@ -1003,7 +1067,7 @@ namespace Physics
         glm::vec3 relativeVelocity = -glm::cross(a->angularVelocity, cp.relativeContactPositions[0]);
         relativeVelocity -= a->velocity;
 
-        if (b != NULL)
+        if (!b->flags & Physics::PhysBodyFlag_Static)
         {
             relativeVelocity += glm::cross(b->angularVelocity, cp.relativeContactPositions[1]);
             relativeVelocity += b->velocity;
@@ -1018,9 +1082,19 @@ namespace Physics
         // essentially  relV = vb + rb - va - rb.
         // that way we are calculating the velocity along the normal
         glm::vec3 relativeVelocity = -glm::cross(a->angularVelocity, cp.relativeContactPositions[0]);
+        
+        utl::debug("         a->velocity", a->velocity);
+        utl::debug("         a->angularVelocity", a->angularVelocity);
+
+        utl::debug("         relativeContactPositions", cp.relativeContactPositions[0]);
+
+
+        
         relativeVelocity -= a->velocity;
 
-        if (b != NULL)
+
+
+        if (!b->flags & Physics::PhysBodyFlag_Static)
         {
             relativeVelocity += glm::cross(b->angularVelocity, cp.relativeContactPositions[1]);
             relativeVelocity += b->velocity;
@@ -1033,7 +1107,7 @@ namespace Physics
     void SolveTangentVelocityConstraints(ContactPoint& cp, PhysBody* a, PhysBody* b, float dt_s)
     {
 
-        float frictionCoefficient = 2.0;
+        float frictionCoefficient = 0.2;
 
 
         // in box 2D, there is a conveyor belt, so it will have a tangent speed.
@@ -1043,14 +1117,28 @@ namespace Physics
         //  float oldVelocityAlongTangent = ComputeRelativeVelocityAlongTangent(cp, a, b) - tangentSpeed;
     //    utl::debug("         after a->velocity", a->velocity);
     //    std::cout << "      oldVelocityAlongTangent " << oldVelocityAlongTangent << endl;
+ 
+#if DEBUGGING
+        utl::debug("         a->velocity", a->velocity);
+        
+
+        utl::debug("         cp tanget", cp.tangent);
+        
+        utl::debug("         vt", oldVelocityAlongTangent);
+#endif 
 
 
         
 
         // since the old Velocity is traveling in one direction,
         // we want friction to be in the other direction
-        float effectiveMass = computeEffectiveTangentMass(cp, a, b);
-        float lambda = -effectiveMass * oldVelocityAlongTangent;
+        float effectiveInvMass = computeEffectiveTangentMass(cp, a, b);
+        float lambda = -effectiveInvMass * oldVelocityAlongTangent;
+
+#if DEBUGGING
+
+        utl::debug("         effectiveMass", effectiveInvMass);
+#endif 
 
    //     std::cout << "      lambda " << lambda << endl;
 
@@ -1063,28 +1151,43 @@ namespace Physics
         //          f = dv * t * mass
         //      so 
         //          friction_impulse = normal_impulse * static coefficient 
+#if DEBUGGING
+        utl::debug("         cp.normalImpulse", cp.normalImpulse);
+        utl::debug("         cp.tangentImpulse", cp.tangentImpulse);
+
+        utl::debug("         frictionCoefficiente", frictionCoefficient);
+        utl::debug("         lambda", lambda);
+
+#endif 
+
 
         // in the first iteration, cp.normalImpulse is 0. but we will be running a few iterations anyway
         float maxFrictionImpulse = cp.normalImpulse * frictionCoefficient;
         float newFrictionImpulse = cp.tangentImpulse + lambda;
         newFrictionImpulse = max(-maxFrictionImpulse, newFrictionImpulse);
         newFrictionImpulse = min(maxFrictionImpulse, newFrictionImpulse);
-    
+#if DEBUGGING  
+        utl::debug("         newFrictionImpulse", newFrictionImpulse);
+#endif
         lambda = newFrictionImpulse - cp.tangentImpulse;
+
+#if DEBUGGING
+        utl::debug("         lambda", lambda);
+#endif
         cp.tangentImpulse = newFrictionImpulse;
 
 
         glm::vec3 newImpulseVec = lambda * cp.tangent;
-
-    //    utl::debug("         newImpulseVec", newImpulseVec);
-   //     cout << endl;
-
-
+#if DEBUGGING
+        utl::debug("         a->velocity", a->velocity);
+        utl::debug("         newImpulseVec", newImpulseVec);
+        cout << endl;
+#endif
         a->velocity -= newImpulseVec * a->invMass;
         a->angularVelocity -= a->inverseInertiaTensor * glm::cross(cp.relativeContactPositions[0], newImpulseVec);
 
          
-        if (b != NULL)
+        if (!b->flags & Physics::PhysBodyFlag_Static)
         {
             b->velocity += newImpulseVec * b->invMass;
             b->angularVelocity += b->inverseInertiaTensor * glm::cross(cp.relativeContactPositions[1], newImpulseVec);
@@ -1101,12 +1204,15 @@ namespace Physics
     //    SolveTangentVelocityConstraints(cp, a, b, dt_s);
 
         // desired velocity needs to be computed at the beginning
+        float vn = ComputeRelativeVelocityAlongNormal(cp, a, b);
+
         float numerator = cp.desiredSeparatingVelocity - ComputeRelativeVelocityAlongNormal(cp, a, b);
 
 
-        
-
-
+#if DEBUGGING
+        utl::debug("         cp.desiredSeparatingVelocity", cp.desiredSeparatingVelocity);
+        utl::debug("         vn", vn);
+#endif
         /*
         if (flag)
         {
@@ -1119,9 +1225,12 @@ namespace Physics
         }
         */
         // this is the lambda for the impulse
-        float effectiveMass = computeEffectiveMass(cp, a, b);
+        float effectiveMass = computeEffectiveInvMass(cp, a, b);
         float lambda = effectiveMass * numerator;
-
+#if DEBUGGING
+        utl::debug("         effectiveMass", effectiveMass);
+        utl::debug("         lambda", lambda);
+#endif
     //    if (flag)
      /* 
         {
@@ -1143,17 +1252,24 @@ namespace Physics
         }
 
         glm::vec3 newImpulseVec = lambda * cp.normal;
-
-
+#if DEBUGGING
+        utl::debug("         cp.normalImpulse", cp.normalImpulse);
+        utl::debug("         lambda", lambda);
 
     //    utl::debug("         before a->velocity", a->velocity);
-
+        utl::debug("         cp.relativeContactPositions[0]", cp.relativeContactPositions[0]);
+        utl::debug("         before a->velocity", a->velocity);
+        utl::debug("         before a->angularVelocity", a->angularVelocity);
+#endif
         a->velocity -= newImpulseVec * a->invMass;
         a->angularVelocity -= a->inverseInertiaTensor * glm::cross(cp.relativeContactPositions[0], newImpulseVec);
+#if DEBUGGING
+        utl::debug("         after a->velocity", a->velocity);
+        utl::debug("         after a->angularVelocity", a->angularVelocity);
+        cout << endl << endl;
+#endif
 
-    //    utl::debug("         after a->velo07city", a->velocity);
-
-        if (b != NULL)
+        if (!b->flags & Physics::PhysBodyFlag_Static)
         {
             b->velocity += newImpulseVec * b->invMass;
             b->angularVelocity += b->inverseInertiaTensor * glm::cross(cp.relativeContactPositions[1], newImpulseVec);
@@ -1196,7 +1312,7 @@ namespace Physics
             ContactPoint& cp = contact.contactPoints[i];
             cp.relativeContactPositions[0] = cp.position - a->position;
 
-            if (b != NULL)
+            if (!b->flags & Physics::PhysBodyFlag_Static)
             {
                 cp.relativeContactPositions[1] = cp.position - b->position;
             }
@@ -1224,8 +1340,9 @@ namespace Physics
 
     void ResolveVelocity(ContactManifold& contact, PhysBody* a, PhysBody* b, float dt_s)
     {
-
-    //   cout << "########## newTick " << endl;
+#if DEBUGGING
+       cout << "########## newTick " << endl;
+#endif
         int velocityIterations = 4;
         for (int i = 0; i < velocityIterations; i++)
         {
@@ -1236,7 +1353,6 @@ namespace Physics
 
             for (int j = 0; j < contact.numContactPoints; j++)
             {
-
                 SolveVelocityConstraints(contact.contactPoints[j], a, b, dt_s);
             }
         }
@@ -1258,34 +1374,52 @@ namespace Physics
                 ContactPoint cp = contact.contactPoints[j];
 
                 // we track the largest penetration
-                largestPenetration = min(largestPenetration, cp.penetration);
+                largestPenetration = max(largestPenetration, cp.penetration);
 
                 // even at max, we only want to resolve cp.penetrate - linearSlop of penetration
                 float positionCorrection = baumgarte * (cp.penetration - linearSlop);
                 positionCorrection = max(0.0f, positionCorrection);
                 positionCorrection = min(maxLinearCorrection, positionCorrection);
 
-                /*
-                cout << ">>>>>>> j " << j << endl;
+#if DEBUGGING
+                // cout << ">>>>>>> j " << j << endl;
                 cout << "       cp.penetration " << cp.penetration << endl;
                 cout << "       positionCorrection " << positionCorrection << endl;
-                */
+#endif
 
-                float effectiveMass = computeEffectiveMass(cp, a, b);
+                float effectiveInvMass = computeEffectiveInvMass(cp, a, b);
 
-                float impulsePerInvMass = positionCorrection / effectiveMass;
+#if DEBUGGING
+                cout << "       effectiveMass " << effectiveInvMass << endl;
+#endif
+
+                float impulsePerInvMass = positionCorrection * effectiveInvMass;
+
+#if DEBUGGING
+                utl::debug("        impulsePerInvMass ", impulsePerInvMass);
+#endif
 
                 glm::vec3 impulsePerInvMassVec = impulsePerInvMass * cp.normal;
 
-                // utl::debug("        impulsePerInvMassVec ", impulsePerInvMassVec);
-                // cout << "positionCorrection " << positionCorrection << endl;
+#if DEBUGGING
+                utl::debug("        impulsePerInvMassVec ", impulsePerInvMassVec);
+                // cout << "impulsePerInvMassVec " << impulsePerInvMassVec << endl;
 
+                utl::debug("        before a->position ", a->position);
+#endif
 
+                
                 a->position -= a->invMass * impulsePerInvMassVec;
                 glm::vec3 rotation = -glm::cross(cp.relativeContactPositions[0], impulsePerInvMassVec);
                 a->addRotation(rotation, 1.0);
 
-                if (b != NULL)
+#if DEBUGGING
+
+                utl::debug("        after a->position ", a->position);
+            //    utl::debug("        impulsePerInvMassVec ", impulsePerInvMassVec);
+#endif
+
+                if (!b->flags & Physics::PhysBodyFlag_Static)
                 {
                     b->position += b->invMass * impulsePerInvMassVec;
                     rotation = glm::cross(cp.relativeContactPositions[1], impulsePerInvMassVec);
@@ -1308,7 +1442,7 @@ namespace Physics
             glm::vec3 aCenter = a->position + a->shapeData.obb.center;
 
             contact.a = a;
-            contact.b = NULL;
+            contact.b = b;
 
             GetOBBPlaneContacts(a->shapeData.obb, a, b->shapeData.plane, b, contact);
         }
@@ -1317,7 +1451,7 @@ namespace Physics
             glm::vec3 aCenter = a->position + a->shapeData.sphere.center;
 
             contact.a = a;
-            contact.b = NULL;
+            contact.b = b;
 
             GetSpherePlaneContacts(a->shapeData.sphere, a, b->shapeData.plane, b, contact);
         }

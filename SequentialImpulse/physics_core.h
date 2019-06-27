@@ -2,6 +2,15 @@
 
 namespace Physics
 {
+    enum PhysBodyFlags
+    {
+        // TODO(casey): Does it make more sense to have the flag be for _non_ colliding entities?
+        // TODO(casey): Collides and ZSupported probably can be removed now/soon
+        PhysBodyFlag_Collides = (1 << 0),
+        PhysBodyFlag_Static = (1 << 1),
+    };
+
+
 
     enum PhysBodyShape
     {
@@ -61,7 +70,7 @@ namespace Physics
     struct PhysBody
     {
         PhysBodyShapeData shapeData;
-
+        unsigned int flags;
         float mass;
         float invMass;
         glm::vec3 position;
@@ -95,6 +104,7 @@ namespace Physics
             orientation = glm::quat(1.0, 0.0, 0.0, 0.0);
             orientationMat = glm::mat4(1.0);
             angularVelocity = glm::vec3(0.0, 0.0, 0.0);
+            flags = 0;
 
             forceAccum = glm::vec3(0.0);
             torqueAccum = glm::vec3(0.0);

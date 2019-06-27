@@ -54,7 +54,7 @@ namespace GameRendering
 
         for (int i = 1; i < gameState->numEntities; i++)
         {
-            if (entities[i].flags & EntityFlag_Static)
+            if (entities[i].physBody.flags & Physics::PhysBodyFlag_Static)
             {
                 p_renderer->setData(R_FULL_COLOR::u_color, COLOR_GRAY);
             }

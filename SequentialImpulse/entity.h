@@ -24,13 +24,6 @@ enum EntityType
     XYZAxis,
 };
 
-enum EntityFlags
-{
-    // TODO(casey): Does it make more sense to have the flag be for _non_ colliding entities?
-    // TODO(casey): Collides and ZSupported probably can be removed now/soon
-    EntityFlag_Collides = (1 << 0),
-    EntityFlag_Static = (1 << 1),
-};
 
 
 
@@ -76,7 +69,7 @@ struct Entity
 
 
         int id;
-        unsigned int flags;
+
 
      //   char name[16];
         EntityType entityType;
