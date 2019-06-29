@@ -52,7 +52,8 @@ namespace Physics
     struct Plane
     {
         glm::vec3 normal;
-        float offset; // d = dot(normal, p)
+     //   float offset; // d = dot(normal, p)
+        glm::vec3 point;
     };
 
 
@@ -69,6 +70,7 @@ namespace Physics
 
     struct PhysBody
     {
+        int id;
         PhysBodyShapeData shapeData;
         unsigned int flags;
         float mass;

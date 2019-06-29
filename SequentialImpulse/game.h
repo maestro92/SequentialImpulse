@@ -73,6 +73,8 @@ namespace GameCode
 
         int x = 0; // utl::randFloat(-20, 20);
         int y = 5 + height * 2; //utl::randFloat(5, 20);
+     
+ //       int y = 10; //utl::randFloat(5, 20);
         float rot = 0; // utl::randFloat(0, 360);
 
         entity->init();
@@ -83,8 +85,9 @@ namespace GameCode
 
         Physics::PhysBody* pb = &entity->physBody;
         pb->Init();
+        pb->id = index;
         pb->flags = Physics::PhysBodyFlag_Collides;
-        pb->mass = 1;
+        pb->mass = 5;
         pb->invMass = 1 / (float)pb->mass;
         pb->position = glm::vec3(x, y, 0);
         glm::mat4 om = glm::rotate(rot, glm::vec3(0, 0, 1));
@@ -232,6 +235,7 @@ namespace GameCode
 
         pb = &entity->physBody;
         pb->Init();
+        pb->id = index;
         pb->mass = 1;
         pb->invMass = 1 / (float)pb->mass;
         pb->position = glm::vec3(x, y, 0);
@@ -273,6 +277,8 @@ namespace GameCode
 
         pb = &entity->physBody;
         pb->Init();
+        pb->id = index;
+
         pb->flags = Physics::PhysBodyFlag_Collides;
         pb->mass = 5;
         pb->invMass = 1 / (float)pb->mass;
@@ -339,10 +345,12 @@ namespace GameCode
         pb->Init();
         pb->shapeData.shape = Physics::PhysBodyShape::PB_PLANE;
         pb->shapeData.plane.normal = glm::vec3(0, 1, 0);
-        pb->shapeData.plane.offset = 0;       // dot(glm::vec3(0, 1, 0),  glm::vec3(0, 0, 0));
+//        pb->shapeData.plane.offset = 0;       // dot(glm::vec3(0, 1, 0),  glm::vec3(0, 0, 0));
+        pb->shapeData.plane.point = glm::vec3(0,0,0);       // dot(glm::vec3(0, 1, 0),  glm::vec3(0, 0, 0));
+        pb->id = index;
 
         pb->position = glm::vec3(0, 0, 0);
-        pb->scale = glm::vec3(gameState->worldWidth, 0.2, 0.2);
+        pb->scale = glm::vec3(gameState->worldWidth, 0.02, 0.2);
 
         pb->flags = Physics::PhysBodyFlag_Collides | Physics::PhysBodyFlag_Static;
         entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
@@ -486,7 +494,7 @@ namespace GameCode
     }
 
 
-    void integratePosition(Physics::PhysBody* pb, float dt_s)
+    void integratePosition(Physics::PhysBody* pb, float dt_s, int i)
     {
         float maxTranslation = 2.0f;
 
@@ -514,10 +522,24 @@ namespace GameCode
 
             utl::debug("        entity->velocity * dt_s", entity->velocity * dt_s);
             */
-            utl::debug("        before pb->position", pb->position);
+
+            if (i == 1 && Physics::hasPolygonsCollided == true)
+            {
+                /*
+                utl::debug("        before pb->position", pb->position);
+                */
+            }
+            
             pb->position += pb->velocity * dt_s;
-            utl::debug("        pb->velocity", pb->velocity);
-            utl::debug("        after pb->position", pb->position);
+            if (i == 1 && Physics::hasPolygonsCollided == true)
+            {
+                /*
+                utl::debug("        pb->velocity", pb->velocity);
+                utl::debug("        pb->angularVelocity", pb->angularVelocity);
+                utl::debug("        after pb->position", pb->position);
+                cout << endl;
+                */
+            }
         }
         else
         {
@@ -636,7 +658,7 @@ namespace GameCode
             for (int j = 0; j < manifold->numContactPoints; j++)
             {
                 Physics::ContactPoint* cp = &manifold->contactPoints[j];
-                glm::vec3 impulse = cp->normalImpulse * cp->normal + cp->tangentImpulse * cp->tangent;
+                glm::vec3 impulse = cp->normalImpulse * manifold->normal + cp->tangentImpulse * manifold->tangent;
 #if DEBUGGING
                 utl::debug("         cp->normalImpulse", cp->normalImpulse);
                 utl::debug("         cp->tangentImpulse", cp->tangentImpulse);
@@ -753,7 +775,7 @@ namespace GameCode
 
 
 
-
+        cout << "########## newTick " << endl;
 
         for (int i = 0; i < gameState->numEntities; i++)
         {
@@ -840,13 +862,21 @@ namespace GameCode
         {
             if (!(gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static))
             {
-                integratePosition(&gameState->entities[i].physBody, gameInput.dt_s);
+                integratePosition(&gameState->entities[i].physBody, gameInput.dt_s, i);
             }
         }
 
-        for (int i = 0; i < gameState->numContacts; i++)
-        {
-            Physics::ResolvePosition(gameState->contacts[i], gameState->contacts[i].a, gameState->contacts[i].b, gameInput.dt_s);
+
+        int positionIterations = 3;
+        bool positionDone = false;
+        for (int i = 0; i < positionIterations; i++)
+        {            
+            positionDone = Physics::ResolvePosition(gameState->contacts, gameState->numContacts, gameInput.dt_s);
+         
+            if (positionDone)
+            {
+                break;
+            }
         }
 
 
