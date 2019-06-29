@@ -869,7 +869,9 @@ namespace Physics
                 }
 
             //    cp->penetration = -distToReferencePlane;
-                hasPolygonsCollided = true;
+                //hasPolygonsCollided = true;
+                hasPolygonsCollided = false;
+
 //utl::debug("        distToReferencePlane ", distToReferencePlane);
 
                 contactManifold.numContactPoints++;
@@ -1099,7 +1101,7 @@ namespace Physics
         glm::vec3 rotation = a->inverseInertiaTensor * rxn;
         totalInvMass += glm::dot(rxn, rotation);
         
-        if (!b->flags & Physics::PhysBodyFlag_Static)
+        if (!(b->flags & Physics::PhysBodyFlag_Static))
         {
             totalInvMass += b->invMass;
         //    rxn = glm::cross(cp.relativeContactPositions[1], -cp.localNormal);
@@ -1121,7 +1123,7 @@ namespace Physics
         glm::vec3 rotation = a->inverseInertiaTensor * rxt;
         totalInvMass += glm::dot(rxt, rotation);
 
-        if (!b->flags & Physics::PhysBodyFlag_Static)
+        if (!(b->flags & Physics::PhysBodyFlag_Static))
         {
             totalInvMass += b->invMass;
             rxt = glm::cross(cp.relativeContactPositions[1], -tangent);
@@ -1145,7 +1147,7 @@ namespace Physics
         glm::vec3 relativeVelocity = -glm::cross(a->angularVelocity, cp.relativeContactPositions[0]);
         relativeVelocity -= a->velocity;
 
-        if (!b->flags & Physics::PhysBodyFlag_Static)
+        if (!(b->flags & Physics::PhysBodyFlag_Static))
         {
             relativeVelocity += glm::cross(b->angularVelocity, cp.relativeContactPositions[1]);
             relativeVelocity += b->velocity;
@@ -1174,7 +1176,7 @@ namespace Physics
 
 
 
-        if (!b->flags & Physics::PhysBodyFlag_Static)
+        if (!(b->flags & Physics::PhysBodyFlag_Static))
         {
             relativeVelocity += glm::cross(b->angularVelocity, cp.relativeContactPositions[1]);
             relativeVelocity += b->velocity;
@@ -1267,7 +1269,7 @@ namespace Physics
         a->angularVelocity -= a->inverseInertiaTensor * glm::cross(cp.relativeContactPositions[0], newImpulseVec);
 
          
-        if (!b->flags & Physics::PhysBodyFlag_Static)
+        if (!(b->flags & Physics::PhysBodyFlag_Static))
         {
             b->velocity += newImpulseVec * b->invMass;
             b->angularVelocity += b->inverseInertiaTensor * glm::cross(cp.relativeContactPositions[1], newImpulseVec);
@@ -1286,8 +1288,8 @@ namespace Physics
         {
             if (hasPolygonsCollided)
             {
-            //    print = true;
-                print = false;
+                print = true;
+            //    print = false;
             }
         }
     //    SolveTangentVelocityConstraints(cp, a, b, dt_s);
@@ -1296,8 +1298,20 @@ namespace Physics
         float vn = ComputeRelativeVelocityAlongNormal(cp, normal, a, b);
 
         float numerator = cp.desiredSeparatingVelocity - ComputeRelativeVelocityAlongNormal(cp, normal, a, b);
+        /*
+        if (print)
+        {
+            utl::debug("        a id ", a->id);
+            utl::debug("        b id ", b->id);
+        }
+        */
+        if (a->id == 1 && b->id == 2)
+        {
+            int c = 1;
 
+        }
 
+        /*
         if (print)
         {
             utl::debug("         normal", normal);
@@ -1306,6 +1320,7 @@ namespace Physics
             utl::debug("         cp.desiredSeparatingVelocity", cp.desiredSeparatingVelocity);
             utl::debug("         vn", vn);
         }
+        */
         /*
         if (flag)
         {
@@ -1348,11 +1363,13 @@ namespace Physics
         glm::vec3 newImpulseVec = lambda * normal;
         if (print)
         {
+            /*
             utl::debug("         cp.normalImpulse", cp.normalImpulse);
             utl::debug("         lambda", lambda);
 
             //    utl::debug("         before a->velocity", a->velocity);
             utl::debug("         cp.relativeContactPositions[0]", cp.relativeContactPositions[0]);
+            */
             utl::debug("         before a->velocity", a->velocity);
             utl::debug("         before a->angularVelocity", a->angularVelocity);
         }
@@ -1361,15 +1378,30 @@ namespace Physics
 
         if (print)
         {
-            utl::debug("         after a->velocity", a->velocity);
-            utl::debug("         after a->angularVelocity", a->angularVelocity);
+            utl::debug("            after a->velocity", a->velocity);
+            utl::debug("            after a->angularVelocity", a->angularVelocity);
             cout << endl << endl;
         }
 
-        if (!b->flags & Physics::PhysBodyFlag_Static)
+
+        // if (  !((b->flags >> Physics::PhysBodyFlag_Static) & 1U) )
+        if ( !(b->flags & Physics::PhysBodyFlag_Static))
         {
+            if (print)
+            {
+                utl::debug("         before b->velocity", b->velocity);
+                utl::debug("         before b->angularVelocity", b->angularVelocity);
+            }
+
             b->velocity += newImpulseVec * b->invMass;
             b->angularVelocity += b->inverseInertiaTensor * glm::cross(cp.relativeContactPositions[1], newImpulseVec);
+
+            if (print)
+            {
+                utl::debug("            after b->velocity", b->velocity);
+                utl::debug("            after b->angularVelocity", b->angularVelocity);
+            }
+
         }
     }
 
@@ -1463,15 +1495,16 @@ namespace Physics
                 manifold.point = clippedPoint;
             }
             
-            /*
             
-            utl::debug("         planePoint", planePoint);
-            utl::debug("         clippedPoint", clippedPoint);
-       //     utl::debug("         planePoint", planePoint);
-            utl::debug("         manifold.point", manifold.point);
-            utl::debug("         contactManifold->contactPoints[i].localPosition", contactManifold->contactPoints[i].localPosition);
-
-            */
+            if (hasPolygonsCollided)
+            {
+                utl::debug("         planePoint", planePoint);
+                utl::debug("         clippedPoint", clippedPoint);
+                //     utl::debug("         planePoint", planePoint);
+                utl::debug("         manifold.point", manifold.point);
+                utl::debug("         contactManifold->contactPoints[i].localPosition", contactManifold->contactPoints[i].localPosition);
+            }
+            
 
             manifold.normal = -manifold.normal;
         }
@@ -1495,7 +1528,7 @@ namespace Physics
 
             cp.relativeContactPositions[0] = manifold.point - a->position;
 
-            if (!b->flags & Physics::PhysBodyFlag_Static)
+            if (!(b->flags & Physics::PhysBodyFlag_Static))
             {
                 cp.relativeContactPositions[1] = manifold.point - b->position;
             }
@@ -1526,19 +1559,24 @@ namespace Physics
 
     void ResolveVelocity(ContactManifold& contact, PhysBody* a, PhysBody* b, float dt_s)
     {
-        int velocityIterations = 4;
-        for (int i = 0; i < velocityIterations; i++)
+
+        for (int j = 0; j < contact.numContactPoints; j++)
         {
-            for (int j = 0; j < contact.numContactPoints; j++)
+            SolveTangentVelocityConstraints(contact.contactPoints[j], contact.tangent, a, b, dt_s);
+        }
+
+        for (int j = 0; j < contact.numContactPoints; j++)
+        {
+            if (hasPolygonsCollided)
             {
-                SolveTangentVelocityConstraints(contact.contactPoints[j], contact.tangent, a, b, dt_s);
+                utl::debug("        a id ", a->id);
+                utl::debug("        b id ", b->id);
+
             }
 
-            for (int j = 0; j < contact.numContactPoints; j++)
-            {
-                SolveVelocityConstraints(contact.contactPoints[j], contact.normal, a, b, dt_s);
-            }
+            SolveVelocityConstraints(contact.contactPoints[j], contact.normal, a, b, dt_s);
         }
+        
     }
 
 
@@ -1562,6 +1600,7 @@ namespace Physics
             }
         }
 
+
         float largestPenetration = 0.0f;
 
         for (int i = 0; i < numContacts; i++)
@@ -1572,6 +1611,14 @@ namespace Physics
             {
                 cout << "       contact.numContactPoints " << contact.numContactPoints << endl;
                 cout << "       contact between " << contact.a->id << ", " << contact.b->id << endl;
+            }
+
+ 
+            if (contact.a->id == 1 && contact.b->id == 2)
+            {
+                int c = 1;
+
+
             }
 
             for (int j = 0; j < contact.numContactPoints; j++)
@@ -1626,10 +1673,10 @@ namespace Physics
                     // cout << "impulsePerInvMassVec " << impulsePerInvMassVec << endl;
 
                     utl::debug("        before a->position ", contact.a->position);
-         //           utl::debug("        before a->rotation ", contact.a->orientationMat);
-                    
+                    //           utl::debug("        before a->rotation ", contact.a->orientationMat);
+
                     float angle = acos(contact.a->orientationMat[0][0]);
-                    utl::debug("        angle ", angle);
+                    utl::debug("        before a->angle ", angle);
                 }
 
 
@@ -1637,23 +1684,42 @@ namespace Physics
                 glm::vec3 rotation = -glm::cross(ra, impulsePerInvMassVec);
                 contact.a->addRotation(rotation, 1.0);
 
+
+
                 if (print)
                 {
-                    utl::debug("        after a->position ", contact.a->position);
-       //             utl::debug("        after a->rotation ", contact.a->orientationMat);
+                    utl::debug("            after a->position ", contact.a->position);
+                    //             utl::debug("        after a->rotation ", contact.a->orientationMat);
 
                     float angle = acos(contact.a->orientationMat[0][0]);
-                    utl::debug("        angle ", angle);
+                    utl::debug("            after a->angle ", angle);
 
-                    cout << endl;
+
                     //    utl::debug("        impulsePerInvMassVec ", impulsePerInvMassVec);
                 }
 
-                if (!contact.b->flags & Physics::PhysBodyFlag_Static)
+                if (!(contact.b->flags & Physics::PhysBodyFlag_Static))
+
                 {
+                    if (print)
+                    {
+                        utl::debug("        before b->position ", contact.b->position);
+                        utl::debug("        before b->angle ", -1111);
+                    }
                     contact.b->position += contact.b->invMass * impulsePerInvMassVec;
                     rotation = glm::cross(rb, impulsePerInvMassVec);
                     contact.b->addRotation(rotation, 1.0);
+                    if (print)
+                    {
+
+                        utl::debug("            after b->position ", contact.b->position);
+                        utl::debug("            after b->angle ", -111);
+                        cout << endl;
+                    }
+                }
+                if (print)
+                {
+                    int c = 1;
                 }
             }
         }

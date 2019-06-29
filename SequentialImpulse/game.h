@@ -63,19 +63,19 @@ namespace GameCode
     {
 
 
-        float size = 0.5;
-        float halfWidth = size * utl::randInt(1, 2);
-        float halfHeight = size * utl::randInt(1, 2);
-        float halfDepth = size;
+        float size = 2;
+        float halfWidth = size;//*utl::randInt(1, 3);
+        float halfHeight = size;// *utl::randInt(1, 3);
+        float halfDepth = 0.5;
 
         int index = gameState->numEntities++;
         Entity* entity = &gameState->entities[index];
 
-        int x = 0; // utl::randFloat(-20, 20);
-        int y = 5 + height * 2; //utl::randFloat(5, 20);
+        int x = 0;// utl::randFloat(-10, 10);
+        int y = 5 + height * 10;// utl::randFloat(5, 15);
      
  //       int y = 10; //utl::randFloat(5, 20);
-        float rot = 0; // utl::randFloat(0, 360);
+        float rot = 0;// utl::randFloat(0, 360);
 
         entity->init();
         entity->id = index;
@@ -120,7 +120,7 @@ namespace GameCode
         for (int i = 0; i < gameState->numEntities; i++)
         {
             Entity* entity = &gameState->entities[i];
-            if (!entity->physBody.flags & Physics::PhysBodyFlag_Static)
+            if (!(entity->physBody.flags & Physics::PhysBodyFlag_Static))
             {
                 continue;
             }
@@ -482,7 +482,7 @@ namespace GameCode
         float angularDamping = 0.0f;
 
         pb->velocity += (pb->forceAccum / pb->mass) * dt_s;
-        utl::debug("pbvelociuty", pb->velocity);
+     //   utl::debug("pbvelociuty", pb->velocity);
         // apply linear damping        
      //   entity->velocity = entity->velocity * 1.0f / (1.0f + linearDamping * dt_s);
 
@@ -523,22 +523,22 @@ namespace GameCode
             utl::debug("        entity->velocity * dt_s", entity->velocity * dt_s);
             */
 
-            if (i == 1 && Physics::hasPolygonsCollided == true)
+            if (Physics::hasPolygonsCollided == true)
             {
-                /*
+                
                 utl::debug("        before pb->position", pb->position);
-                */
+                
             }
             
             pb->position += pb->velocity * dt_s;
-            if (i == 1 && Physics::hasPolygonsCollided == true)
+            if (Physics::hasPolygonsCollided == true)
             {
-                /*
-                utl::debug("        pb->velocity", pb->velocity);
-                utl::debug("        pb->angularVelocity", pb->angularVelocity);
-                utl::debug("        after pb->position", pb->position);
+                
+                utl::debug("            pb->velocity", pb->velocity);
+                utl::debug("            pb->angularVelocity", pb->angularVelocity);
+                utl::debug("            after pb->position", pb->position);
                 cout << endl;
-                */
+                
             }
         }
         else
@@ -681,7 +681,7 @@ namespace GameCode
 
 
 
-                if (!b->flags & Physics::PhysBodyFlag_Static)
+                if (!(b->flags & Physics::PhysBodyFlag_Static))
                 {
                     b->velocity += impulse * b->invMass;
                     b->angularVelocity += b->inverseInertiaTensor * glm::cross(cp->relativeContactPositions[1], impulse);
@@ -775,7 +775,7 @@ namespace GameCode
 
 
 
-        cout << "########## newTick " << endl;
+  //      cout << "########## newTick " << endl;
 
         for (int i = 0; i < gameState->numEntities; i++)
         {
@@ -799,20 +799,30 @@ namespace GameCode
 
    //     cout << "gameState->numContacts" << gameState->numContacts << endl;
 
-        for (int i = 0; i < gameState->numContacts; i++)
+        int velocityIterations = 4;
+        for (int i = 0; i < velocityIterations; i++)
         {
-            if (gameState->contacts[i].numContactPoints > 0)
+            for (int j = 0; j < gameState->numContacts; j++)
             {
+
+                if (gameState->contacts[j].numContactPoints > 0)
+                {
+                    CopyContactManifold(gameState, &gameState->contacts[j]);
+                    Physics::ResolveVelocity(gameState->contacts[j], gameState->contacts[j].a, gameState->contacts[j].b, gameInput.dt_s);
+
+                }
+
+            }
+        }
+
+
+
 
                 //          cout << "Colliding" << i << " " << j << endl;
 
-                CopyContactManifold(gameState, &gameState->contacts[i]);
+ 
 
-                
-                Physics::ResolveVelocity(gameState->contacts[i], gameState->contacts[i].a, gameState->contacts[i].b, gameInput.dt_s);
-            }
-
-        }
+        
         /*
         vector<Physics::ContactManifold> contactsThisTick;
     //    cout << "gameState->numEntities " << gameState->numEntities << endl;
