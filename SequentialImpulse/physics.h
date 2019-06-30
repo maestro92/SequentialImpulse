@@ -827,12 +827,7 @@ namespace Physics
         contactManifold.localTangent = glm::cross(localNormal, glm::vec3(0.0, 0.0, 1.0));
 
 
-        if (glm::dot(normal, aTob) < 0)
-        {
-            normal = -normal;
-        }
-        contactManifold.normal = normal;
-        contactManifold.tangent = glm::cross(normal, glm::vec3(0.0, 0.0, 1.0));
+
 
 
         for (int i = 0; i < numVerticesOut; i++)
@@ -887,11 +882,17 @@ namespace Physics
                 contactManifold.numContactPoints++;
             }
 
+
         }
             
             
-            
-            
+        if (glm::dot(normal, aTob) < 0)
+        {
+            normal = -normal;
+        }
+        contactManifold.normal = normal;
+        contactManifold.tangent = glm::cross(normal, glm::vec3(0.0, 0.0, 1.0));
+
         /*
 
         glm::vec3 planeNormal = referencesAxes[planeNormalIndex];
@@ -1489,9 +1490,9 @@ namespace Physics
         PhysBody* b = contactManifold->b;
 
         bool print = false;
-        if (contactManifold->a->id == 0 && contactManifold->b->id == 1)
+        if (contactManifold->a->id == 8 && contactManifold->b->id == 9)
         {
-        //    print = true;
+       //     print = true;
         }
 
 
@@ -1673,11 +1674,11 @@ namespace Physics
         {
             ContactManifold& contact = contactManifolds[i];
             print = false;
-            if (contact.a->id == 0 && contact.b->id == 1)
+            if (contact.a->id == 8 && contact.b->id == 9)
             {
                 int c = 1;
 
-        //        print = true;
+            //    print = true;
             }
 
 
@@ -1850,6 +1851,10 @@ namespace Physics
 
             contact.a = a;
             contact.b = b;
+            if (contact.a->id == 8 && contact.b->id == 9)
+            {
+                int c = 1;
+            }
 
             GetOBBOBBContacts(a->shapeData.obb, a, b->shapeData.obb, b, contact);
         }

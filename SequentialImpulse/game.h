@@ -66,28 +66,29 @@ namespace GameCode
 
 
         float size = 2;
+        /*
         float halfWidth = size;
         float halfHeight = size;
         float halfDepth = 0.5;
-
-//        float halfWidth = size * utl::randInt(1, 3);
-//        float halfHeight = size * utl::randInt(1, 3);
-//        float halfDepth = 0.5;
+        */
+        float halfWidth = size * utl::randInt(1, 3);
+        float halfHeight = size * utl::randInt(1, 3);
+        float halfDepth = 0.5;
 
         int index = gameState->numEntities++;
         Entity* entity = &gameState->entities[index];
 
-      
+      /*
         float x = 0;
-        float y = 5 + height * 5;// utl::randFloat(5, 15);
-     
+        float y = 5 + height * 5;// utl::randFloat(5, 15);     
         float rot = 0;// utl::randFloat(0, 360);
-       
-        /*
+       */
+
+        
         float x = utl::randFloat(-20, 20);
-        float y = utl::randFloat(5, 30);
+        float y = utl::randFloat(5, 40);
         float rot = utl::randFloat(0, 360);
-        */
+        
 
         entity->init();
         entity->id = index;
@@ -346,7 +347,7 @@ namespace GameCode
 
 #endif 
 
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < 20; i++)
         {
             addRandomBox(gameState, i);
         }
@@ -811,11 +812,16 @@ namespace GameCode
             {
                 Physics::ContactManifold newContact = {};
 
+
+
                 Physics::GenerateContactInfo(&gameState->entities[i].physBody, &gameState->entities[j].physBody, newContact);
             //    cout << newContact.numContactPoints << endl;
 
+
                 if (newContact.numContactPoints > 0)
                 {
+
+
                     // if doenst exists in contacts list, add it
                     tryAddContactManifold(gameState, newContact);
                 }
