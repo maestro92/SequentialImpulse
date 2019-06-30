@@ -31,6 +31,8 @@ struct GameState
 
     float angle;
     int boxIndex;
+
+    int frameCount;
 };
 
 
@@ -64,8 +66,8 @@ namespace GameCode
 
 
         float size = 2;
-        float halfWidth = size;//*utl::randInt(1, 3);
-        float halfHeight = size;// *utl::randInt(1, 3);
+        float halfWidth = size;
+        float halfHeight = size;
         float halfDepth = 0.5;
 
 //        float halfWidth = size * utl::randInt(1, 3);
@@ -75,16 +77,15 @@ namespace GameCode
         int index = gameState->numEntities++;
         Entity* entity = &gameState->entities[index];
 
-        
-        int x = 0;// utl::randFloat(-10, 10);
-        int y = 5 + height * 5;// utl::randFloat(5, 15);
+      
+        float x = 0;
+        float y = 5 + height * 5;// utl::randFloat(5, 15);
      
- //       int y = 10; //utl::randFloat(5, 20);
         float rot = 0;// utl::randFloat(0, 360);
-        
+       
         /*
-        int x = utl::randFloat(-10, 10);
-        int y = utl::randFloat(5, 15);
+        float x = utl::randFloat(-20, 20);
+        float y = utl::randFloat(5, 30);
         float rot = utl::randFloat(0, 360);
         */
 
@@ -189,6 +190,7 @@ namespace GameCode
     {
         srand(0);
 
+        gameState->frameCount = 0;
         gameState->worldWidth = 50;
         gameState->worldHeight = 50;
         gameState->numEntities = 0;
@@ -213,7 +215,7 @@ namespace GameCode
         int index = 0;
       
         
-        
+        /*
         index = gameState->numEntities++;
         entity = &gameState->entities[index];
         entity->init();
@@ -226,7 +228,7 @@ namespace GameCode
         pb->Init();
         pb->flags = Physics::PhysBodyFlag_Static;
         pb->scale = glm::vec3(scale, scale, scale);
-
+        */
         
 
         // the box
@@ -344,7 +346,7 @@ namespace GameCode
 
 #endif 
 
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 10; i++)
         {
             addRandomBox(gameState, i);
         }
@@ -748,6 +750,7 @@ namespace GameCode
     
     void tick(GameInput gameInput, GameState* gameState)
     {
+        
         gameState->numDebugContactManifolds = 0;
 
 
@@ -758,7 +761,7 @@ namespace GameCode
             {
                 Entity* entity = &gameState->entities[i];
                 {
-                    if (i != 0)
+                //    if (i != 0)
                     {
                         gameState->entities[i].physBody.addForce(gameState->entities[i].physBody.mass * GRAVITY, false);
                     }
@@ -789,6 +792,11 @@ namespace GameCode
         
 
 
+    //    cout << "########## newTick " << gameState->frameCount<< endl;
+        if (gameState->frameCount  == 78)
+        {
+            int c = 1;
+        }
 
         vector<Physics::ContactManifold*> manifoldsToRemove;
 
@@ -821,8 +829,6 @@ namespace GameCode
         }
 
 
-
-  //      cout << "########## newTick " << endl;
 
         for (int i = 0; i < gameState->numEntities; i++)
         {
@@ -928,8 +934,7 @@ namespace GameCode
         bool positionDone = false;
         for (int i = 0; i < positionIterations; i++)
         {            
-            positionDone = Physics::ResolvePosition(gameState->contacts, gameState->numContacts, gameInput.dt_s);
-         
+            positionDone = Physics::ResolvePosition(gameState->contacts, gameState->numContacts, gameInput.dt_s, i);
             if (positionDone)
             {
                 break;
@@ -967,6 +972,7 @@ namespace GameCode
         
   //      Physics::Resolve(contact, &gameState->entities[i], NULL, gameInput.dt_s);
   */
+        gameState->frameCount++;
     }
 };
 

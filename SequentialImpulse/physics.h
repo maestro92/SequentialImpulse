@@ -678,7 +678,10 @@ namespace Physics
         we do that check by doing a dot product of vectorA2B and normal
         */
         int axisDirection = 1;
-
+        if (aBody->id == 0 && bBody->id == 1)
+        {
+            int c = 1;
+        }
 
     //    utl::debug("minPenetrationAxisIndex ", minPenetrationAxisIndex);
     //    utl::debug("normal ", normal);
@@ -731,6 +734,8 @@ namespace Physics
         {
             minPenetrationAxisIndex -= 2;
 
+            // first set it to the reference face normal
+            // later we will set the normal to point from A to B
             if (glm::dot(normal, -aTob) < 0.0f)
             {
                 normal = -normal;
@@ -821,6 +826,11 @@ namespace Physics
         contactManifold.localNormal = localNormal;
         contactManifold.localTangent = glm::cross(localNormal, glm::vec3(0.0, 0.0, 1.0));
 
+
+        if (glm::dot(normal, aTob) < 0)
+        {
+            normal = -normal;
+        }
         contactManifold.normal = normal;
         contactManifold.tangent = glm::cross(normal, glm::vec3(0.0, 0.0, 1.0));
 
@@ -870,7 +880,7 @@ namespace Physics
 
             //    cp->penetration = -distToReferencePlane;
             //    hasPolygonsCollided = true;
-                hasPolygonsCollided = false;
+            //    hasPolygonsCollided = false;
 
 //utl::debug("        distToReferencePlane ", distToReferencePlane);
 
@@ -1302,7 +1312,7 @@ namespace Physics
         {
             if (hasPolygonsCollided)
             {
-                print = true;
+            //    print = true;
             //    print = false;
             }
         }
@@ -1319,10 +1329,21 @@ namespace Physics
             utl::debug("        b id ", b->id);
         }
         */
-        if (a->id == 1 && b->id == 2)
+
+
+
+
+
+        glm::vec3 aToB = b->position - a->position;
+        assert(glm::dot(aToB, normal) > 0);
+
+
+
+
+        if (a->id == 0 && b->id == 1)
         {
             int c = 1;
-
+        //    print = true;
         }
 
         /*
@@ -1353,6 +1374,7 @@ namespace Physics
         {
             utl::debug("         effectiveMass", effectiveMass);
             utl::debug("         lambda", lambda);
+            utl::debug("         cp.normalImpulse ", cp.normalImpulse);
         }
             //    if (flag)
      /* 
@@ -1469,7 +1491,7 @@ namespace Physics
         bool print = false;
         if (contactManifold->a->id == 0 && contactManifold->b->id == 1)
         {
-            print = true;
+        //    print = true;
         }
 
 
@@ -1488,7 +1510,7 @@ namespace Physics
 
 
         //    manifold.point = clippedPoint + 0.5f * manifold.penetration * manifold.normal;
-
+            /*
             if (print)
             {
                 utl::debug(">>>> in here");
@@ -1502,7 +1524,7 @@ namespace Physics
                 utl::debug("            manifold.point", manifold.point);
                 int c = 1;
             }
-
+            */
             
             if (useHalfPoint)
             {
@@ -1623,7 +1645,7 @@ namespace Physics
     }
 
 
-    bool ResolvePosition(ContactManifold* contactManifolds, int numContacts, float dt_s)
+    bool ResolvePosition(ContactManifold* contactManifolds, int numContacts, float dt_s, int iter)
     {
         float baumgarte = 0.2;
         float linearSlop = 0.005f;
@@ -1635,13 +1657,14 @@ namespace Physics
         {
             if (hasPolygonsCollided)
             {
-                print = true;
+           //     print = true;
     //            print = false;
 
-                cout << "   >>>> numContacts " << numContacts << endl;
+                cout << "   >>>> numContacts " << numContacts << ", iter " << iter << endl;
 
             }
         }
+
 
 
         float largestPenetration = 0.0f;
@@ -1649,6 +1672,14 @@ namespace Physics
         for (int i = 0; i < numContacts; i++)
         {
             ContactManifold& contact = contactManifolds[i];
+            print = false;
+            if (contact.a->id == 0 && contact.b->id == 1)
+            {
+                int c = 1;
+
+        //        print = true;
+            }
+
 
             if (print)
             {
@@ -1656,13 +1687,7 @@ namespace Physics
                 cout << "       contact between " << contact.a->id << ", " << contact.b->id << endl;
             }
 
- 
-            if (contact.a->id == 1 && contact.b->id == 2)
-            {
-                int c = 1;
 
-
-            }
 
             for (int j = 0; j < contact.numContactPoints; j++)
             {
@@ -1678,6 +1703,9 @@ namespace Physics
                     utl::debug("        ra ", ra);
                     utl::debug("        rb ", rb);
                 }
+
+                glm::vec3 aToB = contact.b->position - contact.a->position;
+                assert(glm::dot(aToB, positionManifold.normal) > 0);
 
                 // we track the largest penetration
                 largestPenetration = max(largestPenetration, positionManifold.penetration);
