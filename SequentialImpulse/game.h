@@ -68,14 +68,25 @@ namespace GameCode
         float halfHeight = size;// *utl::randInt(1, 3);
         float halfDepth = 0.5;
 
+//        float halfWidth = size * utl::randInt(1, 3);
+//        float halfHeight = size * utl::randInt(1, 3);
+//        float halfDepth = 0.5;
+
         int index = gameState->numEntities++;
         Entity* entity = &gameState->entities[index];
 
+        
         int x = 0;// utl::randFloat(-10, 10);
-        int y = 5 + height * 10;// utl::randFloat(5, 15);
+        int y = 5 + height * 5;// utl::randFloat(5, 15);
      
  //       int y = 10; //utl::randFloat(5, 20);
         float rot = 0;// utl::randFloat(0, 360);
+        
+        /*
+        int x = utl::randFloat(-10, 10);
+        int y = utl::randFloat(5, 15);
+        float rot = utl::randFloat(0, 360);
+        */
 
         entity->init();
         entity->id = index;
@@ -93,9 +104,20 @@ namespace GameCode
         glm::mat4 om = glm::rotate(rot, glm::vec3(0, 0, 1));
         //         om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
 
+     //   om = glm::rotate(60.0f, glm::vec3(0, 0, 1));
+
+
+
+
         pb->orientation = glm::toQuat(om);
         pb->SyncOrientationMat();
         pb->scale = glm::vec3(halfWidth, halfHeight, halfDepth);
+
+
+
+        float angle = atan2(pb->orientationMat[1][0], pb->orientationMat[0][0]) * 180.0f / 3.14f;
+        utl::debug("        before a->angle ", angle);
+
 
         pb->velocityDamping = 0.95f;
         pb->angularDamping = 0.80f;
@@ -186,20 +208,26 @@ namespace GameCode
         gameState->draggedEntity = NULL;
 
         float scale = 100.0;
-        int index = gameState->numEntities++;
-        Entity* entity = &gameState->entities[index];
+        Entity* entity = NULL;
+        Physics::PhysBody* pb = NULL;
+        int index = 0;
+      
+        
+        
+        index = gameState->numEntities++;
+        entity = &gameState->entities[index];
         entity->init();
         entity->id = gameState->numEntities;
         entity->entityType = EntityType::XYZAxis;
 
         entity->setModel(global.modelMgr->get(ModelEnum::xyzAxis));
 
-        Physics::PhysBody* pb = &entity->physBody;
+        pb = &entity->physBody;
         pb->Init();
         pb->flags = Physics::PhysBodyFlag_Static;
         pb->scale = glm::vec3(scale, scale, scale);
 
-
+        
 
         // the box
         glm::mat4 om;
@@ -316,7 +344,7 @@ namespace GameCode
 
 #endif 
 
-        for (int i = 0; i < 2; i++)
+        for (int i = 0; i < 3; i++)
         {
             addRandomBox(gameState, i);
         }
@@ -331,7 +359,7 @@ namespace GameCode
         */
 
 
-
+        
         
         // the floor 
         index = gameState->numEntities++;
@@ -498,7 +526,7 @@ namespace GameCode
     {
         float maxTranslation = 2.0f;
 
-        
+  //      cout << "Integrate Position " << pb->id <<  endl;
 //        if (glm::dot(entity->velocity, entity->velocity) > 0.001)
         if (true)
         {
@@ -525,19 +553,20 @@ namespace GameCode
 
             if (Physics::hasPolygonsCollided == true)
             {
-                
+                float angle = acos(pb->orientationMat[0][0]);
+                utl::debug("        before pb->velocity", pb->velocity);
                 utl::debug("        before pb->position", pb->position);
-                
+                utl::debug("        before pb->angularVelocity", pb->angularVelocity);
+                utl::debug("        before pb->angle ", angle);
             }
             
             pb->position += pb->velocity * dt_s;
             if (Physics::hasPolygonsCollided == true)
             {
                 
-                utl::debug("            pb->velocity", pb->velocity);
-                utl::debug("            pb->angularVelocity", pb->angularVelocity);
-                utl::debug("            after pb->position", pb->position);
-                cout << endl;
+             //   utl::debug("            pb->velocity", pb->velocity);
+
+
                 
             }
         }
@@ -553,9 +582,27 @@ namespace GameCode
         float angularMag = glm::length(pb->angularVelocity);
         if (angularMag != 0)
         {
+            /*
+            if (Physics::hasPolygonsCollided == true)
+            {
+                utl::debug("            pb->angularVelocity", pb->angularVelocity);
+            }
+            */
             // https://math.stackexchange.com/questions/22437/combining-two-3d-rotations
             pb->addRotation(pb->angularVelocity, dt_s);
             pb->transformInertiaTensor();
+
+            if (Physics::hasPolygonsCollided == true)
+            {
+                float angle = acos(pb->orientationMat[0][0]);
+                utl::debug("            after pb->velocity", pb->velocity);
+                utl::debug("            after pb->position", pb->position);
+                utl::debug("            after pb->angularVelocity", pb->angularVelocity);
+                utl::debug("            after pb->angle ", angle);
+                cout << endl;
+
+            }
+
         }
     }
 
@@ -711,7 +758,7 @@ namespace GameCode
             {
                 Entity* entity = &gameState->entities[i];
                 {
-                //    if (i % 2 != 0)
+                    if (i != 0)
                     {
                         gameState->entities[i].physBody.addForce(gameState->entities[i].physBody.mass * GRAVITY, false);
                     }
@@ -807,7 +854,7 @@ namespace GameCode
 
                 if (gameState->contacts[j].numContactPoints > 0)
                 {
-                    CopyContactManifold(gameState, &gameState->contacts[j]);
+                //    CopyContactManifold(gameState, &gameState->contacts[j]);
                     Physics::ResolveVelocity(gameState->contacts[j], gameState->contacts[j].a, gameState->contacts[j].b, gameInput.dt_s);
 
                 }

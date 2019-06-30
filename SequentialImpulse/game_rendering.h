@@ -52,7 +52,7 @@ namespace GameRendering
         p_renderer->enableShader();
         p_renderer->setData(R_FULL_COLOR::u_color, COLOR_RED);
 
-        for (int i = 1; i < gameState->numEntities; i++)
+        for (int i = 0; i < gameState->numEntities; i++)
         {
             if (entities[i].physBody.flags & Physics::PhysBodyFlag_Static)
             {
@@ -109,14 +109,14 @@ namespace GameRendering
         */
 
 
-
+        
         // Rendering wireframes
         p_renderer = &global.rendererMgr->r_fullVertexColor;
         p_renderer->enableShader();
 
-        gameState->entities[0].renderCore(gameState->mainCamera.getPipeline(), p_renderer);
+        // gameState->entities[0].renderCore(gameState->mainCamera.getPipeline(), p_renderer);
 
-        for (int i = 1; i < gameState->numEntities; i++)
+        for (int i = 0; i < gameState->numEntities; i++)
         {
             render(global.modelMgr->get(ModelEnum::xyzAxis), gameState->mainCamera.getPipeline(),
                 gameState->entities[i].physBody.position,
@@ -125,7 +125,7 @@ namespace GameRendering
                 p_renderer);
         }
         p_renderer->disableShader();
-
+        
 
 
         /*
