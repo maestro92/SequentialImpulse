@@ -1468,15 +1468,15 @@ namespace Physics
         }
 
 
-        float col00 = imA + iiA * joint.aLocalAnchor.y * joint.aLocalAnchor.y +
-                      imB + iiB * joint.bLocalAnchor.y * joint.bLocalAnchor.y;
-        float col01 = -iiA * joint.aLocalAnchor.x * joint.aLocalAnchor.y -
-                      -iiB * joint.bLocalAnchor.x * joint.bLocalAnchor.y;
+        float col00 = imA + iiA * joint.rA.y * joint.rA.y +
+                      imB + iiB * joint.rB.y * joint.rB.y;
+        float col01 = -iiA * joint.rA.x * joint.rA.y -
+                      -iiB * joint.rB.x * joint.rB.y;
 
 
         float col10 = col01;
-        float col11 = imA + iiA * joint.aLocalAnchor.x * joint.aLocalAnchor.x +
-                      imB + iiB * joint.bLocalAnchor.x * joint.bLocalAnchor.x;
+        float col11 = imA + iiA * joint.rA.x * joint.rA.x +
+                      imB + iiB * joint.rB.x * joint.rB.x;
 
 
 
@@ -1499,11 +1499,14 @@ namespace Physics
 
         joint.impulse += impulse;
 
+     //   cout << "aId " << joint.a->id << ", bId " << joint.b->id << endl;
+    //    utl::debug("            impulse", impulse);
 
         joint.a->velocity -= impulse * joint.a->invMass;
         joint.a->angularVelocity -= joint.a->inverseInertiaTensor * glm::cross(joint.rA, impulse);
 
-        // if (  !((b->flags >> Physics::PhysBodyFlag_Static) & 1U) )
+        
+
         if (!(joint.b->flags & Physics::PhysBodyFlag_Static))
         {
 
@@ -1535,15 +1538,15 @@ namespace Physics
 
         positionError = glm::length(C);
 
-        float col00 = joint.a->invMass + iiA * joint.aLocalAnchor.y * joint.aLocalAnchor.y +
-            joint.b->invMass + iiB * joint.bLocalAnchor.y * joint.bLocalAnchor.y;
-        float col01 = -iiA * joint.aLocalAnchor.x * joint.aLocalAnchor.y -
-            -iiB * joint.bLocalAnchor.x * joint.bLocalAnchor.y;
+        float col00 = joint.a->invMass + iiA * joint.rA.y * joint.rA.y +
+            joint.b->invMass + iiB * joint.rB.y * joint.rB.y;
+        float col01 = -iiA * joint.rA.x * joint.rA.y -
+            -iiB * joint.rB.x * joint.rB.y;
 
 
         float col10 = col01;
-        float col11 = joint.a->invMass + iiA * joint.aLocalAnchor.x * joint.aLocalAnchor.x +
-            joint.b->invMass + iiB * joint.bLocalAnchor.x * joint.bLocalAnchor.x;
+        float col11 = joint.a->invMass + iiA * joint.rA.x * joint.rA.x +
+            joint.b->invMass + iiB * joint.rB.x * joint.rB.x;
 
 
 
@@ -1709,6 +1712,10 @@ namespace Physics
     {
         joint->rA = glm::mat3(joint->a->orientationMat) * joint->aLocalAnchor;
         joint->rB = glm::mat3(joint->b->orientationMat) * joint->bLocalAnchor;
+
+     //   utl::debug("        joint->rA ", joint->rA);
+     //   utl::debug("        joint->rB ", joint->rB);
+
     }
 
     void InitVelocityConstraints(ContactManifold& contact, PhysBody* a, PhysBody* b)
@@ -1832,7 +1839,14 @@ namespace Physics
                     utl::debug("        rb ", rb);
                 }
 
+                // we want to make sure the normal always points form A To B
                 glm::vec3 aToB = contact.b->position - contact.a->position;
+
+                if (glm::dot(aToB, positionManifold.normal) <= 0)
+                {
+                    int c = 1;
+                }
+
                 assert(glm::dot(aToB, positionManifold.normal) > 0);
 
                 // we track the largest penetration

@@ -166,7 +166,7 @@ namespace GameCode
         int index = gameState->numEntities++;
         Entity* entity = &gameState->entities[index];
 
-        float x = 1 + i * 4;
+        float x = i * 4;
         float y = 10;// utl::randFloat(5, 15);
         float rot = 0;// utl::randFloat(0, 360);
 
@@ -458,8 +458,39 @@ namespace GameCode
         */
 
 
+        Entity* first = addBoxForJointDemo(gameState, 0);
+        Physics::PhysBody* prev = &first->physBody;
+
+        int startY = 10;
+        for (int i = 1; i < 3; i++)
+        {
+            Entity* ent0 = addBoxForJointDemo(gameState, i);
+
+            Physics::Joint* joint = &gameState->joints[gameState->numJoints];
+            gameState->numJoints++;
+
+            glm::vec3 worldAnchorPoint = glm::vec3(2 + 4 * (i-1), startY, 0);
+
+            joint->a = prev;
+            joint->b = &ent0->physBody;
+
+            joint->aLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, prev);
+            joint->bLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, &ent0->physBody);
+
+            utl::debug("posA", joint->a->position);
+            utl::debug("posB", joint->b->position);
+
+            utl::debug("localAnchorA", joint->aLocalAnchor);
+            utl::debug("localAnchorB", joint->bLocalAnchor);
 
 
+            prev = &ent0->physBody;
+
+        }
+
+
+        
+        // floor needs to be at the last
 
         // the floor 
         index = gameState->numEntities++;
@@ -468,13 +499,12 @@ namespace GameCode
         floor->id = index;
         floor->entityType = EntityType::Floor;
 
-
         pb = &floor->physBody;
         pb->Init();
         pb->shapeData.shape = Physics::PhysBodyShape::PB_PLANE;
         pb->shapeData.plane.normal = glm::vec3(0, 1, 0);
-//        pb->shapeData.plane.offset = 0;       // dot(glm::vec3(0, 1, 0),  glm::vec3(0, 0, 0));
-        pb->shapeData.plane.point = glm::vec3(0,0,0);       // dot(glm::vec3(0, 1, 0),  glm::vec3(0, 0, 0));
+        //        pb->shapeData.plane.offset = 0;       // dot(glm::vec3(0, 1, 0),  glm::vec3(0, 0, 0));
+        pb->shapeData.plane.point = glm::vec3(0, 0, 0);       // dot(glm::vec3(0, 1, 0),  glm::vec3(0, 0, 0));
         pb->id = index;
 
         pb->position = glm::vec3(0, 0, 0);
@@ -482,29 +512,27 @@ namespace GameCode
 
         pb->flags = Physics::PhysBodyFlag_Collides | Physics::PhysBodyFlag_Static;
         floor->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
+
+        prev = &floor->physBody;
+
+
+
+        Physics::Joint* joint = &gameState->joints[gameState->numJoints];
+        gameState->numJoints++;
+
+        glm::vec3 worldAnchorPoint = glm::vec3(0, startY, 0);
+
+        joint->a = &first->physBody;
+        joint->b = prev;
+
+        joint->aLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, &first->physBody);
+        joint->bLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, prev);
         
-        Physics::PhysBody* prev = &floor->physBody;
 
-        int startY = 10;
-        for (int i = 0; i < 3; i++)
-        {
-            Entity* ent0 = addBoxForJointDemo(gameState, i);
 
-            Physics::Joint* joint = &gameState->joints[i];
-            gameState->numJoints++;
 
-            glm::vec3 worldAnchorPoint = glm::vec3(2 * i, startY, 0);
 
-            joint->a = &ent0->physBody;
-            joint->b = &floor->physBody;
-
-            joint->aLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, &ent0->physBody);
-            joint->bLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, prev);
-
-            prev = &ent0->physBody;
-
-        }
-
+        int a = 1;
         /*
         Physics::Joint* joint = &gameState->joints[0];
         gameState->numJoints++;
@@ -905,7 +933,20 @@ namespace GameCode
         }
     }
 
-    
+    bool ShouldCollide(GameState* gameState, Entity* a, Entity* b)
+    {        
+        for (int i = 0; i < gameState->numJoints; i++)
+        {
+            if (gameState->joints[i].a == &a->physBody && gameState->joints[i].b == &b->physBody || 
+                gameState->joints[i].b == &a->physBody && gameState->joints[i].a == &b->physBody)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+
     void tick(GameInput gameInput, GameState* gameState)
     {
         
@@ -919,7 +960,7 @@ namespace GameCode
             {
                 Entity* entity = &gameState->entities[i];
                 {
-                //    if (i != 0)
+           //         if (i != 0)
                     {
                         gameState->entities[i].physBody.addForce(gameState->entities[i].physBody.mass * GRAVITY, false);
                     }
@@ -950,8 +991,8 @@ namespace GameCode
         
 
 
-    //    cout << "########## newTick " << gameState->frameCount<< endl;
-        if (gameState->frameCount  == 78)
+        cout << "########## newTick " << gameState->frameCount<< endl;
+        if (gameState->frameCount  == 56)
         {
             int c = 1;
         }
@@ -960,33 +1001,32 @@ namespace GameCode
 
         for (int i = 0; i < gameState->numEntities; i++)
         {
-            if (!gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static)
+            if (gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static)
             {
                 continue;
             }
 
             for (int j = i + 1; j < gameState->numEntities; j++)
             {
-                Physics::ContactManifold newContact = {};
-
-
-
-                Physics::GenerateContactInfo(&gameState->entities[i].physBody, &gameState->entities[j].physBody, newContact);
-            //    cout << newContact.numContactPoints << endl;
-
-
-                if (newContact.numContactPoints > 0)
+                if (ShouldCollide(gameState, &gameState->entities[i], &gameState->entities[j]))
                 {
+                //    cout << i <<  " " << j << endl;
+                    Physics::ContactManifold newContact = {};
 
+                    Physics::GenerateContactInfo(&gameState->entities[i].physBody, &gameState->entities[j].physBody, newContact);
+                    //    cout << newContact.numContactPoints << endl;
 
-                    // if doenst exists in contacts list, add it
-                    tryAddContactManifold(gameState, newContact);
-                }
-                else
-                {
-                    // remove contact between the two if there are any in our old list
-                    tryRemovingInvalidContacts(gameState, &gameState->entities[i].physBody, 
-                        &gameState->entities[j].physBody, manifoldsToRemove);
+                    if (newContact.numContactPoints > 0)
+                    {
+                        // if doenst exists in contacts list, add it
+                        tryAddContactManifold(gameState, newContact);
+                    }
+                    else
+                    {
+                        // remove contact between the two if there are any in our old list
+                        tryRemovingInvalidContacts(gameState, &gameState->entities[i].physBody,
+                            &gameState->entities[j].physBody, manifoldsToRemove);
+                    }
                 }
             }
         }
