@@ -25,6 +25,11 @@ struct GameState
     int numContacts;
     Physics::ContactManifold* contacts;
 
+
+    int numJoints;
+    Physics::Joint* joints;
+
+
     Camera mainCamera;
 
     Entity* draggedEntity;
@@ -139,6 +144,87 @@ namespace GameCode
     }
 
 
+
+
+
+
+
+
+
+    Entity* addBoxForJointDemo(GameState* gameState, int i)
+    {
+        float size = 2;
+        /*
+        float halfWidth = size;
+        float halfHeight = size;
+        float halfDepth = 0.5;
+        */
+        float halfWidth = size;
+        float halfHeight = 1;
+        float halfDepth = 0.5;
+
+        int index = gameState->numEntities++;
+        Entity* entity = &gameState->entities[index];
+
+        float x = 1 + i * 4;
+        float y = 10;// utl::randFloat(5, 15);
+        float rot = 0;// utl::randFloat(0, 360);
+
+
+        entity->init();
+        entity->id = index;
+        entity->entityType = EntityType::Box;
+
+        entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
+
+        Physics::PhysBody* pb = &entity->physBody;
+        pb->Init();
+        pb->id = index;
+        pb->flags = Physics::PhysBodyFlag_Collides;
+        pb->mass = 5;
+        pb->invMass = 1 / (float)pb->mass;
+        pb->position = glm::vec3(x, y, 0);
+        glm::mat4 om = glm::rotate(rot, glm::vec3(0, 0, 1));
+        //         om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
+
+     //   om = glm::rotate(60.0f, glm::vec3(0, 0, 1));
+
+
+
+
+        pb->orientation = glm::toQuat(om);
+        pb->SyncOrientationMat();
+        pb->scale = glm::vec3(halfWidth, halfHeight, halfDepth);
+
+
+
+        float angle = atan2(pb->orientationMat[1][0], pb->orientationMat[0][0]) * 180.0f / 3.14f;
+        utl::debug("        before a->angle ", angle);
+
+
+        pb->velocityDamping = 0.95f;
+        pb->angularDamping = 0.80f;
+
+        pb->inertiaTensor = Physics::GetBoxInertiaTensor(pb->mass, halfWidth * 2, halfHeight * 2, halfDepth * 2);
+        pb->transformInertiaTensor();
+
+
+        pb->shapeData.shape = Physics::PhysBodyShape::PB_OBB;
+        pb->shapeData.obb.center = glm::vec3(0, 0, 0);
+        pb->shapeData.obb.axes[0] = glm::vec3(1, 0, 0);
+        pb->shapeData.obb.axes[1] = glm::vec3(0, 1, 0);
+        pb->shapeData.obb.axes[2] = glm::vec3(0, 0, 1);
+        pb->shapeData.obb.halfEdges = glm::vec3(halfWidth, halfHeight, halfDepth);
+
+        return entity;
+    }
+
+
+
+
+
+
+
     void ProcessInputRaycast(GameState* gameState, glm::vec3 raycastDirection)
     {
         for (int i = 0; i < gameState->numEntities; i++)
@@ -184,8 +270,10 @@ namespace GameCode
     }
 
 
-
-
+    glm::vec3 computeLocalAnchorPoint(glm::vec3 anchor, Physics::PhysBody* body)
+    {
+        return glm::mat3(body->orientationMat) * (anchor - body->position);
+    }
 
     void demo1Init(GameState* gameState)
     {
@@ -206,6 +294,12 @@ namespace GameCode
 
         gameState->numContacts = 0;
         gameState->contacts = new Physics::ContactManifold[256];
+
+
+
+        gameState->numJoints = 0;
+        gameState->joints = new Physics::Joint[64];
+
 
         gameState->angle = 0;
         gameState->draggedEntity = NULL;
@@ -346,11 +440,13 @@ namespace GameCode
         pb->shapeData.obb.halfEdges = glm::vec3(halfWidth, halfHeight, halfDepth);
 
 #endif 
-
-        for (int i = 0; i < 20; i++)
+        /*
+        for (int i = 0; i < 10; i++)
         {
             addRandomBox(gameState, i);
         }
+        */
+
         // addRandomBox(gameState);
         // addRandomBox(gameState);
         /*
@@ -362,17 +458,18 @@ namespace GameCode
         */
 
 
-        
-        
+
+
+
         // the floor 
         index = gameState->numEntities++;
-        entity = &gameState->entities[index];
-        entity->init();
-        entity->id = index;
-        entity->entityType = EntityType::Floor;
+        Entity* floor = &gameState->entities[index];
+        floor->init();
+        floor->id = index;
+        floor->entityType = EntityType::Floor;
 
 
-        pb = &entity->physBody;
+        pb = &floor->physBody;
         pb->Init();
         pb->shapeData.shape = Physics::PhysBodyShape::PB_PLANE;
         pb->shapeData.plane.normal = glm::vec3(0, 1, 0);
@@ -384,8 +481,48 @@ namespace GameCode
         pb->scale = glm::vec3(gameState->worldWidth, 0.02, 0.2);
 
         pb->flags = Physics::PhysBodyFlag_Collides | Physics::PhysBodyFlag_Static;
-        entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
+        floor->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
         
+        Physics::PhysBody* prev = &floor->physBody;
+
+        int startY = 10;
+        for (int i = 0; i < 3; i++)
+        {
+            Entity* ent0 = addBoxForJointDemo(gameState, i);
+
+            Physics::Joint* joint = &gameState->joints[i];
+            gameState->numJoints++;
+
+            glm::vec3 worldAnchorPoint = glm::vec3(2 * i, startY, 0);
+
+            joint->a = &ent0->physBody;
+            joint->b = &floor->physBody;
+
+            joint->aLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, &ent0->physBody);
+            joint->bLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, prev);
+
+            prev = &ent0->physBody;
+
+        }
+
+        /*
+        Physics::Joint* joint = &gameState->joints[0];
+        gameState->numJoints++;
+
+        glm::vec3 worldAnchorPoint = glm::vec3(0, 10, 0);
+
+        joint->a = &ent0->physBody;
+        joint->b = &floor->physBody;
+
+        joint->aLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, &ent0->physBody);
+        joint->bLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, &floor->physBody);
+
+        */
+
+
+     //   utl::debug("localAnchorA", joint->aLocalAnchor);
+     //   utl::debug("localAnchorB", joint->bLocalAnchor);
+
 
         /*
         // the wall
@@ -417,7 +554,15 @@ namespace GameCode
         pb->position = glm::vec3(-gameState->worldWidth / 2, gameState->worldHeight / 2, 0);
         pb->scale = glm::vec3(2, gameState->worldHeight, 1);
         */
-}
+
+        /*
+        gameState->numJoints = 0;
+        gameState->cycloneJoints = new Physics::CycloneJoint[64];
+        */
+
+
+
+    }
 
     /*
     void demo2Init(GameState* gameState)
@@ -696,6 +841,18 @@ namespace GameCode
         }
     }
 
+    void warmStartJoint(Physics::Joint* joint)
+    {
+        joint->a->velocity -= joint->impulse * joint->a->invMass;
+        joint->a->angularVelocity -= joint->a->inverseInertiaTensor * glm::cross(joint->rA, joint->impulse);
+
+        if (!(joint->b->flags & Physics::PhysBodyFlag_Static))
+        {
+            joint->b->velocity += joint->impulse * joint->b->invMass;
+            joint->b->angularVelocity += joint->b->inverseInertiaTensor * glm::cross(joint->rB, joint->impulse);
+        }
+    }
+
 
     void warmStart(GameState* gameState)
     {
@@ -831,7 +988,7 @@ namespace GameCode
                     tryRemovingInvalidContacts(gameState, &gameState->entities[i].physBody, 
                         &gameState->entities[j].physBody, manifoldsToRemove);
                 }
-            }            
+            }
         }
 
 
@@ -849,11 +1006,21 @@ namespace GameCode
         {
             if (gameState->contacts[i].numContactPoints > 0)
             {
-                Physics::PrepareContactPoints(gameState->contacts[i], gameState->contacts[i].a, gameState->contacts[i].b);
+                Physics::InitVelocityConstraints(gameState->contacts[i], gameState->contacts[i].a, gameState->contacts[i].b);
             }
         }
 
         warmStart(gameState);
+
+
+        for (int i = 0; i < gameState->numJoints; i++)
+        {
+            Physics::Joint* joint = &gameState->joints[i];
+            Physics::InitJointVelocityConstraints(joint);
+            warmStartJoint(joint);
+
+        }
+
 
 
    //     cout << "gameState->numContacts" << gameState->numContacts << endl;
@@ -861,16 +1028,19 @@ namespace GameCode
         int velocityIterations = 4;
         for (int i = 0; i < velocityIterations; i++)
         {
+
+            for (int j = 0; j < gameState->numJoints; j++)
+            {
+                Physics::SolveJointVelocityConstraints(gameState->joints[j]);
+            }
+
             for (int j = 0; j < gameState->numContacts; j++)
             {
-
                 if (gameState->contacts[j].numContactPoints > 0)
                 {
                 //    CopyContactManifold(gameState, &gameState->contacts[j]);
                     Physics::ResolveVelocity(gameState->contacts[j], gameState->contacts[j].a, gameState->contacts[j].b, gameInput.dt_s);
-
                 }
-
             }
         }
 
@@ -941,6 +1111,12 @@ namespace GameCode
         for (int i = 0; i < positionIterations; i++)
         {            
             positionDone = Physics::ResolvePosition(gameState->contacts, gameState->numContacts, gameInput.dt_s, i);
+
+            for (int j = 0; j < gameState->numJoints; j++)
+            {
+                positionDone &= Physics::SolveJointPositionConstraints(gameState->joints[j]);
+            }
+
             if (positionDone)
             {
                 break;

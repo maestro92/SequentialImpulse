@@ -57,6 +57,9 @@ namespace Physics
     };
 
 
+
+
+
     struct PhysBodyShapeData
     {
         PhysBodyShape shape;
@@ -259,5 +262,20 @@ namespace Physics
         };
         */
 
+    };
+
+
+    struct Joint
+    {
+        PhysBody* a;
+        PhysBody* b;
+
+        glm::vec3 aLocalAnchor;
+        glm::vec3 bLocalAnchor;
+
+        glm::vec3 rA;
+        glm::vec3 rB;
+
+        glm::vec3 impulse;
     };
 }

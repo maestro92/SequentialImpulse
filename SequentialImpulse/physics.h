@@ -8,6 +8,8 @@ namespace Physics
 {
     const int MAX_CONTACT_POINTS = 16;
 
+    const float LINEAR_SLOP = 0.005f;
+
     enum ContactFeature
     {
         vertex = 0,
@@ -1448,6 +1450,128 @@ namespace Physics
 
 
 
+    // for the two bodies just involved in the the contact Which we just resolved, 
+// if they were invovled in other contacts, we have to recompute the closing velocities
+    void SolveJointVelocityConstraints(Joint& joint)
+    {
+//        glm::mat3 kMatrix =
+        
+        float imA = joint.a->invMass;
+        float iiA = joint.a->inverseInertiaTensor[2][2];
+
+        float imB = 0;
+        float iiB = 0;
+        if (!(joint.b->flags & Physics::PhysBodyFlag_Static))
+        {
+            imB = joint.b->invMass;
+            iiB = joint.b->inverseInertiaTensor[2][2];
+        }
+
+
+        float col00 = imA + iiA * joint.aLocalAnchor.y * joint.aLocalAnchor.y +
+                      imB + iiB * joint.bLocalAnchor.y * joint.bLocalAnchor.y;
+        float col01 = -iiA * joint.aLocalAnchor.x * joint.aLocalAnchor.y -
+                      -iiB * joint.bLocalAnchor.x * joint.bLocalAnchor.y;
+
+
+        float col10 = col01;
+        float col11 = imA + iiA * joint.aLocalAnchor.x * joint.aLocalAnchor.x +
+                      imB + iiB * joint.bLocalAnchor.x * joint.bLocalAnchor.x;
+
+
+
+        float temp[16] = { col00, col01, 0,
+                            col10, col11, 0,
+                            0.0,  0.0,  0.0};
+        glm::mat3 A = glm::make_mat3(temp);
+
+
+        // in this case, this is equivalent to CDot, which is J * V_i = 
+        glm::vec3 b = -glm::cross(joint.a->angularVelocity, joint.rA);
+        b -= joint.a->velocity;
+        if (!(joint.b->flags & Physics::PhysBodyFlag_Static))
+        {
+            b += glm::cross(joint.b->angularVelocity, joint.rB);
+            b += joint.b->velocity;
+        }
+
+        glm::vec3 impulse = utl::solve22(A, -b);
+
+        joint.impulse += impulse;
+
+
+        joint.a->velocity -= impulse * joint.a->invMass;
+        joint.a->angularVelocity -= joint.a->inverseInertiaTensor * glm::cross(joint.rA, impulse);
+
+        // if (  !((b->flags >> Physics::PhysBodyFlag_Static) & 1U) )
+        if (!(joint.b->flags & Physics::PhysBodyFlag_Static))
+        {
+
+            joint.b->velocity += impulse * joint.b->invMass;
+            joint.b->angularVelocity += joint.b->inverseInertiaTensor * glm::cross(joint.rB, impulse);
+
+        }
+    }
+
+    bool SolveJointPositionConstraints(Joint& joint)
+    {
+        float positionError = 0.0f;
+
+        joint.rA = glm::mat3(joint.a->orientationMat) * joint.aLocalAnchor;
+        joint.rB = glm::mat3(joint.b->orientationMat) * joint.bLocalAnchor;
+ 
+        float imA = joint.a->invMass;
+        float iiA = joint.a->inverseInertiaTensor[2][2];
+
+        float imB = 0;
+        float iiB = 0;
+        if (!(joint.b->flags & Physics::PhysBodyFlag_Static))
+        {
+            imB = joint.b->invMass;
+            iiB = joint.b->inverseInertiaTensor[2][2];
+        }
+
+        glm::vec3 C = joint.b->position + joint.rB - joint.a->position - joint.rA;
+
+        positionError = glm::length(C);
+
+        float col00 = joint.a->invMass + iiA * joint.aLocalAnchor.y * joint.aLocalAnchor.y +
+            joint.b->invMass + iiB * joint.bLocalAnchor.y * joint.bLocalAnchor.y;
+        float col01 = -iiA * joint.aLocalAnchor.x * joint.aLocalAnchor.y -
+            -iiB * joint.bLocalAnchor.x * joint.bLocalAnchor.y;
+
+
+        float col10 = col01;
+        float col11 = joint.a->invMass + iiA * joint.aLocalAnchor.x * joint.aLocalAnchor.x +
+            joint.b->invMass + iiB * joint.bLocalAnchor.x * joint.bLocalAnchor.x;
+
+
+
+        float temp[16] = { col00, col01, 0,
+                            col10, col11, 0,
+                            0.0,  0.0,  0.0 };
+        glm::mat3 A = glm::make_mat3(temp);
+
+
+        glm::vec3 impulse = -utl::solve22(A, C);
+
+
+        joint.a->position -= impulse * joint.a->invMass;
+        glm::vec3 rotation = -joint.a->inverseInertiaTensor * glm::cross(joint.rA, impulse);
+        joint.a->addRotation(rotation, 1.0);
+
+        if (!(joint.b->flags & Physics::PhysBodyFlag_Static))
+        {
+            joint.b->position += impulse * joint.b->invMass;
+            rotation = joint.b->inverseInertiaTensor * glm::cross(joint.rB, impulse);
+            joint.b->addRotation(rotation, 1.0);
+        }
+        return positionError <= LINEAR_SLOP;
+    }
+
+
+
+
 
 
     /*
@@ -1580,9 +1704,14 @@ namespace Physics
     }
 
 
-    
 
-    void PrepareContactPoints(ContactManifold& contact, PhysBody* a, PhysBody* b)
+    void InitJointVelocityConstraints(Physics::Joint* joint)
+    {
+        joint->rA = glm::mat3(joint->a->orientationMat) * joint->aLocalAnchor;
+        joint->rB = glm::mat3(joint->b->orientationMat) * joint->bLocalAnchor;
+    }
+
+    void InitVelocityConstraints(ContactManifold& contact, PhysBody* a, PhysBody* b)
     {
         float INELASTIC_COLLISION_THRESHOLD = 1.0;
         for (int i = 0; i < contact.numContactPoints; i++)
@@ -1620,8 +1749,6 @@ namespace Physics
         }
     }
 
-    
-
 
     void ResolveVelocity(ContactManifold& contact, PhysBody* a, PhysBody* b, float dt_s)
     {
@@ -1649,7 +1776,7 @@ namespace Physics
     bool ResolvePosition(ContactManifold* contactManifolds, int numContacts, float dt_s, int iter)
     {
         float baumgarte = 0.2;
-        float linearSlop = 0.005f;
+
         float maxLinearCorrection = 0.2f;
 
         bool print = false;
@@ -1712,7 +1839,7 @@ namespace Physics
                 largestPenetration = max(largestPenetration, positionManifold.penetration);
 
                 // even at max, we only want to resolve cp.penetrate - linearSlop of penetration
-                float positionCorrection = baumgarte * (positionManifold.penetration - linearSlop);
+                float positionCorrection = baumgarte * (positionManifold.penetration - LINEAR_SLOP);
                 positionCorrection = max(0.0f, positionCorrection);
                 positionCorrection = min(maxLinearCorrection, positionCorrection);
 
@@ -1821,7 +1948,7 @@ namespace Physics
             }
         }
         
-        return largestPenetration < (3.0f * linearSlop);        
+        return largestPenetration < (3.0f * LINEAR_SLOP);
     }
 
 
@@ -1859,5 +1986,7 @@ namespace Physics
             GetOBBOBBContacts(a->shapeData.obb, a, b->shapeData.obb, b, contact);
         }
     };
+
+
 };
 
