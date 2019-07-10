@@ -82,12 +82,15 @@ namespace Physics
         }
     };
 
+
+
     struct PhysBodyDef
     {
         glm::vec3 halfDim;
         float mass;
         glm::vec3 pos;
         glm::mat4 rot;
+        bool hasJoint;
     };
 
 
@@ -117,7 +120,7 @@ namespace Physics
 
         glm::vec3 forceAccum;
         glm::vec3 torqueAccum;
-
+        bool hasJoint;
         bool isAwake;
 
         void Init()
@@ -158,6 +161,7 @@ namespace Physics
             invMass = 1.0f / mass;
             position = def.pos;
             glm::mat4 om = def.rot;
+            hasJoint = def.hasJoint;
 
             orientation = glm::toQuat(om);
             SyncOrientationMat();
@@ -332,5 +336,6 @@ namespace Physics
         glm::vec3 rB;
 
         glm::vec3 impulse;
+        bool ignoreCollision;
     };
 }
