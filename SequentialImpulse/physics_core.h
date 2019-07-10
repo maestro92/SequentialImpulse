@@ -2,6 +2,9 @@
 
 namespace Physics
 {
+
+
+
     enum PhysBodyFlags
     {
         // TODO(casey): Does it make more sense to have the flag be for _non_ colliding entities?
@@ -9,8 +12,6 @@ namespace Physics
         PhysBodyFlag_Collides = (1 << 0),
         PhysBodyFlag_Static = (1 << 1),
     };
-
-
 
     enum PhysBodyShape
     {
@@ -69,7 +70,26 @@ namespace Physics
             Plane plane;
             Sphere sphere;
         };
+
+        void InitAsBoxOBB(glm::vec3 halfDim)
+        {
+            shape = Physics::PhysBodyShape::PB_OBB;
+            obb.center = glm::vec3(0, 0, 0);
+            obb.axes[0] = glm::vec3(1, 0, 0);
+            obb.axes[1] = glm::vec3(0, 1, 0);
+            obb.axes[2] = glm::vec3(0, 0, 1);
+            obb.halfEdges = halfDim;
+        }
     };
+
+    struct PhysBodyDef
+    {
+        glm::vec3 halfDim;
+        float mass;
+        glm::vec3 pos;
+        glm::mat4 rot;
+    };
+
 
     struct PhysBody
     {
@@ -100,7 +120,6 @@ namespace Physics
 
         bool isAwake;
 
-
         void Init()
         {
             position = glm::vec3(0.0, 0.0, 0.0);
@@ -113,6 +132,42 @@ namespace Physics
 
             forceAccum = glm::vec3(0.0);
             torqueAccum = glm::vec3(0.0);
+        }
+
+        glm::mat3 GetBoxInertiaTensor(float mass, glm::vec3 halfDim)
+        {
+            float dx = halfDim.x;
+            float dy = halfDim.y;
+            float dz = halfDim.z;
+
+            float oneOver12 = 1 / 12.0f;
+            float m00 = oneOver12 * mass * (dy * dy + dz * dz);
+            float m11 = oneOver12 * mass * (dx * dx + dz * dz);
+            float m22 = oneOver12 * mass * (dx * dx + dy * dy);
+
+            return glm::mat3(m00, 0, 0,
+                0, m11, 0,
+                0, 0, m22);
+        }
+
+        void initAsBox(PhysBodyDef def)
+        {
+            Init();
+            flags = Physics::PhysBodyFlag_Collides;
+            mass = def.mass;
+            invMass = 1.0f / mass;
+            position = def.pos;
+            glm::mat4 om = def.rot;
+
+            orientation = glm::toQuat(om);
+            SyncOrientationMat();
+            scale = def.halfDim;
+
+            glm::vec3 fullDim = def.halfDim * 2.0f;
+            inertiaTensor = GetBoxInertiaTensor(mass, fullDim);
+            transformInertiaTensor();
+
+            shapeData.InitAsBoxOBB(def.halfDim);
         }
 
 #if 0

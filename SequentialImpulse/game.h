@@ -8,8 +8,12 @@
 #include "utility_math.h"
 #include "pipeline.h"
 #include "camera.h"
+#include "physics_core.h"
 #include "physics.h"
 #include "entity.h"
+
+
+
 
 struct GameState
 {
@@ -48,173 +52,66 @@ namespace GameCode
     glm::vec3 GRAVITY = glm::vec3(0, -10, 0);
     bool appliedForce = false;
 
-    /*
-    void addRandomBall(GameState* gameState)
-    {
-        Entity entity;
 
-        int x = utl::randFloat(0, 30);
-        int y = utl::randFloat(0, 30);
-
-        int size = utl::randFloat(1, 2);
-
-        entity.entityType = EntityType::Ball;
-        entity.flags |= EntityFlag_Collides;
-        entity.position = glm::vec3(x, y, 0);
-        entity.scale = glm::vec3(size, size, size);
-        entity.setModel(global.modelMgr->get(ModelEnum::circle));
-        gameState->entities[gameState->numEntities++] = entity;
-    }
-        */
     void addRandomBox(GameState* gameState, int height)
     {
-
-
+        Physics::PhysBodyDef def = {};
         float size = 2;
-        /*
-        float halfWidth = size;
-        float halfHeight = size;
-        float halfDepth = 0.5;
-        */
-        float halfWidth = size * utl::randInt(1, 3);
-        float halfHeight = size * utl::randInt(1, 3);
-        float halfDepth = 0.5;
+        def.halfDim = glm::vec3(size * utl::randInt(1, 3), 
+                                size * utl::randInt(1, 3), 
+                                0.5);
+        def.mass = 5;
+        def.pos = glm::vec3(utl::randFloat(-20, 20),
+                            utl::randFloat(5, 40),
+                            0);
+
+        float rot = utl::randFloat(0, 360);
+        def.rot = glm::rotate(rot, glm::vec3(0, 0, 1));
+
 
         int index = gameState->numEntities++;
         Entity* entity = &gameState->entities[index];
 
-      /*
-        float x = 0;
-        float y = 5 + height * 5;// utl::randFloat(5, 15);     
-        float rot = 0;// utl::randFloat(0, 360);
-       */
-
-        
-        float x = utl::randFloat(-20, 20);
-        float y = utl::randFloat(5, 40);
-        float rot = utl::randFloat(0, 360);
-        
-
         entity->init();
         entity->id = index;
         entity->entityType = EntityType::Box;
-
         entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
 
         Physics::PhysBody* pb = &entity->physBody;
-        pb->Init();
         pb->id = index;
-        pb->flags = Physics::PhysBodyFlag_Collides;
-        pb->mass = 5;
-        pb->invMass = 1 / (float)pb->mass;
-        pb->position = glm::vec3(x, y, 0);
-        glm::mat4 om = glm::rotate(rot, glm::vec3(0, 0, 1));
-        //         om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
-
-     //   om = glm::rotate(60.0f, glm::vec3(0, 0, 1));
-
-
-
-
-        pb->orientation = glm::toQuat(om);
-        pb->SyncOrientationMat();
-        pb->scale = glm::vec3(halfWidth, halfHeight, halfDepth);
-
-
-
-        float angle = atan2(pb->orientationMat[1][0], pb->orientationMat[0][0]) * 180.0f / 3.14f;
-        utl::debug("        before a->angle ", angle);
-
-
-        pb->velocityDamping = 0.95f;
-        pb->angularDamping = 0.80f;
-
-        pb->inertiaTensor = Physics::GetBoxInertiaTensor(pb->mass, halfWidth * 2, halfHeight * 2, halfDepth * 2);
-        pb->transformInertiaTensor();
-
-
-        pb->shapeData.shape = Physics::PhysBodyShape::PB_OBB;
-        pb->shapeData.obb.center = glm::vec3(0, 0, 0);
-        pb->shapeData.obb.axes[0] = glm::vec3(1, 0, 0);
-        pb->shapeData.obb.axes[1] = glm::vec3(0, 1, 0);
-        pb->shapeData.obb.axes[2] = glm::vec3(0, 0, 1);
-        pb->shapeData.obb.halfEdges = glm::vec3(halfWidth, halfHeight, halfDepth);
-
-
+        pb->initAsBox(def);
     }
 
 
 
 
-
-
-
-
-
-    Entity* addBoxForJointDemo(GameState* gameState, int i)
+    Entity* addBoxForJointDemo(GameState* gameState, float startY, int i)
     {
+        Physics::PhysBodyDef def = {};
         float size = 2;
-        /*
-        float halfWidth = size;
-        float halfHeight = size;
-        float halfDepth = 0.5;
-        */
-        float halfWidth = size;
-        float halfHeight = 1;
-        float halfDepth = 0.5;
+        def.halfDim = glm::vec3(size, 
+                                1, 
+                                0.5);
+        def.mass = 5;
+        def.pos = glm::vec3(i * 4,
+                            startY,
+                            0);
+
+        float rot = utl::randFloat(0, 360);
+        def.rot = glm::rotate(rot, glm::vec3(0, 0, 1));
+
 
         int index = gameState->numEntities++;
         Entity* entity = &gameState->entities[index];
 
-        float x = i * 4;
-        float y = 10;// utl::randFloat(5, 15);
-        float rot = 0;// utl::randFloat(0, 360);
-
-
         entity->init();
         entity->id = index;
         entity->entityType = EntityType::Box;
-
         entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
 
         Physics::PhysBody* pb = &entity->physBody;
-        pb->Init();
         pb->id = index;
-        pb->flags = Physics::PhysBodyFlag_Collides;
-        pb->mass = 5;
-        pb->invMass = 1 / (float)pb->mass;
-        pb->position = glm::vec3(x, y, 0);
-        glm::mat4 om = glm::rotate(rot, glm::vec3(0, 0, 1));
-        //         om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
-
-     //   om = glm::rotate(60.0f, glm::vec3(0, 0, 1));
-
-
-
-
-        pb->orientation = glm::toQuat(om);
-        pb->SyncOrientationMat();
-        pb->scale = glm::vec3(halfWidth, halfHeight, halfDepth);
-
-
-
-        float angle = atan2(pb->orientationMat[1][0], pb->orientationMat[0][0]) * 180.0f / 3.14f;
-        utl::debug("        before a->angle ", angle);
-
-
-        pb->velocityDamping = 0.95f;
-        pb->angularDamping = 0.80f;
-
-        pb->inertiaTensor = Physics::GetBoxInertiaTensor(pb->mass, halfWidth * 2, halfHeight * 2, halfDepth * 2);
-        pb->transformInertiaTensor();
-
-
-        pb->shapeData.shape = Physics::PhysBodyShape::PB_OBB;
-        pb->shapeData.obb.center = glm::vec3(0, 0, 0);
-        pb->shapeData.obb.axes[0] = glm::vec3(1, 0, 0);
-        pb->shapeData.obb.axes[1] = glm::vec3(0, 1, 0);
-        pb->shapeData.obb.axes[2] = glm::vec3(0, 0, 1);
-        pb->shapeData.obb.halfEdges = glm::vec3(halfWidth, halfHeight, halfDepth);
+        pb->initAsBox(def);
 
         return entity;
     }
@@ -274,7 +171,42 @@ namespace GameCode
     {
         return glm::mat3(body->orientationMat) * (anchor - body->position);
     }
+    /*
+    void create2DRagdoll(GameState* gameState)
+    {
+        int startY = 50;
+        Entity* first = addBoxForJointDemo(gameState, startY, 0);
+        Physics::PhysBody* prev = &first->physBody;
 
+
+        for (int i = 0; i < 30; i++)
+        {
+            Entity* ent0 = addBoxForJointDemo(gameState, startY, i);
+
+            Physics::Joint* joint = &gameState->joints[gameState->numJoints];
+            gameState->numJoints++;
+
+            glm::vec3 worldAnchorPoint = glm::vec3(2 + 4 * (i - 1), startY, 0);
+
+            joint->a = prev;
+            joint->b = &ent0->physBody;
+
+            joint->aLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, prev);
+            joint->bLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, &ent0->physBody);
+
+            utl::debug("posA", joint->a->position);
+            utl::debug("posB", joint->b->position);
+
+            utl::debug("localAnchorA", joint->aLocalAnchor);
+            utl::debug("localAnchorB", joint->bLocalAnchor);
+
+
+            prev = &ent0->physBody;
+
+        }
+
+    }
+    */
     void demo1Init(GameState* gameState)
     {
         srand(0);
@@ -310,183 +242,19 @@ namespace GameCode
         int index = 0;
       
         
-        /*
-        index = gameState->numEntities++;
-        entity = &gameState->entities[index];
-        entity->init();
-        entity->id = gameState->numEntities;
-        entity->entityType = EntityType::XYZAxis;
-
-        entity->setModel(global.modelMgr->get(ModelEnum::xyzAxis));
-
-        pb = &entity->physBody;
-        pb->Init();
-        pb->flags = Physics::PhysBodyFlag_Static;
-        pb->scale = glm::vec3(scale, scale, scale);
-        */
-        
 
         // the box
         glm::mat4 om;
         int x, y;
 
-
-        x = 0;
-        y = 2;
-        float size = 0.5;
-        float halfWidth = size * 2;
-        float halfHeight = size * 2;
-        float halfDepth = 1;
-
-
-
-
-
-#if 0
-        // the box
-        x = 0;
-        y = 19.5; // 4.5
-        size = 1;
-        halfWidth = size;
-        halfHeight = size;
-        halfDepth = 1;
-        index = gameState->numEntities++;
-        entity = &gameState->entities[index];
-        entity->init();
-        entity->id = index;
-        entity->entityType = EntityType::Box;
-
-        entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
-
-        pb = &entity->physBody;
-        pb->Init();
-        pb->id = index;
-        pb->mass = 1;
-        pb->invMass = 1 / (float)pb->mass;
-        pb->position = glm::vec3(x, y, 0);
-        pb->flags = Physics::PhysBodyFlag_Collides;
-
-        om = glm::rotate(50.0f, glm::vec3(0, 0, 1));
-        //   om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
-
-        pb->orientation = glm::toQuat(om);
-        pb->SyncOrientationMat();
-        pb->scale = glm::vec3(halfWidth, halfHeight, halfDepth);
-
-        pb->velocityDamping = 0.95f;
-        pb->angularDamping = 0.80f;
-
-        pb->inertiaTensor = Physics::GetBoxInertiaTensor(pb->mass, halfWidth * 2, halfHeight * 2, halfDepth);
-        pb->transformInertiaTensor();
-
-
-        pb->shapeData.shape = Physics::PhysBodyShape::PB_OBB;
-        pb->shapeData.obb.center = glm::vec3(0, 0, 0);
-        pb->shapeData.obb.axes[0] = glm::vec3(1, 0, 0);
-        pb->shapeData.obb.axes[1] = glm::vec3(0, 1, 0);
-        pb->shapeData.obb.axes[2] = glm::vec3(0, 0, 1);
-        pb->shapeData.obb.halfEdges = glm::vec3(halfWidth, halfHeight, halfDepth);
-
-
-
-        x = 0;
-        y = 10;
-        index = gameState->numEntities++;
-        entity = &gameState->entities[index];
-        entity->init();
-        entity->id = index;
-        entity->entityType = EntityType::Box;
-
-        entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
-
-
-        pb = &entity->physBody;
-        pb->Init();
-        pb->id = index;
-
-        pb->flags = Physics::PhysBodyFlag_Collides;
-        pb->mass = 5;
-        pb->invMass = 1 / (float)pb->mass;
-        pb->position = glm::vec3(x, y, 0);
-        om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
-        //   glm::mat4 om = glm::rotate(0.0f, glm::vec3(0, 0, 1));
-
-           /*
-           glm::vec3 xAxis = glm::vec3(0, 1, 0);
-           xAxis = glm::normalize(xAxis);
-           glm::vec3 yAxis = glm::vec3(-1, 0, 0);
-           yAxis = glm::normalize(yAxis);
-           glm::vec3 zAxis = glm::vec3(0, 0, 1);
-
-           // world to contact local matrix
-           glm::mat4 om = utl::axes2GLMMat(xAxis, yAxis, zAxis);
-           */
-        pb->orientation = glm::toQuat(om);
-        pb->SyncOrientationMat();
-        pb->scale = glm::vec3(halfWidth, halfHeight, halfDepth);
-
-        pb->velocityDamping = 0.95f;
-        pb->angularDamping = 0.80f;
-
-        pb->inertiaTensor = Physics::GetBoxInertiaTensor(pb->mass, halfWidth * 2, halfHeight * 2, halfDepth * 2);
-        pb->transformInertiaTensor();
-
-
-        pb->shapeData.shape = Physics::PhysBodyShape::PB_OBB;
-        pb->shapeData.obb.center = glm::vec3(0, 0, 0);
-        pb->shapeData.obb.axes[0] = glm::vec3(1, 0, 0);
-        pb->shapeData.obb.axes[1] = glm::vec3(0, 1, 0);
-        pb->shapeData.obb.axes[2] = glm::vec3(0, 0, 1);
-        pb->shapeData.obb.halfEdges = glm::vec3(halfWidth, halfHeight, halfDepth);
-
-#endif 
-        /*
+        
         for (int i = 0; i < 10; i++)
         {
             addRandomBox(gameState, i);
         }
-        */
-
-        // addRandomBox(gameState);
-        // addRandomBox(gameState);
-        /*
-        addRandomBox(gameState);
-        addRandomBox(gameState);
-        addRandomBox(gameState);
-        addRandomBox(gameState);
-        addRandomBox(gameState);
-        */
+        
 
 
-        Entity* first = addBoxForJointDemo(gameState, 0);
-        Physics::PhysBody* prev = &first->physBody;
-
-        int startY = 10;
-        for (int i = 1; i < 3; i++)
-        {
-            Entity* ent0 = addBoxForJointDemo(gameState, i);
-
-            Physics::Joint* joint = &gameState->joints[gameState->numJoints];
-            gameState->numJoints++;
-
-            glm::vec3 worldAnchorPoint = glm::vec3(2 + 4 * (i-1), startY, 0);
-
-            joint->a = prev;
-            joint->b = &ent0->physBody;
-
-            joint->aLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, prev);
-            joint->bLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, &ent0->physBody);
-
-            utl::debug("posA", joint->a->position);
-            utl::debug("posB", joint->b->position);
-
-            utl::debug("localAnchorA", joint->aLocalAnchor);
-            utl::debug("localAnchorB", joint->bLocalAnchor);
-
-
-            prev = &ent0->physBody;
-
-        }
 
 
         
@@ -513,10 +281,10 @@ namespace GameCode
         pb->flags = Physics::PhysBodyFlag_Collides | Physics::PhysBodyFlag_Static;
         floor->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
 
-        prev = &floor->physBody;
+     //   prev = &floor->physBody;
 
 
-
+        /*
         Physics::Joint* joint = &gameState->joints[gameState->numJoints];
         gameState->numJoints++;
 
@@ -527,7 +295,7 @@ namespace GameCode
 
         joint->aLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, &first->physBody);
         joint->bLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, prev);
-        
+        */
 
 
 
@@ -588,9 +356,9 @@ namespace GameCode
         gameState->cycloneJoints = new Physics::CycloneJoint[64];
         */
 
-
-
     }
+
+
 
     /*
     void demo2Init(GameState* gameState)
@@ -991,7 +759,7 @@ namespace GameCode
         
 
 
-        cout << "########## newTick " << gameState->frameCount<< endl;
+    //    cout << "########## newTick " << gameState->frameCount<< endl;
         if (gameState->frameCount  == 56)
         {
             int c = 1;

@@ -173,23 +173,8 @@ namespace Physics
 
     float restitution = 0.0;
     bool hasPolygonsCollided = false;
-    glm::mat3 GetBoxInertiaTensor(float mass, float xDim, float yDim, float zDim)
-    {
-        float dx = xDim;
-        float dy = yDim;
-        float dz = zDim;
 
-        float oneOver12 = 1 / 12.0f;
-        float m00 = oneOver12 * mass * (dy * dy + dz * dz);
-        float m11 = oneOver12 * mass * (dx * dx + dz * dz);
-        float m22 = oneOver12 * mass * (dx * dx + dy * dy);
-
-        return glm::mat3( m00, 0, 0,
-                          0, m11, 0,
-                          0, 0, m22);
-    }
-
-
+       
     void GetOBBInertiaTensor()
     {
 
