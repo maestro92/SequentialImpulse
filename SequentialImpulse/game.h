@@ -53,6 +53,12 @@ namespace GameCode
     bool appliedForce = false;
     bool GRAVITY_ACTIVE = true;
     bool COLLISION_ACTIVE = true;
+    bool ALLOW_SLEEPING = true;
+
+
+    float LINEAR_SLEEP_TOLERANCE = 0.01f;
+    float ANGULAR_SLEEP_TOLERANCE = 2.0f;
+    float DORMANT_TIME_TO_SLEEP = 0.5f; // if you are dormatn for more than half a second, you sleep
 
 
     void addRandomBox(GameState* gameState, int height)
@@ -455,7 +461,7 @@ namespace GameCode
         }
         
 
-        addRagdoll(gameState);
+    //    addRagdoll(gameState);
 
 
         
@@ -760,6 +766,9 @@ namespace GameCode
             int index = gameState->numContacts;
             gameState->contacts[index] = newContact;
             gameState->numContacts++;
+
+            gameState->contacts[index].a->SetAwake(true);
+            gameState->contacts[index].b->SetAwake(true);
         }
 
     }
@@ -923,16 +932,29 @@ namespace GameCode
         {
             for (int i = 0; i < gameState->numEntities; i++)
             {
-                if (gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static)
+                Entity* ent0 = &gameState->entities[i];
+                if (ent0->physBody.flags & Physics::PhysBodyFlag_Static)
                 {
                     continue;
                 }
 
                 for (int j = i + 1; j < gameState->numEntities; j++)
                 {
-                    if (ShouldCollide(gameState, &gameState->entities[i], &gameState->entities[j]))
+                    Entity* ent1 = &gameState->entities[j];
+                    if (ShouldCollide(gameState, ent0, ent1))
                     {
                         //    cout << i <<  " " << j << endl;
+
+                        bool activeA = ent0->physBody.isAwake && (!(ent0->physBody.flags & Physics::PhysBodyFlag_Static));
+                        bool activeB = ent1->physBody.isAwake && (!(ent1->physBody.flags & Physics::PhysBodyFlag_Static));
+
+
+                        // if no one is active, we dont do shit
+                        if (!activeA && !activeB)
+                        {
+                            continue;
+                        }
+
                         Physics::ContactManifold newContact = {};
 
                         Physics::GenerateContactInfo(&gameState->entities[i].physBody, &gameState->entities[j].physBody, newContact);
@@ -948,7 +970,7 @@ namespace GameCode
                             // remove contact between the two if there are any in our old list
                             tryRemovingInvalidContacts(gameState, &gameState->entities[i].physBody,
                                 &gameState->entities[j].physBody, manifoldsToRemove);
-                        }
+                        }                        
                     }
                 }
             }
@@ -957,7 +979,7 @@ namespace GameCode
 
         for (int i = 0; i < gameState->numEntities; i++)
         {
-            if (!(gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static))
+            if (!(gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static)  && gameState->entities[i].physBody.isAwake )
             {
                 integrateVelocity(&gameState->entities[i].physBody, gameInput.dt_s);
         //        integratePosition(&gameState->entities[i], gameInput.dt_s);
@@ -1061,7 +1083,7 @@ namespace GameCode
         // by applying velocity first, we may get to skip doing position resolution. so this saves us some computation
         for (int i = 0; i < gameState->numEntities; i++)
         {
-            if (!(gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static))
+            if (!(gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static) && gameState->entities[i].physBody.isAwake)
             {
                 integratePosition(&gameState->entities[i].physBody, gameInput.dt_s, i);
             }
@@ -1086,13 +1108,53 @@ namespace GameCode
         }
 
 
+        // check for sleeping 
+        if (ALLOW_SLEEPING)
+        {
+
+            float angToleranceSqr = ANGULAR_SLEEP_TOLERANCE * ANGULAR_SLEEP_TOLERANCE;
+            float linToleranceSqr = LINEAR_SLEEP_TOLERANCE * LINEAR_SLEEP_TOLERANCE;
+
+
+            for (int i = 0; i < gameState->numEntities; i++)
+            {
+                if (gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static)
+                {
+                    continue;
+                }
+
+                Physics::PhysBody* pb = &gameState->entities[i].physBody;
+
+                if (glm::dot(pb->angularVelocity, pb->angularVelocity) > angToleranceSqr ||
+                    glm::dot(pb->velocity, pb->velocity) > linToleranceSqr)
+                {
+                    pb->dormantTimer = 0.0;
+                }
+                else
+                {
+                    pb->dormantTimer += gameInput.dt_s;
+                }
+
+                if (pb->dormantTimer > DORMANT_TIME_TO_SLEEP)
+                {
+                    pb->SetAwake(false);
+                }
+
+            }
+
+
+
+        }
+
+
+
+
         for (int i = 0; i < gameState->numEntities; i++)
         {
             if (!(gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static))
             {
                 gameState->entities[i].physBody.forceAccum = glm::vec3(0.0);
                 gameState->entities[i].physBody.torqueAccum = glm::vec3(0.0);
-
             }
         }
 

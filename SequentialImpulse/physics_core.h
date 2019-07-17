@@ -11,6 +11,8 @@ namespace Physics
         // TODO(casey): Collides and ZSupported probably can be removed now/soon
         PhysBodyFlag_Collides = (1 << 0),
         PhysBodyFlag_Static = (1 << 1),
+        PhysBodyFlag_Awake = (1 << 2),
+
     };
 
     enum PhysBodyShape
@@ -123,6 +125,8 @@ namespace Physics
         bool hasJoint;
         bool isAwake;
 
+        float dormantTimer;
+
         void Init()
         {
             position = glm::vec3(0.0, 0.0, 0.0);
@@ -135,6 +139,28 @@ namespace Physics
 
             forceAccum = glm::vec3(0.0);
             torqueAccum = glm::vec3(0.0);
+        }
+
+        void SetAwake(bool awake)
+        {
+            if (awake)
+            {
+                flags |= PhysBodyFlag_Awake;
+                isAwake = true;
+                dormantTimer = 0.0f;
+            }
+            else
+            {
+                isAwake = false;
+                flags &= ~PhysBodyFlag_Awake;
+                dormantTimer = 0.0f;
+                
+                velocity = glm::vec3(0.0);
+                angularVelocity = glm::vec3(0.0);
+
+                forceAccum = glm::vec3(0.0);
+                torqueAccum = glm::vec3(0.0);
+            }
         }
 
         glm::mat3 GetBoxInertiaTensor(float mass, glm::vec3 halfDim)

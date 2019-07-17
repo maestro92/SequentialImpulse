@@ -60,24 +60,31 @@ namespace GameRendering
             }
             else if (entities[i].entityType == EntityType::Box)
             {
-                if (entities[i].physBody.hasJoint)
+                if (entities[i].physBody.isAwake == false)
                 {
-                    if (i % 2 == 0)
-                    {
-                        p_renderer->setData(R_FULL_COLOR::u_color, COLOR_PURPLE);
-                    }
-                    else
-                    {
-                        p_renderer->setData(R_FULL_COLOR::u_color, COLOR_ORANGE);
-                    }
-                }
-                else if (i % 2 == 0)
-                {
-                    p_renderer->setData(R_FULL_COLOR::u_color, COLOR_BLUE);
+                    p_renderer->setData(R_FULL_COLOR::u_color, COLOR_GRAY);
                 }
                 else
                 {
-                    p_renderer->setData(R_FULL_COLOR::u_color, COLOR_LIGHT_BLUE_2);
+                    if (entities[i].physBody.hasJoint)
+                    {
+                        if (i % 2 == 0)
+                        {
+                            p_renderer->setData(R_FULL_COLOR::u_color, COLOR_PURPLE);
+                        }
+                        else
+                        {
+                            p_renderer->setData(R_FULL_COLOR::u_color, COLOR_ORANGE);
+                        }
+                    }
+                    else if (i % 2 == 0)
+                    {
+                        p_renderer->setData(R_FULL_COLOR::u_color, COLOR_BLUE);
+                    }
+                    else
+                    {
+                        p_renderer->setData(R_FULL_COLOR::u_color, COLOR_LIGHT_BLUE_2);
+                    }
                 }
             }
 
