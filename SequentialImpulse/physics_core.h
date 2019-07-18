@@ -93,6 +93,7 @@ namespace Physics
         glm::vec3 pos;
         glm::mat4 rot;
         bool hasJoint;
+        unsigned int flags;
     };
 
 
@@ -182,7 +183,7 @@ namespace Physics
         void initAsBox(PhysBodyDef def)
         {
             Init();
-            flags = Physics::PhysBodyFlag_Collides;
+            flags = def.flags; 
             mass = def.mass;
             invMass = 1.0f / mass;
             position = def.pos;
@@ -352,6 +353,7 @@ namespace Physics
 
     struct Joint
     {
+        bool isDead;
         PhysBody* a;
         PhysBody* b;
 

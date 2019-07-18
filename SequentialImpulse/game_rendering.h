@@ -57,9 +57,12 @@ namespace GameRendering
             if (entities[i].physBody.flags & Physics::PhysBodyFlag_Static)
             {
                 p_renderer->setData(R_FULL_COLOR::u_color, COLOR_GRAY);
+                gameState->entities[i].renderCore(gameState->mainCamera.getPipeline(), p_renderer);
             }
             else if (entities[i].entityType == EntityType::Box)
             {
+
+
                 if (entities[i].physBody.isAwake == false)
                 {
                     p_renderer->setData(R_FULL_COLOR::u_color, COLOR_GRAY);
@@ -77,6 +80,12 @@ namespace GameRendering
                             p_renderer->setData(R_FULL_COLOR::u_color, COLOR_ORANGE);
                         }
                     }
+                    else
+                    {
+                        p_renderer->setData(R_FULL_COLOR::u_color, COLOR_AZURE);
+                    }
+                    gameState->entities[i].renderCore(gameState->mainCamera.getPipeline(), p_renderer);
+                    /*
                     else if (i % 2 == 0)
                     {
                         p_renderer->setData(R_FULL_COLOR::u_color, COLOR_BLUE);
@@ -85,10 +94,22 @@ namespace GameRendering
                     {
                         p_renderer->setData(R_FULL_COLOR::u_color, COLOR_LIGHT_BLUE_2);
                     }
+                    */
                 }
+
+                p_renderer->setData(R_FULL_COLOR::u_color, COLOR_BLACK);
+
+                render(global.modelMgr->get(ModelEnum::unitCenteredQuadOutline), gameState->mainCamera.getPipeline(),
+                    gameState->entities[i].physBody.position,
+                    gameState->entities[i].physBody.orientationMat,
+                    gameState->entities[i].physBody.scale,
+                    p_renderer);
             }
 
-            gameState->entities[i].renderCore(gameState->mainCamera.getPipeline(), p_renderer);
+        //         
+            
+
+                    
         }
         
 

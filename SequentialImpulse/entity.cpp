@@ -10,13 +10,13 @@ void Entity::init()
 
 void Entity::renderCore(Pipeline& p, Renderer* r)
 {
-	p.pushMatrix();
-		p.translate(physBody.position);
-		p.addMatrix(physBody.orientationMat);
-		p.scale(physBody.scale);
-		r->setUniLocs(p);
-		m_model->render();
-	p.popMatrix();
+    p.pushMatrix();
+        p.translate(physBody.position);
+        p.addMatrix(physBody.orientationMat);
+        p.scale(physBody.scale);
+        r->setUniLocs(p);
+        m_model->render();
+    p.popMatrix();
 }
 
 

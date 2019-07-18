@@ -76,9 +76,9 @@ class ModelManager
 
         Model* buildXYZModel();
         Model* buildArrowModel();
-
-		Model* m_quad;
-		Model* m_centeredQuad;
+        Model* buildUnitCenteredQuadModel();
+        Model* m_quad;
+   //     Model* m_centeredQuad;
         Model* m_unitCenteredQuad;
         Model* m_xyzAxis;
         Model* m_arrow;

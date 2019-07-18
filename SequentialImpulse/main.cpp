@@ -470,7 +470,7 @@ void FogOfWar::onMouseBtnUp(GameState* gameState)
 	SDL_GetMouseState(&tmpx, &tmpy);
 	tmpy = utl::SCREEN_HEIGHT - tmpy;
 
-    gameState->draggedEntity = NULL;
+    GameCode::RemoveMouseJoint(gameState);
 }
 
 
@@ -483,6 +483,8 @@ void FogOfWar::onMouseBtnHold(GameState* gameState)
     glm::vec2 screenPoint = glm::vec2(tmpx, tmpy);
     glm::vec3 worldPoint = GameCode::screenToWorldPoint(gameState, screenPoint);
     glm::vec2 tempWorldPoint = glm::vec2(worldPoint.x, worldPoint.y);
+
+    GameCode::MoveMouseJoint(gameState, tempWorldPoint, FIXED_UPATE_TIME_s);
 }
 
 void FogOfWar::onMouseBtnDown(GameState* gameState)
@@ -495,7 +497,7 @@ void FogOfWar::onMouseBtnDown(GameState* gameState)
 
     glm::vec3 worldPoint = GameCode::screenToWorldPoint(gameState, screenPoint);
     glm::vec3 raycastDir = glm::vec3(worldPoint.x, worldPoint.y, -1);
-
+    
     // move this into GameCode
     cout << "OnMouseBtnDown" << endl;
     utl::debug("raycastDir", raycastDir);

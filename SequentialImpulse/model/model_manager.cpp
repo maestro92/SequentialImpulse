@@ -107,9 +107,12 @@ ModelManager::~ModelManager()
 
 void ModelManager::init()
 {
-	m_quad = new QuadModel(1, 1);
-	m_centeredQuad = new QuadModel(-0.5, 0.5, -0.5, 0.5);
+    m_quad = new QuadModel(1, 1);
     m_unitCenteredQuad = new QuadModel(-1, 1, -1, 1);
+ //    = new QuadModel(-0.5, 0.5, -0.5, 0.5);
+    
+     
+
     m_xyzAxis = buildXYZModel(); 
     
     std::vector<VertexData> vertices;
@@ -120,15 +123,26 @@ void ModelManager::init()
     circleModel->addMesh(m);
     
 
-	m_models.resize(ModelEnum::NUM_MODELS);
-	m_models[ModelEnum::quad] = m_quad;
-    m_models[ModelEnum::centeredQuad] = m_centeredQuad;
-	m_models[ModelEnum::unitCenteredQuad] = m_unitCenteredQuad;
-	m_models[ModelEnum::xyzAxis] = m_xyzAxis;
+
+
+    m_models.resize(ModelEnum::NUM_MODELS);
+    m_models[ModelEnum::quad] = m_quad;
+ //   m_models[ModelEnum::centeredQuad] = m_centeredQuad;
+    m_models[ModelEnum::unitCenteredQuad] = m_unitCenteredQuad;
+    m_models[ModelEnum::unitCenteredQuadOutline] = buildUnitCenteredQuadModel();
+
+    
+
+    m_models[ModelEnum::xyzAxis] = m_xyzAxis;
     m_models[ModelEnum::circle] = circleModel;
     m_models[ModelEnum::arrow] = buildArrowModel();
 
+
 }
+
+
+
+
 
 
 Model* ModelManager::buildXYZModel()
@@ -381,6 +395,47 @@ void ModelManager::buildQuad3D(glm::vec3 min, glm::vec3 max, glm::vec3 color,
 	indices.push_back(indicesStart + 3);
 	indices.push_back(indicesStart + 0);
 }
+
+
+
+
+Model* ModelManager::buildUnitCenteredQuadModel()
+{
+    Model* model = new Model();
+
+
+    std::vector<VertexData> vertices;
+    std::vector<unsigned int> indices;
+
+    float halfSize = 1;
+    float thickness = 0.1;
+    glm::vec2 min = glm::vec2(-halfSize, halfSize - thickness);
+    glm::vec2 max = glm::vec2(halfSize, halfSize);
+    glm::vec3 color = glm::vec3(0, 0, 0);
+    buildQuad2D(min, max, color, vertices, indices);
+
+    min = glm::vec2(halfSize - thickness, -halfSize);
+    max = glm::vec2(halfSize, halfSize);
+    color = glm::vec3(0, 0, 0);
+    buildQuad2D(min, max, color, vertices, indices);
+
+    min = glm::vec2(-halfSize, -halfSize);
+    max = glm::vec2(halfSize, -halfSize + thickness);
+    color = glm::vec3(0, 0, 0);
+    buildQuad2D(min, max, color, vertices, indices);
+
+    min = glm::vec2(-halfSize, -halfSize);
+    max = glm::vec2(-halfSize + thickness, halfSize);
+    color = glm::vec3(0, 0, 0);
+    buildQuad2D(min, max, color, vertices, indices);
+
+    Mesh m(vertices, indices);
+    model->addMesh(m);
+
+    return model;
+}
+
+
 
 
 

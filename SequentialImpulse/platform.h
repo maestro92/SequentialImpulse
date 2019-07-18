@@ -7,6 +7,8 @@ struct CameraTransform
 
 struct GameInput
 {
+    glm::vec2 prevMousePoint;
+    glm::vec3 MousePoint;
     float dt_s;
 };
 

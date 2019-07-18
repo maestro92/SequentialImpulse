@@ -36,10 +36,11 @@ struct GameState
 
     Camera mainCamera;
 
-    Entity* draggedEntity;
-
     float angle;
     int boxIndex;
+
+    int mouseJointIndex;
+    int mouseJointEntityIndex;
 
     int frameCount;
 };
@@ -53,45 +54,14 @@ namespace GameCode
     bool appliedForce = false;
     bool GRAVITY_ACTIVE = true;
     bool COLLISION_ACTIVE = true;
-    bool ALLOW_SLEEPING = true;
+
+    // sleeping is not correct currently
+    bool ALLOW_SLEEPING = false;
 
 
     float LINEAR_SLEEP_TOLERANCE = 0.01f;
     float ANGULAR_SLEEP_TOLERANCE = 2.0f;
     float DORMANT_TIME_TO_SLEEP = 0.5f; // if you are dormatn for more than half a second, you sleep
-
-
-    void addRandomBox(GameState* gameState, int height)
-    {
-        Physics::PhysBodyDef def = {};
-        float size = 2;
-
-        def.halfDim = glm::vec3(size * utl::randInt(1, 3),
-                                size * utl::randInt(1, 3), 
-                                0.5);
-        def.mass = 5;
-        float xOffset = 0;
-        def.pos = glm::vec3(utl::randFloat(-20, 20) + xOffset,
-                            utl::randFloat(5, 20),
-                            0);
-
-        float rot = utl::randFloat(0, 360);
-        def.rot = glm::rotate(rot, glm::vec3(0, 0, 1));
-        def.hasJoint = false;
-
-        int index = gameState->numEntities++;
-        Entity* entity = &gameState->entities[index];
-
-        entity->init();
-        entity->id = index;
-        entity->entityType = EntityType::Box;
-        entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
-
-        Physics::PhysBody* pb = &entity->physBody;
-        pb->id = index;
-        pb->initAsBox(def);
-    }
-
 
     Entity* addEntity(GameState* gameState, EntityType entType, Physics::PhysBodyDef physDef)
     {
@@ -102,7 +72,7 @@ namespace GameCode
         ent->id = index;
         ent->entityType = entType;
         ent->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
-
+        ent->isDead = false;
         Physics::PhysBody* pb = &ent->physBody;
         pb->id = index;
         pb->initAsBox(physDef);
@@ -110,8 +80,27 @@ namespace GameCode
     }
 
 
+    void addRandomBox(GameState* gameState, int height)
+    {
+        Physics::PhysBodyDef def = {};
+        float size = 2;
 
+        def.halfDim = glm::vec3(size * utl::randInt(1, 3),
+                                size * utl::randInt(1, 3), 
+                                0.5);
+        def.flags = Physics::PhysBodyFlag_Collides;
+        def.mass = 5;
+        float xOffset = 0;
+        def.pos = glm::vec3(utl::randFloat(-20, 20) + xOffset,
+                            utl::randFloat(5, 20),
+                            0);
 
+        float rot = utl::randFloat(0, 360);
+        def.rot = glm::rotate(rot, glm::vec3(0, 0, 1));
+        def.hasJoint = false;
+
+        addEntity(gameState, Box, def);
+    }
 
     Entity* addRagdollBody(GameState* gameState)
     {
@@ -262,7 +251,7 @@ namespace GameCode
     {
         Physics::Joint* joint = &gameState->joints[gameState->numJoints];
         gameState->numJoints++;
-
+        joint->isDead = false;
         joint->a = a;
         joint->b = b;
 
@@ -273,6 +262,19 @@ namespace GameCode
     }
 
 
+    void addMouseJoint(GameState* gameState, glm::vec3 worldAnchorPoint, Physics::PhysBody* mouse, Physics::PhysBody* draggedEnt, bool ignoreCollision)
+    {
+        Physics::Joint* joint = &gameState->joints[gameState->numJoints];
+        gameState->numJoints++;
+        joint->isDead = false;
+        joint->a = draggedEnt;
+        joint->b = mouse;
+
+        joint->aLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, draggedEnt);
+        joint->bLocalAnchor = glm::vec3(0,0,0);
+
+        joint->ignoreCollision = ignoreCollision;
+    }
 
     void addRagdoll(GameState* gameState)
     {
@@ -365,50 +367,80 @@ namespace GameCode
 
 
 
+    void removeEntity(GameState* gameState, int index)
+    {
+        gameState->entities[index].isDead = true;
+    }
 
 
 
+    void RemoveMouseJoint(GameState* gameState)
+    {
+        if (gameState->mouseJointEntityIndex != -1)
+        {
+            Entity* mouseJointEnt = &gameState->entities[gameState->mouseJointEntityIndex];
+
+            for (int i = 0; i < gameState->numJoints; i++)
+            {
+                Physics::Joint* joint = &gameState->joints[i];
+                if (joint->a == &mouseJointEnt->physBody || joint->b == &mouseJointEnt->physBody)
+                {
+                    joint->isDead = true;
+                }
+            }
+
+            removeEntity(gameState, gameState->mouseJointEntityIndex);
+        }
+
+        gameState->mouseJointEntityIndex = -1;
+    }
+
+    void MoveMouseJoint(GameState* gameState, glm::vec2 raycastDirection, float dt_s)
+    {
+        if (gameState->mouseJointEntityIndex != -1)
+        {
+        //    glm::vec3 vel = (glm::vec3(raycastDirection.x, raycastDirection.y, 0) - gameState->entities[gameState->mouseJointEntityIndex].physBody.position);
+        //    gameState->entities[gameState->mouseJointEntityIndex].physBody.velocity = vel;
+            gameState->entities[gameState->mouseJointEntityIndex].physBody.position = glm::vec3(raycastDirection.x, raycastDirection.y, 0);
+
+        }
+    }
 
     void ProcessInputRaycast(GameState* gameState, glm::vec3 raycastDirection)
     {
-        for (int i = 0; i < gameState->numEntities; i++)
+        if (gameState->mouseJointEntityIndex == -1)
         {
-            Entity* entity = &gameState->entities[i];
-            if (!(entity->physBody.flags & Physics::PhysBodyFlag_Static))
+            for (int i = 0; i < gameState->numEntities; i++)
             {
-                continue;
-            }
-            
-            if (entity->physBody.shapeData.shape == Physics::PhysBodyShape::PB_OBB)
-            {
-                
-                if (Physics::testPointInsideOBB2D(raycastDirection, entity->physBody.shapeData.obb, entity->physBody.orientationMat, entity->physBody.position))
+                Entity* entity = &gameState->entities[i];
+                if (  (entity->physBody.flags & Physics::PhysBodyFlag_Static) || entity->isDead)
                 {
-                    
-                    gameState->draggedEntity = entity;
-                    
-                    /*
-                    cout << "selecting entity " << entity->id << endl;
-                    gameState->draggedEntity = entity;
+                    continue;
+                }
+            
+                if (entity->physBody.shapeData.shape == Physics::PhysBodyShape::PB_OBB)
+                {                
 
+                    if (Physics::testPointInsideOBB2D(raycastDirection, entity->physBody.shapeData.obb, entity->physBody.orientationMat, entity->physBody.position))
+                    {
+                        glm::vec3 anchor(raycastDirection.x, raycastDirection.y, 0);
 
-//                    glm::vec3 vecToForce = glm::vec3(raycastDirection.x, raycastDirection.y, 0) - entity->position;
-                    glm::vec3 vecToForce = glm::vec3(0, -5, 0);
+                        Physics::PhysBodyDef physDef = {};
+                        physDef.halfDim = glm::vec3(0.01f, 0.01f, 0.01);
+                        physDef.mass = 1;
+                        physDef.flags = Physics::PhysBodyFlag_Collides | Physics::PhysBodyFlag_Static;
+                        physDef.pos = anchor;
 
-                    glm::vec3 zAxis = glm::vec3(0, 0, 1);
-                    glm::vec3 force = 1000.0f * glm::cross(vecToForce, zAxis);
+                        Entity* mouseEnt = addEntity(gameState, Box, physDef);
 
-                //    utl::debug("        vecToForce ", vecToForce);
-                //    utl::debug("        force is ", force);
+                        addMouseJoint(gameState, anchor, &mouseEnt->physBody, &entity->physBody,  true);
 
-                    
-                    appliedForce = true;
-            //        entity->addForce(force);
-                    entity->addTorqueFromForce(force, vecToForce);
-                    */
+                        gameState->mouseJointIndex = gameState->numJoints - 1;
+                        gameState->mouseJointEntityIndex = gameState->numEntities - 1;
 
-
-                }                
+                        break;
+                    }  
+                }
             }
         }
     }
@@ -434,14 +466,14 @@ namespace GameCode
         gameState->numContacts = 0;
         gameState->contacts = new Physics::ContactManifold[256];
 
-
+        gameState->mouseJointEntityIndex = -1;
 
         gameState->numJoints = 0;
         gameState->joints = new Physics::Joint[64];
 
 
         gameState->angle = 0;
-        gameState->draggedEntity = NULL;
+    //    gameState->draggedEntity = NULL;
 
         float scale = 100.0;
         Entity* entity = NULL;
@@ -473,6 +505,7 @@ namespace GameCode
         floor->init();
         floor->id = index;
         floor->entityType = EntityType::Floor;
+        floor->isDead = false;
 
         pb = &floor->physBody;
         pb->Init();
@@ -861,6 +894,11 @@ namespace GameCode
     {        
         for (int i = 0; i < gameState->numJoints; i++)
         {
+            if (gameState->joints[i].isDead)
+            {
+                continue;
+            }
+
             if (gameState->joints[i].ignoreCollision)
             {
                 if (gameState->joints[i].a == &a->physBody && gameState->joints[i].b == &b->physBody ||
@@ -884,7 +922,7 @@ namespace GameCode
         // cout << "gameState->numEntities " << gameState->numEntities << endl;
             for (int i = 0; i < gameState->numEntities; i++)
             {
-                if (!(gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static) && &gameState->entities[i] != gameState->draggedEntity)
+                if (  (!(gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static)) && (!gameState->entities[i].isDead))
                 {
                     Entity* entity = &gameState->entities[i];
                     {
@@ -940,6 +978,7 @@ namespace GameCode
 
                 for (int j = i + 1; j < gameState->numEntities; j++)
                 {
+
                     Entity* ent1 = &gameState->entities[j];
                     if (ShouldCollide(gameState, ent0, ent1))
                     {
@@ -957,8 +996,11 @@ namespace GameCode
 
                         Physics::ContactManifold newContact = {};
 
-                        Physics::GenerateContactInfo(&gameState->entities[i].physBody, &gameState->entities[j].physBody, newContact);
-                        //    cout << newContact.numContactPoints << endl;
+                        if ( gameState->entities[i].isDead == false && gameState->entities[j].isDead == false)
+                        {
+                            Physics::GenerateContactInfo(&gameState->entities[i].physBody, &gameState->entities[j].physBody, newContact);
+                            //    cout << newContact.numContactPoints << endl;
+                        }
 
                         if (newContact.numContactPoints > 0)
                         {
@@ -979,10 +1021,14 @@ namespace GameCode
 
         for (int i = 0; i < gameState->numEntities; i++)
         {
+            if (gameState->entities[i].isDead)
+            {
+                continue;
+            }
+
             if (!(gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static)  && gameState->entities[i].physBody.isAwake )
             {
                 integrateVelocity(&gameState->entities[i].physBody, gameInput.dt_s);
-        //        integratePosition(&gameState->entities[i], gameInput.dt_s);
             }
         }
 
@@ -1000,9 +1046,11 @@ namespace GameCode
         for (int i = 0; i < gameState->numJoints; i++)
         {
             Physics::Joint* joint = &gameState->joints[i];
-            Physics::InitJointVelocityConstraints(joint);
-            warmStartJoint(joint);
-
+            if (!joint->isDead)
+            {
+                Physics::InitJointVelocityConstraints(joint);
+                warmStartJoint(joint);
+            }
         }
 
 
@@ -1015,7 +1063,10 @@ namespace GameCode
 
             for (int j = 0; j < gameState->numJoints; j++)
             {
-                Physics::SolveJointVelocityConstraints(gameState->joints[j]);
+                if (!gameState->joints[j].isDead)
+                {
+                    Physics::SolveJointVelocityConstraints(gameState->joints[j]);
+                }
             }
 
             for (int j = 0; j < gameState->numContacts; j++)
@@ -1083,6 +1134,11 @@ namespace GameCode
         // by applying velocity first, we may get to skip doing position resolution. so this saves us some computation
         for (int i = 0; i < gameState->numEntities; i++)
         {
+            if (gameState->entities[i].isDead)
+            {
+                continue;
+            }
+
             if (!(gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static) && gameState->entities[i].physBody.isAwake)
             {
                 integratePosition(&gameState->entities[i].physBody, gameInput.dt_s, i);
@@ -1098,7 +1154,10 @@ namespace GameCode
 
             for (int j = 0; j < gameState->numJoints; j++)
             {
-                positionDone &= Physics::SolveJointPositionConstraints(gameState->joints[j]);
+                if (!gameState->joints[j].isDead)
+                {
+                    positionDone &= Physics::SolveJointPositionConstraints(gameState->joints[j]);
+                }
             }
 
             if (positionDone)
@@ -1118,6 +1177,11 @@ namespace GameCode
 
             for (int i = 0; i < gameState->numEntities; i++)
             {
+                if (gameState->entities[i].isDead)
+                {
+                    continue;
+                }
+
                 if (gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static)
                 {
                     continue;
@@ -1157,6 +1221,9 @@ namespace GameCode
                 gameState->entities[i].physBody.torqueAccum = glm::vec3(0.0);
             }
         }
+
+
+
 
 
         /*

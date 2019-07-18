@@ -12,18 +12,22 @@ namespace ModelEnum
 		player,
 		healthbar,
 		xyzAxis,
-		tree,
-		cube,
-		quad,
+        tree,
+        cube,
+        quad,
         circle,
         arrow,
-		centeredQuad,
+    //    centeredQuad,
+    //    centeredQuadOutline,
         unitCenteredQuad,
+        unitCenteredQuadOutline,
+
         woodenBox,
-		legoMan,
-		ground,
-		animatedLegoMan,
-		NUM_MODELS
+        legoMan,
+        ground,
+        animatedLegoMan,
+
+        NUM_MODELS
 	};
 }
 
