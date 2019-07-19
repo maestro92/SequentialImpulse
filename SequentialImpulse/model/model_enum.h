@@ -14,7 +14,6 @@ namespace ModelEnum
 		xyzAxis,
         tree,
         cube,
-        quad,
         circle,
         arrow,
     //    centeredQuad,

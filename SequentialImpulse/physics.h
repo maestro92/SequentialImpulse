@@ -3,6 +3,7 @@
 
 #include "entity.h"
 #include "physics_core.h"
+#include "utility_math.h"
 
 namespace Physics
 {
@@ -466,7 +467,7 @@ namespace Physics
         if (penetration < 0)
             return true;
 
-        if (penetration < minPenetration)
+        if (penetration <= minPenetration)
         {
             minPenetration = penetration;
             minPenetrationIndex = axisIndex;
@@ -756,6 +757,9 @@ namespace Physics
             utl::debug("        incidentFace ", incidentFace.v1);
             */
         }
+
+
+
 
 
         // we do Sutherland-Hodgman clipping
@@ -1296,12 +1300,12 @@ namespace Physics
 
         bool print = false;
 
-    //    if(a->shapeData.shape == Physics::PhysBodyShape::PB_OBB && b->shapeData.shape == Physics::PhysBodyShape::PB_PLANE)
+        if(a->shapeData.shape == Physics::PhysBodyShape::PB_OBB && b->shapeData.shape == Physics::PhysBodyShape::PB_OBB)
         {
-            if (hasPolygonsCollided)
+         //   if (hasPolygonsCollided)
             {
             //    print = true;
-            //    print = false;
+                print = false;
             }
         }
     //    SolveTangentVelocityConstraints(cp, a, b, dt_s);
@@ -1323,7 +1327,18 @@ namespace Physics
 
 
         glm::vec3 aToB = b->position - a->position;
-        assert(glm::dot(aToB, normal) > 0);
+
+        if (print)
+        {
+            utl::debug("a id ", a->id);
+            utl::debug("b id ", b->id);
+
+            utl::debug("        a->position ", a->position);
+            utl::debug("        b->position ", b->position);
+            utl::debug("        normal ", normal);
+        }
+
+        assert(glm::dot(aToB, normal) >= 0);
 
 
 
@@ -1358,12 +1373,14 @@ namespace Physics
         // this is the lambda for the impulse
         float effectiveMass = computeEffectiveInvMass(cp, normal, a, b);
         float lambda = effectiveMass * numerator;
+/*
         if (print)
         {
             utl::debug("         effectiveMass", effectiveMass);
             utl::debug("         lambda", lambda);
             utl::debug("         cp.normalImpulse ", cp.normalImpulse);
         }
+        */
             //    if (flag)
      /* 
         {
@@ -1374,10 +1391,11 @@ namespace Physics
         }
         */
 
+        
         float newImpulse = std::max(cp.normalImpulse + lambda, 0.0f);
         lambda = newImpulse - cp.normalImpulse;
         cp.normalImpulse = newImpulse;
-
+        
 
     //    if (flag) 
         {
@@ -1385,49 +1403,45 @@ namespace Physics
         }
 
         glm::vec3 newImpulseVec = lambda * normal;
+        /*
         if (print)
-        {
-            /*
-            utl::debug("         cp.normalImpulse", cp.normalImpulse);
-            utl::debug("         lambda", lambda);
-
-            //    utl::debug("         before a->velocity", a->velocity);
-             */
-        //    utl::debug("         cp.relativeContactPositions[0]", cp.relativeContactPositions[0]);
-           
+        { 
             utl::debug("         before a->velocity", a->velocity);
             utl::debug("         before a->angularVelocity", a->angularVelocity);
         }
+        */
         a->velocity -= newImpulseVec * a->invMass;
         a->angularVelocity -= a->inverseInertiaTensor * glm::cross(cp.relativeContactPositions[0], newImpulseVec);
 
+        /*
         if (print)
         {
             utl::debug("            after a->velocity", a->velocity);
             utl::debug("            after a->angularVelocity", a->angularVelocity);
-
         }
-
+        */
 
         // if (  !((b->flags >> Physics::PhysBodyFlag_Static) & 1U) )
         if ( !(b->flags & Physics::PhysBodyFlag_Static))
         {
+            /*
             if (print)
             {
                 utl::debug("         before b->velocity", b->velocity);
                 utl::debug("         before b->angularVelocity", b->angularVelocity);
             }
-
+            */
             b->velocity += newImpulseVec * b->invMass;
             b->angularVelocity += b->inverseInertiaTensor * glm::cross(cp.relativeContactPositions[1], newImpulseVec);
 
+            /*
             if (print)
             {
                 utl::debug("            after b->velocity", b->velocity);
                 utl::debug("            after b->angularVelocity", b->angularVelocity);
                 cout << endl << endl;
             }
-
+            */
         }
     }
 
@@ -1757,8 +1771,6 @@ namespace Physics
 
         for (int j = 0; j < contact.numContactPoints; j++)
         {
-
-
             SolveVelocityConstraints(contact.contactPoints[j], contact.normal, a, b, dt_s);
         }
         
@@ -1832,7 +1844,8 @@ namespace Physics
                     int c = 1;
                 }
 
-                assert(glm::dot(aToB, positionManifold.normal) > 0);
+                // apparently not even box2d really handles this, so im gonna temporary comment this line out
+           //     assert(glm::dot(aToB, positionManifold.normal) >= 0);
 
                 // we track the largest penetration
                 largestPenetration = max(largestPenetration, positionManifold.penetration);
@@ -1955,32 +1968,30 @@ namespace Physics
     {
         if (a->shapeData.shape == PhysBodyShape::PB_OBB && b->shapeData.shape == PhysBodyShape::PB_PLANE)
         {
-            glm::vec3 aCenter = a->position + a->shapeData.obb.center;
-
             contact.a = a;
             contact.b = b;
 
             GetOBBPlaneContacts(a->shapeData.obb, a, b->shapeData.plane, b, contact);
         }
+        else if (a->shapeData.shape == PhysBodyShape::PB_PLANE && b->shapeData.shape == PhysBodyShape::PB_OBB)
+        {
+            GenerateContactInfo(b, a, contact);
+        }
         else if (a->shapeData.shape == PhysBodyShape::PB_CIRCLE && b->shapeData.shape == PhysBodyShape::PB_PLANE)
         {
-            glm::vec3 aCenter = a->position + a->shapeData.sphere.center;
-
             contact.a = a;
             contact.b = b;
 
             GetSpherePlaneContacts(a->shapeData.sphere, a, b->shapeData.plane, b, contact);
         }
+        else if (a->shapeData.shape == PhysBodyShape::PB_PLANE && b->shapeData.shape == PhysBodyShape::PB_CIRCLE)
+        {
+            GenerateContactInfo(b, a, contact);
+        }
         else if (a->shapeData.shape == PhysBodyShape::PB_OBB && b->shapeData.shape == PhysBodyShape::PB_OBB)
         {
-            glm::vec3 aCenter = a->position + a->shapeData.obb.center;
-
             contact.a = a;
             contact.b = b;
-            if (contact.a->id == 8 && contact.b->id == 9)
-            {
-                int c = 1;
-            }
 
             GetOBBOBBContacts(a->shapeData.obb, a, b->shapeData.obb, b, contact);
         }

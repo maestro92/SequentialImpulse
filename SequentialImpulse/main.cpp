@@ -269,7 +269,6 @@ void FogOfWar::start()
 		
 		int fps = getAverageFPS();
 		// cout << fps << endl;
-		
 		/*
 		++fpsProfilerIndex;
 		if (fpsProfilerIndex > 1000)
@@ -506,7 +505,6 @@ void FogOfWar::onMouseBtnDown(GameState* gameState)
 
 
 
-
 /*
 fixing the first and end point,
 
@@ -526,15 +524,42 @@ void FogOfWar::render(GameState* gameState)
 
 
 
-	int fps = getAverageFPS();
-	m_gui.setFPS(fps);
-
 	m_gui.initGUIRenderingSetup();
-
-
-
 	glDisable(GL_BLEND);
 
+
+
+
+
+
+
+
+    int numBodies = 0;
+    for (int i = 0; i < gameState->numEntities; i++)
+    {
+        if (!gameState->entities[i].isDead)
+        {
+            numBodies++;
+        }
+    }
+
+
+    int numJoints = 0;
+    for (int i = 0; i < gameState->numJoints; i++)
+    {
+        if (!gameState->joints[i].isDead)
+        {
+            numJoints++;
+        }
+    }
+
+
+    int numContacts = 0;
+    for (int i = 0; i < gameState->numContacts; i++)
+    {
+        numContacts++;
+    }
+    m_gui.update(numBodies, numJoints, numContacts);
 
 	m_gui.updateAndRender(m_mouseState);
 

@@ -157,11 +157,18 @@ namespace GameRendering
 
         for (int i = 0; i < gameState->numEntities; i++)
         {
-            render(global.modelMgr->get(ModelEnum::xyzAxis), gameState->mainCamera.getPipeline(),
-                gameState->entities[i].physBody.position,
-                gameState->entities[i].physBody.orientationMat,
-                gameState->entities[i].physBody.scale,
-                p_renderer);
+            if (gameState->entities[i].entityType == EntityType::XYZAxis)
+            {
+                gameState->entities[i].renderCore(gameState->mainCamera.getPipeline(), p_renderer);
+            }
+            else if (!entities[i].physBody.flags & Physics::PhysBodyFlag_Static)
+            {
+                render(global.modelMgr->get(ModelEnum::xyzAxis), gameState->mainCamera.getPipeline(),
+                    gameState->entities[i].physBody.position,
+                    gameState->entities[i].physBody.orientationMat,
+                    gameState->entities[i].physBody.scale,
+                    p_renderer);
+            }
         }
         p_renderer->disableShader();
         

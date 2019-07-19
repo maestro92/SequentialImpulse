@@ -12,6 +12,20 @@
 #include "physics.h"
 #include "entity.h"
 
+/*
+
+-   fix floor not having to be the last entity                      done
+    put xyz axis back                                               done
+-   display number of entities / contacts / joints as debug text    done
+-   solve complete box overlap                                      sort of done
+    make it more stable                                             
+-   clean up quad class                                             done
+-   set it up as a pyramid demo                                     
+-   fix current mouse joint                                         
+-   make rendering subpixel accurate                                
+-   make the input polling code like handmade hero's                
+
+*/
 
 
 
@@ -83,8 +97,9 @@ namespace GameCode
     void addRandomBox(GameState* gameState, int height)
     {
         Physics::PhysBodyDef def = {};
-        float size = 2;
 
+        /*
+        float size = 2;
         def.halfDim = glm::vec3(size * utl::randInt(1, 3),
                                 size * utl::randInt(1, 3), 
                                 0.5);
@@ -94,11 +109,26 @@ namespace GameCode
         def.pos = glm::vec3(utl::randFloat(-20, 20) + xOffset,
                             utl::randFloat(5, 20),
                             0);
-
         float rot = utl::randFloat(0, 360);
         def.rot = glm::rotate(rot, glm::vec3(0, 0, 1));
-        def.hasJoint = false;
+        */
 
+
+        float size = 1;
+        def.halfDim = glm::vec3(size,
+                                size,
+                                0.5);
+        def.flags = Physics::PhysBodyFlag_Collides;
+        def.mass = 5;
+        float xOffset = 0;
+        def.pos = glm::vec3(0,
+                            5,
+                            0);
+        float rot = 0; //utl::randFloat(0, 360);
+        def.rot = glm::rotate(rot, glm::vec3(0, 0, 1));
+
+
+        def.hasJoint = false;
         addEntity(gameState, Box, def);
     }
 
@@ -461,10 +491,10 @@ namespace GameCode
         gameState->numDebugContactManifolds = 0;
         //    gameState->contactManifold = new contactManifoldglm::vec3[1024];
 
-        gameState->debugContactManifolds = new Physics::ContactManifold[256];
+        gameState->debugContactManifolds = new Physics::ContactManifold[1024];
 
         gameState->numContacts = 0;
-        gameState->contacts = new Physics::ContactManifold[256];
+        gameState->contacts = new Physics::ContactManifold[1024];
 
         gameState->mouseJointEntityIndex = -1;
 
@@ -473,27 +503,26 @@ namespace GameCode
 
 
         gameState->angle = 0;
-    //    gameState->draggedEntity = NULL;
 
-        float scale = 100.0;
+        float scale = 0;
         Entity* entity = NULL;
         Physics::PhysBody* pb = NULL;
         int index = 0;
-      
-        
-
-        // the box
         glm::mat4 om;
         int x, y;
 
-        
-        for (int i = 0; i < 10; i++)
-        {
-            addRandomBox(gameState, i);
-        }
-        
 
-    //    addRagdoll(gameState);
+        scale = 100.0;
+        index = gameState->numEntities++;
+        entity = &gameState->entities[index];
+        entity->init();
+        entity->id = gameState->numEntities;
+        entity->entityType = EntityType::XYZAxis;
+        entity->setModel(global.modelMgr->get(ModelEnum::xyzAxis));
+        pb = &entity->physBody;
+        pb->Init();
+        pb->flags = Physics::PhysBodyFlag_Static;
+        pb->scale = glm::vec3(scale, scale, scale);
 
 
         
@@ -511,7 +540,6 @@ namespace GameCode
         pb->Init();
         pb->shapeData.shape = Physics::PhysBodyShape::PB_PLANE;
         pb->shapeData.plane.normal = glm::vec3(0, 1, 0);
-        //        pb->shapeData.plane.offset = 0;       // dot(glm::vec3(0, 1, 0),  glm::vec3(0, 0, 0));
         pb->shapeData.plane.point = glm::vec3(0, 0, 0);       // dot(glm::vec3(0, 1, 0),  glm::vec3(0, 0, 0));
         pb->id = index;
 
@@ -520,6 +548,15 @@ namespace GameCode
 
         pb->flags = Physics::PhysBodyFlag_Collides | Physics::PhysBodyFlag_Static;
         floor->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
+
+
+        for (int i = 0; i < 20; i++)
+        {
+            addRandomBox(gameState, i);
+        }
+
+        addRagdoll(gameState);
+
 
      //   prev = &floor->physBody;
 
@@ -794,7 +831,7 @@ namespace GameCode
 
 
             // add to my contact list
-            assert(gameState->numContacts < 256);
+            assert(gameState->numContacts < 1024);
 
             int index = gameState->numContacts;
             gameState->contacts[index] = newContact;
@@ -892,6 +929,12 @@ namespace GameCode
 
     bool ShouldCollide(GameState* gameState, Entity* a, Entity* b)
     {        
+        if (a->physBody.flags & Physics::PhysBodyFlag_Collides == false ||
+            b->physBody.flags & Physics::PhysBodyFlag_Collides == false)
+        {
+            return false;
+        }
+
         for (int i = 0; i < gameState->numJoints; i++)
         {
             if (gameState->joints[i].isDead)
@@ -958,11 +1001,6 @@ namespace GameCode
         
 
 
-    //    cout << "########## newTick " << gameState->frameCount<< endl;
-        if (gameState->frameCount  == 56)
-        {
-            int c = 1;
-        }
 
         vector<Physics::ContactManifold*> manifoldsToRemove;
 
@@ -971,14 +1009,9 @@ namespace GameCode
             for (int i = 0; i < gameState->numEntities; i++)
             {
                 Entity* ent0 = &gameState->entities[i];
-                if (ent0->physBody.flags & Physics::PhysBodyFlag_Static)
-                {
-                    continue;
-                }
 
                 for (int j = i + 1; j < gameState->numEntities; j++)
                 {
-
                     Entity* ent1 = &gameState->entities[j];
                     if (ShouldCollide(gameState, ent0, ent1))
                     {
@@ -1073,7 +1106,6 @@ namespace GameCode
             {
                 if (gameState->contacts[j].numContactPoints > 0)
                 {
-                //    CopyContactManifold(gameState, &gameState->contacts[j]);
                     Physics::ResolveVelocity(gameState->contacts[j], gameState->contacts[j].a, gameState->contacts[j].b, gameInput.dt_s);
                 }
             }

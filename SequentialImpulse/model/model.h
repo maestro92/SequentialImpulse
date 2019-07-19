@@ -52,9 +52,7 @@ class Model
 		void setModelGemoetry(GLuint geometry);
 
         void clear();
-
-
-
+        
 		vector<TextureData> m_textures;
 			
 		bool isAnimated();
