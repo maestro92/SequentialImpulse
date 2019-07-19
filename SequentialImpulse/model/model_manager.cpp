@@ -23,15 +23,7 @@ void ModelManager::init()
     buildXYZModel(&m_models[ModelEnum::xyzAxis]);
     buildCircleModel(&m_models[ModelEnum::circle], 1, 0.05);
     buildArrowModel(&m_models[ModelEnum::arrow]);
-
-/*
-    *m_models[ModelEnum::unitCenteredQuadOutline] = buildUnitCenteredQuadOutlineModel();
-    *m_models[ModelEnum::xyzAxis] = buildXYZModel();
-    *m_models[ModelEnum::circle] = buildCircleModel(1, 0.05);
-    *m_models[ModelEnum::arrow] = buildArrowModel();
-    */
 }
-
 
 void ModelManager::enableVertexAttribArrays()
 {
@@ -42,8 +34,6 @@ void ModelManager::enableVertexAttribArrays()
 	glEnableVertexAttribArray(BONE_IDS_ATTRIB);
 	glEnableVertexAttribArray(BONE_WEIGHTS_ATTRIB);
 }
-
-
 
 void ModelManager::disableVertexAttribArrays()
 {
@@ -66,7 +56,6 @@ void ModelManager::buildLinesBetweenTwoPoints2D(glm::vec2 p0, glm::vec2 p1, floa
     glm::vec3 pos1 = glm::vec3(p1.x, p1.y, 0);
     buildLinesBetweenTwoPoints3D(pos0, pos1, thickness, vertices, indices);
 }
-
 
 void ModelManager::buildLinesBetweenTwoPoints3D(glm::vec3 p0, glm::vec3 p1, float thickness,
 	vector<VertexData>& vertices,
@@ -176,10 +165,6 @@ void ModelManager::buildQuad3D(glm::vec3 min, glm::vec3 max, glm::vec3 color,
 	indices.push_back(indicesStart + 0);
 }
 
-
-
-
-
 void ModelManager::buildQuadModel(Model* model, glm::vec3 min, glm::vec3 max)
 {
     std::vector<VertexData> vertices;
@@ -204,7 +189,7 @@ void ModelManager::buildQuadOutlineModel(Model* model, glm::vec3 min, glm::vec3 
     buildQuad2D(min0, max0, color, vertices, indices);
 
     // right
-    min0 = glm::vec2(max.x - thickness, -min.y);
+    min0 = glm::vec2(max.x - thickness, min.y);
     max0 = glm::vec2(max.x, max.y);
     color = glm::vec3(0, 0, 0);
     buildQuad2D(min0, max0, color, vertices, indices);

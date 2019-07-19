@@ -131,10 +131,6 @@ class FogOfWar
 		void init();
 
 		void initGUI();
-
-		Entity* constructLine(glm::vec2 p0, glm::vec2 p1, float width) const;
-		void UpdatingCurrentRayNewEndPoint(glm::vec2 end);
-
 		int endWithError(char* msg, int error = 0);
  
 

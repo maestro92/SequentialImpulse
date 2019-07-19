@@ -333,27 +333,7 @@ void FogOfWar::updateCamera()
 
 
 
-/*
-void FogOfWar::updateFogByMainPlayer(glm::ivec2 prevGc)
-{
-	glm::ivec2 curGc = map.simPos2GridCoord(mainPlayer.simPos);
 
-	if (prevGc != curGc)
-	{		
-		vector<FogCell> dirtyFogCells;
-		fogManager.setSource(prevGc, mainPlayer.vision, FogManager::HIDDEN, dirtyFogCells);
-		fogManager.setSource(curGc, mainPlayer.vision, FogManager::VISIBLE, dirtyFogCells);
-		
-		cout << "printing dirty fog cells" << endl;
-		for (int i = 0; i < dirtyFogCells.size(); i++)
-		{
-			cout << "		" << dirtyFogCells[i].coord.x << " " << dirtyFogCells[i].coord.y << ", " << dirtyFogCells[i].data << endl;
-		}
-		
-		fogView.addDirtyCells(dirtyFogCells);
-	}
-}
-*/
 
 void FogOfWar::update(GameState* gameState)
 {
