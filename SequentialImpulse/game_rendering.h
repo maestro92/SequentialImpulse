@@ -62,12 +62,13 @@ namespace GameRendering
             else if (entities[i].entityType == EntityType::Box)
             {
 
-
+/*
                 if (entities[i].physBody.isAwake == false)
                 {
                     p_renderer->setData(R_FULL_COLOR::u_color, COLOR_GRAY);
                 }
                 else
+                */
                 {
                     if (entities[i].physBody.hasJoint)
                     {

@@ -220,7 +220,19 @@ void FogOfWar::start()
 	long long oldTime = utl::getCurrentTime_ms(); 
 	long long newTime = 0;
 	
+
+
+
+
     GameState gameState;
+
+    gameState.gameMemory = {};
+    gameState.gameMemory.memoryStorageSize = Megabytes(256);
+    gameState.gameMemory.memoryStorage = malloc(gameState.gameMemory.memoryStorageSize);
+
+
+
+
     GameCode::init(&gameState);
 
 

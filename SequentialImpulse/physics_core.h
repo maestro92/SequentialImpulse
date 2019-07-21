@@ -124,7 +124,6 @@ namespace Physics
         glm::vec3 forceAccum;
         glm::vec3 torqueAccum;
         bool hasJoint;
-        bool isAwake;
 
         float dormantTimer;
 
@@ -147,12 +146,10 @@ namespace Physics
             if (awake)
             {
                 flags |= PhysBodyFlag_Awake;
-                isAwake = true;
                 dormantTimer = 0.0f;
             }
             else
             {
-                isAwake = false;
                 flags &= ~PhysBodyFlag_Awake;
                 dormantTimer = 0.0f;
                 
@@ -189,6 +186,7 @@ namespace Physics
             position = def.pos;
             glm::mat4 om = def.rot;
             hasJoint = def.hasJoint;
+    //        isAwake = true;
 
             orientation = glm::toQuat(om);
             SyncOrientationMat();
@@ -307,7 +305,7 @@ namespace Physics
             forceAccum += f;
             if (awakesEntity)
             {
-                isAwake = true;
+     //           isAwake = true;
             }
         }
 
@@ -333,7 +331,7 @@ namespace Physics
             torqueAccum += glm::cross(vecToForce, f);
             if (awakesEntity)
             {
-                isAwake = true;
+      //          isAwake = true;
             }
             utl::debug("    torqueAccum is ", torqueAccum);
         }
