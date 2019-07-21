@@ -89,7 +89,7 @@ struct Entity
         // the angular velocity is r * axis
         // r is the rate of angular change, axis is the axis it is rotating
 
-        bool isDead;
+    //    bool isDead;
         float motion;
 
         bool canSleep;

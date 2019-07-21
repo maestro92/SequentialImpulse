@@ -177,6 +177,11 @@ namespace Physics
                 0, 0, m22);
         }
 
+        bool DoesCollides()
+        {
+            return (flags & Physics::PhysBodyFlag_Collides) != 0;
+        }
+
         void initAsBox(PhysBodyDef def)
         {
             Init();
@@ -351,7 +356,7 @@ namespace Physics
 
     struct Joint
     {
-        bool isDead;
+    //    bool isDead;
         PhysBody* a;
         PhysBody* b;
 

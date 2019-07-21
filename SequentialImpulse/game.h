@@ -198,7 +198,7 @@ struct GameState
     float angle;
     int boxIndex;
 
-    int mouseJointIndex;
+  //  int mouseJointIndex;
     int mouseJointEntityIndex;
 
     int frameCount;
@@ -215,6 +215,9 @@ namespace GameCode
     bool appliedForce = false;
     bool GRAVITY_ACTIVE = true;
     bool COLLISION_ACTIVE = true;
+
+    int jointcounter = 0;
+    bool debug = false;
 
     // sleeping is not correct currently
     bool ALLOW_SLEEPING = false;
@@ -233,7 +236,7 @@ namespace GameCode
         ent->id = index;
         ent->entityType = entType;
         ent->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
-        ent->isDead = false;
+    //    ent->isDead = false;
         Physics::PhysBody* pb = &ent->physBody;
         pb->id = index;
         pb->initAsBox(physDef);
@@ -284,6 +287,7 @@ namespace GameCode
         Physics::PhysBodyDef def = {};
         float size = 5;
         def.halfDim = glm::vec3(size, 1.5 * size, 0.5);
+        def.flags = Physics::PhysBodyFlag_Collides;
         def.mass = 5;
         def.hasJoint = true;
 
@@ -301,6 +305,7 @@ namespace GameCode
         Physics::PhysBodyDef def = {};
         float size = 2;
         def.halfDim = glm::vec3(size, size, 0.5);
+        def.flags = Physics::PhysBodyFlag_Collides;
         def.mass = 5;
         def.hasJoint = true;
 
@@ -315,6 +320,7 @@ namespace GameCode
         Physics::PhysBodyDef def = {};
         float size = 2;
         def.halfDim = glm::vec3(1.5 * size, size, 0.5);
+        def.flags = Physics::PhysBodyFlag_Collides;
         def.mass = 5;
         def.hasJoint = true;
 
@@ -343,6 +349,7 @@ namespace GameCode
         Physics::PhysBodyDef def = {};
         float size = 2;
         def.halfDim = glm::vec3(2 * size, size, 0.5);
+        def.flags = Physics::PhysBodyFlag_Collides;
         def.mass = 5;
         def.hasJoint = true;
         if (left)
@@ -369,6 +376,7 @@ namespace GameCode
         Physics::PhysBodyDef def = {};
         float size = 2;
         def.halfDim = glm::vec3(size, 2 * size, 0.5);
+        def.flags = Physics::PhysBodyFlag_Collides;
         def.mass = 5;
         def.hasJoint = true;
 
@@ -396,6 +404,7 @@ namespace GameCode
         Physics::PhysBodyDef def = {};
         float size = 2;
         def.halfDim = glm::vec3(size, 2.5 * size, 0.5);
+        def.flags = Physics::PhysBodyFlag_Collides;
         def.mass = 5;
         def.hasJoint = true;
 
@@ -428,7 +437,7 @@ namespace GameCode
     {
         Physics::Joint* joint = &gameState->joints[gameState->numJoints];
         gameState->numJoints++;
-        joint->isDead = false;
+    //    joint->isDead = false;
         joint->a = a;
         joint->b = b;
 
@@ -443,7 +452,7 @@ namespace GameCode
     {
         Physics::Joint* joint = &gameState->joints[gameState->numJoints];
         gameState->numJoints++;
-        joint->isDead = false;
+     //   joint->isDead = false;
         joint->a = draggedEnt;
         joint->b = mouse;
 
@@ -451,6 +460,8 @@ namespace GameCode
         joint->bLocalAnchor = glm::vec3(0,0,0);
 
         joint->ignoreCollision = ignoreCollision;
+
+
     }
 
     void addRagdoll(GameState* gameState)
@@ -460,6 +471,7 @@ namespace GameCode
         glm::vec3 headAnchor = glm::vec3(0.0);
         Entity* head = addRagdollHead(gameState, &body->physBody, headAnchor);
 
+        
         glm::vec3 leftShouldAnchor = glm::vec3(0.0);
         Entity* leftShoulder = addRagdollShoulder(gameState, true, &body->physBody, leftShouldAnchor);
        
@@ -489,7 +501,7 @@ namespace GameCode
         
 
         addJoint(gameState, headAnchor, &body->physBody, &head->physBody, false);
-
+        
         addJoint(gameState, leftShouldAnchor, &body->physBody, &leftShoulder->physBody, true);
         addJoint(gameState, rightShouldAnchor, &body->physBody, &rightShoulder->physBody, true);
 
@@ -501,6 +513,7 @@ namespace GameCode
 
         addJoint(gameState, leftLegAnchor, &leftThigh->physBody, &leftLeg->physBody, true);
         addJoint(gameState, rightLegAnchor, &rightThigh->physBody, &rightLeg->physBody, true);
+        
     }
 
 
@@ -544,33 +557,82 @@ namespace GameCode
 
 
 
-    void removeEntity(GameState* gameState, int index)
+    void RemoveJoint(GameState* gameState, int toRemoveIndex)
     {
-        gameState->entities[index].isDead = true;
+        int lastJointIndex = gameState->numJoints - 1;
+        if (gameState->numJoints > 0 && toRemoveIndex != lastJointIndex)
+        {
+            gameState->joints[toRemoveIndex] = gameState->joints[lastJointIndex];
+        }
+        gameState->numJoints--;
     }
 
 
+
+
+    // void RemoveMouseJoint(GameState* gameState)
+    void RemoveEntity(GameState* gameState, int targetIndex)
+    {        
+        assert(gameState->numEntities >= 1);
+        Entity* mouseJointEnt = &gameState->entities[targetIndex];
+        int lastIndex = gameState->numEntities - 1;
+
+
+        vector<int> jointIndicesToRemove;
+        // first we remove any joint on that entity
+        for (int i = 0; i < gameState->numJoints; i++)
+        {
+            Physics::Joint* joint = &gameState->joints[i];
+
+            if (joint->a == &gameState->entities[targetIndex].physBody)
+            {
+                jointIndicesToRemove.push_back(i);
+            }
+
+            if (joint->b == &gameState->entities[targetIndex].physBody)
+            {
+                jointIndicesToRemove.push_back(i);
+            }
+
+
+            if (joint->a == &gameState->entities[lastIndex].physBody)
+            {
+                joint->a = &gameState->entities[targetIndex].physBody;
+            }
+
+            if (joint->b == &gameState->entities[lastIndex].physBody)
+            {
+                joint->b = &gameState->entities[targetIndex].physBody;
+            }
+        }
+
+        for (int i = 0; i < jointIndicesToRemove.size(); i++)
+        {
+            RemoveJoint(gameState, jointIndicesToRemove[i]);
+        }
+
+        // finally we remove the entity  
+        if (gameState->numEntities > 0 && lastIndex != targetIndex)
+        {
+            memcpy(&gameState->entities[targetIndex], &gameState->entities[lastIndex], sizeof(Entity));
+        }
+        gameState->numEntities--;
+    }
 
     void RemoveMouseJoint(GameState* gameState)
     {
         if (gameState->mouseJointEntityIndex != -1)
         {
-            Entity* mouseJointEnt = &gameState->entities[gameState->mouseJointEntityIndex];
+            RemoveEntity(gameState, gameState->mouseJointEntityIndex);
+            gameState->mouseJointEntityIndex = -1;
 
-            for (int i = 0; i < gameState->numJoints; i++)
+            if (jointcounter == 2)
             {
-                Physics::Joint* joint = &gameState->joints[i];
-                if (joint->a == &mouseJointEnt->physBody || joint->b == &mouseJointEnt->physBody)
-                {
-                    joint->isDead = true;
-                }
+        //        debug = true;
             }
-
-            removeEntity(gameState, gameState->mouseJointEntityIndex);
         }
-
-        gameState->mouseJointEntityIndex = -1;
     }
+
 
     void MoveMouseJoint(GameState* gameState, glm::vec2 raycastDirection, float dt_s)
     {
@@ -579,7 +641,6 @@ namespace GameCode
         //    glm::vec3 vel = (glm::vec3(raycastDirection.x, raycastDirection.y, 0) - gameState->entities[gameState->mouseJointEntityIndex].physBody.position);
         //    gameState->entities[gameState->mouseJointEntityIndex].physBody.velocity = vel;
             gameState->entities[gameState->mouseJointEntityIndex].physBody.position = glm::vec3(raycastDirection.x, raycastDirection.y, 0);
-
         }
     }
 
@@ -590,7 +651,7 @@ namespace GameCode
             for (int i = 0; i < gameState->numEntities; i++)
             {
                 Entity* entity = &gameState->entities[i];
-                if (  (entity->physBody.flags & Physics::PhysBodyFlag_Static) || entity->isDead)
+                if (  (entity->physBody.flags & Physics::PhysBodyFlag_Static)) // || entity->isDead)
                 {
                     continue;
                 }
@@ -605,16 +666,22 @@ namespace GameCode
                         Physics::PhysBodyDef physDef = {};
                         physDef.halfDim = glm::vec3(0.01f, 0.01f, 0.01);
                         physDef.mass = 1;
-                        physDef.flags = Physics::PhysBodyFlag_Collides | Physics::PhysBodyFlag_Static;
+                        physDef.flags = Physics::PhysBodyFlag_Static;
                         physDef.pos = anchor;
 
                         Entity* mouseEnt = addEntity(gameState, Box, physDef);
 
                         addMouseJoint(gameState, anchor, &mouseEnt->physBody, &entity->physBody,  true);
 
-                        gameState->mouseJointIndex = gameState->numJoints - 1;
+                    //    gameState->mouseJointIndex = gameState->numJoints - 1;
                         gameState->mouseJointEntityIndex = gameState->numEntities - 1;
 
+                        
+                        jointcounter++;
+                        if (jointcounter == 2)
+                        {
+                    //        debug = true;
+                        }
                         break;
                     }  
                 }
@@ -687,7 +754,7 @@ namespace GameCode
         index = gameState->numEntities++;
         entity = &gameState->entities[index];
         entity->init();
-        entity->id = gameState->numEntities;
+        entity->id = index;
         entity->entityType = EntityType::XYZAxis;
         entity->setModel(global.modelMgr->get(ModelEnum::xyzAxis));
         pb = &entity->physBody;
@@ -705,7 +772,7 @@ namespace GameCode
         floor->init();
         floor->id = index;
         floor->entityType = EntityType::Floor;
-        floor->isDead = false;
+    //    floor->isDead = false;
 
         pb = &floor->physBody;
         pb->Init();
@@ -720,13 +787,13 @@ namespace GameCode
         pb->flags = Physics::PhysBodyFlag_Collides | Physics::PhysBodyFlag_Static;
         floor->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
 
-
+        
         for (int i = 0; i < 20; i++)
         {
             addRandomBox(gameState, i);
         }
-
-    //    addRagdoll(gameState);
+        
+        addRagdoll(gameState);
 
 
      //   prev = &floor->physBody;
@@ -1021,11 +1088,10 @@ namespace GameCode
         {
             Physics::ContactManifold* oldContact = &gameState->contacts[i];
 
-            if (oldContact->a == a && oldContact->b == b)
+            if (oldContact->a == a && oldContact->b == b || oldContact->a == b && oldContact->b == a)
             {
                 // remove it
                 // swap with last 
-
                 int last = gameState->numContacts - 1;
                 gameState->contacts[i] = gameState->contacts[last];
                 gameState->numContacts--;
@@ -1099,19 +1165,28 @@ namespace GameCode
     }
 
     bool ShouldCollide(GameState* gameState, Entity* a, Entity* b)
-    {        
-        if (a->physBody.flags & Physics::PhysBodyFlag_Collides == false ||
-            b->physBody.flags & Physics::PhysBodyFlag_Collides == false)
+    {      
+        if (a->physBody.DoesCollides() == false || b->physBody.DoesCollides() == false)
         {
             return false;
         }
 
+        /*
+        if ((a->physBody.flags & Physics::PhysBodyFlag_Collides) == false ||
+            (b->physBody.flags & Physics::PhysBodyFlag_Collides) == false)
+        {
+            return false;
+        }
+        */
+
         for (int i = 0; i < gameState->numJoints; i++)
         {
+            /*
             if (gameState->joints[i].isDead)
             {
                 continue;
             }
+            */
 
             if (gameState->joints[i].ignoreCollision)
             {
@@ -1137,7 +1212,8 @@ namespace GameCode
             for (int i = 0; i < gameState->numEntities; i++)
             {
 
-                if (  (!(gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static)) && (!gameState->entities[i].isDead))
+//                if (  (!(gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static)) && (!gameState->entities[i].isDead))
+                if ((!(gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static)))
                 {
                     Entity* entity = &gameState->entities[i];
                     {
@@ -1184,26 +1260,29 @@ namespace GameCode
                 for (int j = i + 1; j < gameState->numEntities; j++)
                 {
                     Entity* ent1 = &gameState->entities[j];
+
                     if (ShouldCollide(gameState, ent0, ent1))
                     {
                         //    cout << i <<  " " << j << endl;
 
+
+
         //                bool activeA = ent0->physBody.isAwake && (!(ent0->physBody.flags & Physics::PhysBodyFlag_Static));
         //                bool activeB = ent1->physBody.isAwake && (!(ent1->physBody.flags & Physics::PhysBodyFlag_Static));
 
-                        bool activeA = (!(ent0->physBody.flags & Physics::PhysBodyFlag_Static));
-                        bool activeB = (!(ent1->physBody.flags & Physics::PhysBodyFlag_Static));
+                        bool activeA = (ent0->physBody.flags & Physics::PhysBodyFlag_Static);
+                        bool activeB = (ent1->physBody.flags & Physics::PhysBodyFlag_Static);
 
 
                         // if no one is active, we dont do shit
-                        if (!activeA && !activeB)
+                        if (activeA && activeB)
                         {
                             continue;
                         }
 
                         Physics::ContactManifold newContact = {};
 
-                        if ( gameState->entities[i].isDead == false && gameState->entities[j].isDead == false)
+                     //   if ( gameState->entities[i].isDead == false && gameState->entities[j].isDead == false)
                         {
                             Physics::GenerateContactInfo(&gameState->entities[i].physBody, &gameState->entities[j].physBody, newContact);
                             //    cout << newContact.numContactPoints << endl;
@@ -1226,18 +1305,28 @@ namespace GameCode
         }
 
 
+
         for (int i = 0; i < gameState->numEntities; i++)
         {
+            /*
             if (gameState->entities[i].isDead)
             {
                 continue;
             }
-
+            */
 //            if (!(gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static) && gameState->entities[i].physBody.isAwake )
             if (!(gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static))
             {
                 integrateVelocity(&gameState->entities[i].physBody, gameInput.dt_s);
             }
+        }
+
+        if (debug)
+        {
+            cout << ">>>>>>>>>>> line3" << endl;
+            utl::debug("id ", gameState->entities[3].id);
+            utl::debug("vel ", gameState->entities[3].physBody.velocity);
+            utl::debug("pos ", gameState->entities[3].physBody.position);
         }
 
         for (int i = 0; i < gameState->numContacts; i++)
@@ -1252,10 +1341,10 @@ namespace GameCode
         warmStart(gameState);
 
 
+
         for (int i = 0; i < gameState->numJoints; i++)
         {
             Physics::Joint* joint = &gameState->joints[i];
-            if (!joint->isDead)
             {
                 Physics::InitJointVelocityConstraints(joint);
                 warmStartJoint(joint);
@@ -1272,7 +1361,7 @@ namespace GameCode
 
             for (int j = 0; j < gameState->numJoints; j++)
             {
-                if (!gameState->joints[j].isDead)
+          //      if (!gameState->joints[j].isDead)
                 {
                     Physics::SolveJointVelocityConstraints(gameState->joints[j]);
                 }
@@ -1287,7 +1376,13 @@ namespace GameCode
             }
         }
 
-
+        if (debug)
+        {
+            cout << ">>>>>>>>>>> line4" << endl;
+            utl::debug("id ", gameState->entities[3].id);
+            utl::debug("vel ", gameState->entities[3].physBody.velocity);
+            utl::debug("pos ", gameState->entities[3].physBody.position);
+        }
 
 
                 //          cout << "Colliding" << i << " " << j << endl;
@@ -1341,12 +1436,12 @@ namespace GameCode
         
         // by applying velocity first, we may get to skip doing position resolution. so this saves us some computation
         for (int i = 0; i < gameState->numEntities; i++)
-        {
+        {/*
             if (gameState->entities[i].isDead)
             {
                 continue;
             }
-
+            */
 //            if (!(gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static) && gameState->entities[i].physBody.isAwake)
             if (!(gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static))
             {
@@ -1354,6 +1449,13 @@ namespace GameCode
             }
         }
 
+
+        if (debug)
+        {
+            cout << ">>>>>>>>>>> line5" << endl;
+            utl::debug("vel ", gameState->entities[3].physBody.velocity);
+            utl::debug("pos ", gameState->entities[3].physBody.position);
+        }
 
         int positionIterations = 3;
         bool positionDone = false;
@@ -1363,7 +1465,7 @@ namespace GameCode
 
             for (int j = 0; j < gameState->numJoints; j++)
             {
-                if (!gameState->joints[j].isDead)
+          //      if (!gameState->joints[j].isDead)
                 {
                     positionDone &= Physics::SolveJointPositionConstraints(gameState->joints[j]);
                 }
@@ -1375,6 +1477,12 @@ namespace GameCode
             }
         }
 
+        if (debug)
+        {
+            cout << ">>>>>>>>>>> line6" << endl;
+            utl::debug("vel ", gameState->entities[3].physBody.velocity);
+            utl::debug("pos ", gameState->entities[3].physBody.position);
+        }
 
         // check for sleeping 
         if (ALLOW_SLEEPING)
@@ -1386,11 +1494,12 @@ namespace GameCode
 
             for (int i = 0; i < gameState->numEntities; i++)
             {
+                /*
                 if (gameState->entities[i].isDead)
                 {
                     continue;
                 }
-
+                */
                 if (gameState->entities[i].physBody.flags & Physics::PhysBodyFlag_Static)
                 {
                     continue;

@@ -237,7 +237,7 @@ void FogOfWar::start()
 
 
     gameState.mainCamera.setPanningBounds(glm::vec3(-50,-50,-50), glm::vec3(50, 50, 50));
-    gameState.mainCamera.setPos(glm::vec3(0, 10, 0));
+    gameState.mainCamera.setPos(glm::vec3(0, 30, 0));
     gameState.mainCamera.setZoom(50);
 
 
@@ -529,7 +529,7 @@ void FogOfWar::render(GameState* gameState)
     int numBodies = 0;
     for (int i = 0; i < gameState->numEntities; i++)
     {
-        if (!gameState->entities[i].isDead)
+//        if (!gameState->entities[i].isDead)
         {
             numBodies++;
         }
@@ -539,7 +539,7 @@ void FogOfWar::render(GameState* gameState)
     int numJoints = 0;
     for (int i = 0; i < gameState->numJoints; i++)
     {
-        if (!gameState->joints[i].isDead)
+     //   if (!gameState->joints[i].isDead)
         {
             numJoints++;
         }
