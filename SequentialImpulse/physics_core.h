@@ -221,11 +221,9 @@ namespace Physics
         }
 #endif
 
-
-
-        void addRotation(glm::vec3 angularVelocity, float dtSec)
+        void addRotation(glm::vec3 rot)
         {
-            glm::quat q(0, angularVelocity.x * dtSec, angularVelocity.y * dtSec, angularVelocity.z * dtSec);
+            glm::quat q(0, rot.x, rot.y, rot.z);
 
             q = q * orientation;
 
@@ -257,6 +255,11 @@ namespace Physics
 
             orientation = normalizeQuat(orientation);
             SyncOrientationMat();
+        }
+
+        void addRotation(glm::vec3 angularVelocity, float dtSec)
+        {
+            addRotation(angularVelocity * dtSec);
         }
 
         glm::quat normalizeQuat(glm::quat q)

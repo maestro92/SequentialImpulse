@@ -227,6 +227,12 @@ namespace GameCode
     float ANGULAR_SLEEP_TOLERANCE = 2.0f;
     float DORMANT_TIME_TO_SLEEP = 0.5f; // if you are dormatn for more than half a second, you sleep
 
+    float MAX_TRANSLATION = 2.0f;
+
+    float MAX_ROTATION = (0.5f * 3.14f);
+    float MAX_ROTATION_SQUARED = MAX_ROTATION * MAX_ROTATION;
+
+
     Entity* addEntity(GameState* gameState, EntityType entType, Physics::PhysBodyDef physDef)
     {
         int index = gameState->numEntities++;
@@ -272,7 +278,7 @@ namespace GameCode
         def.mass = 5;
         float xOffset = 0;
         def.pos = glm::vec3(0,
-                            5,
+                            50,
                             0);
         float rot = 0; //utl::randFloat(0, 360);
         def.rot = glm::rotate(rot, glm::vec3(0, 0, 1));
@@ -929,8 +935,6 @@ namespace GameCode
 
     void integratePosition(Physics::PhysBody* pb, float dt_s, int i)
     {
-        float maxTranslation = 2.0f;
-
   //      cout << "Integrate Position " << pb->id <<  endl;
 //        if (glm::dot(entity->velocity, entity->velocity) > 0.001)
         if (true)
@@ -941,11 +945,11 @@ namespace GameCode
 
 
 
-            if (glm::dot(translation, translation) > (maxTranslation * maxTranslation))
+            if (glm::dot(translation, translation) > (MAX_TRANSLATION * MAX_TRANSLATION))
             {
 
                 //    utl::debug("        clamping velocity");
-                float ratio = maxTranslation / glm::length(translation);
+                float ratio = MAX_TRANSLATION / glm::length(translation);
                 pb->velocity *= ratio;
             }
             /*
@@ -994,6 +998,14 @@ namespace GameCode
             }
             */
             // https://math.stackexchange.com/questions/22437/combining-two-3d-rotations
+
+            glm::vec3 rotation = dt_s * pb->angularVelocity;
+            if (glm::dot(rotation, rotation) > MAX_ROTATION_SQUARED)
+            {
+                float ratio = MAX_ROTATION / glm::length(rotation);
+                pb->angularVelocity *= ratio;
+            }
+
             pb->addRotation(pb->angularVelocity, dt_s);
             pb->transformInertiaTensor();
 
