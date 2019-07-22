@@ -70,24 +70,16 @@ e for events
 
 
 
-
-
 const int TIME_PROFILER_BUFFER = 10;
 const int FPS_PROFILER_BUFFER = 20;
 
 
-
-
-class FogOfWar
+class PlatformState
 {
 	public:
-		Renderer*					p_renderer;
-		
 		/// GUI
 		long long m_runningTime;
 		Uint32 m_nextGameTick = 0;
-		MouseState m_mouseState;
-
 
 		float m_fps;
 		float m_iterRefreshRate;
@@ -100,15 +92,7 @@ class FogOfWar
 		bool isRunning;
 
 
-		// models
-		Model*          p_model;
-
-
-		bool containedFlag;
-
-
 		GUIManager m_gui;
-		bool loadData;
 		int frameNum;
 		float m_zoom;
 		float m_range;
@@ -120,11 +104,7 @@ class FogOfWar
 		long long timeProfiler[TIME_PROFILER_BUFFER];
 
 		int fpsProfilerIndex;
-		int fpsProfiler[FPS_PROFILER_BUFFER];
-
-		void initPlayer();
-//		void debugDrawing();
-     //   void debugDrawing(GameState* gameState);
+        int fpsProfiler[FPS_PROFILER_BUFFER];
 
 
 		/// init functions
@@ -133,30 +113,22 @@ class FogOfWar
 		void initGUI();
 		int endWithError(char* msg, int error = 0);
  
-
-		void start();
-		void update(GameState* gameState);
+        void SDLProcessMouseEvent(GameInputButtonState *NewState, bool IsDown);
+        void start();
+		void GetInputs(GameInput* gameInput);
 
 		int getAverageFPS();
 
 
-		void render(GameState* gameState);
-        void onMouseBtnUp(GameState* gameState);
-        void onMouseBtnHold(GameState* gameState);
-        void onMouseBtnDown(GameState* gameState);
+        void render(GameState* gameState, GameInput* gameInput);
 
 
 
-		void GetTimeProfilerAverages();
+        void GetTimeProfilerAverages();
+        long long getCurrentTimeMillis();
 
-
-		void renderGUI();
-
-
-		long long getCurrentTimeMillis();
-
-	private:
-		long long startedTime;
+    private:
+        long long startedTime;
 };
 
 #endif

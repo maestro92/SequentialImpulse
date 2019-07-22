@@ -18,13 +18,12 @@
     put xyz axis back                                               done
 -   display number of entities / contacts / joints as debug text    done
 -   solve complete box overlap                                      sort of done
-    make it more stable                                             
--   clean up quad class                                             done
--   set it up as a pyramid demo                                     
--   fix current mouse joint                                         
+    make it more stable                                             done
+-   clean up quad class                                             done                
+-   fix current mouse joint                                         done
 -   make rendering subpixel accurate                                
 -   make the input polling code like handmade hero's                
-
+-   set it up as a pyramid demo
 */
 
 
@@ -203,6 +202,7 @@ struct GameState
 
     int frameCount;
 
+    bool isInteracting;
 
 };
 
@@ -270,7 +270,7 @@ namespace GameCode
         */
 
 
-        float size = 1;
+        float size = 3;
         def.halfDim = glm::vec3(size,
                                 size,
                                 0.5);
@@ -640,7 +640,7 @@ namespace GameCode
     }
 
 
-    void MoveMouseJoint(GameState* gameState, glm::vec2 raycastDirection, float dt_s)
+    void MoveMouseJoint(GameState* gameState, glm::vec2 raycastDirection)
     {
         if (gameState->mouseJointEntityIndex != -1)
         {
@@ -794,12 +794,12 @@ namespace GameCode
         floor->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
 
         
-        for (int i = 0; i < 20; i++)
+        for (int i = 0; i < 2; i++)
         {
             addRandomBox(gameState, i);
         }
         
-        addRagdoll(gameState);
+    //    addRagdoll(gameState);
 
 
      //   prev = &floor->physBody;
@@ -1212,10 +1212,115 @@ namespace GameCode
         return true;
     }
 
-
-    void tick(GameInput gameInput, GameState* gameState)
+    /*
+    void FogOfWar::onMouseBtnUp(GameState* gameState)
     {
-        
+        int tmpx, tmpy;
+        SDL_GetMouseState(&tmpx, &tmpy);
+        tmpy = utl::SCREEN_HEIGHT - tmpy;
+
+        GameCode::RemoveMouseJoint(gameState);
+    }
+
+    void FogOfWar::onMouseBtnHold(GameState* gameState)
+    {
+        int tmpx, tmpy;
+        SDL_GetMouseState(&tmpx, &tmpy);
+        tmpy = utl::SCREEN_HEIGHT - tmpy;
+
+        glm::vec2 screenPoint = glm::vec2(tmpx, tmpy);
+        glm::vec3 worldPoint = GameCode::screenToWorldPoint(gameState, screenPoint);
+        glm::vec2 tempWorldPoint = glm::vec2(worldPoint.x, worldPoint.y);
+
+        GameCode::MoveMouseJoint(gameState, tempWorldPoint, FIXED_UPATE_TIME_s);
+    }
+
+
+    void onMouseBtnDown(GameState* gameState)
+    {
+        int tmpx, tmpy;
+        SDL_GetMouseState(&tmpx, &tmpy);
+        tmpy = utl::SCREEN_HEIGHT - tmpy;
+
+        glm::vec2 screenPoint = glm::vec2(tmpx, tmpy);
+
+        glm::vec3 worldPoint = GameCode::screenToWorldPoint(gameState, screenPoint);
+        glm::vec3 raycastDir = glm::vec3(worldPoint.x, worldPoint.y, -1);
+
+        // move this into GameCode
+        cout << "OnMouseBtnDown" << endl;
+        utl::debug("raycastDir", raycastDir);
+        GameCode::ProcessInputRaycast(gameState, raycastDir);
+    }
+    */
+
+    void beginInteract(GameState& gameState, GameInput& gameInput)
+    {
+        gameState.isInteracting = true;
+
+        glm::vec2 screenPoint = glm::vec2(gameInput.mousePosition.x, gameInput.mousePosition.y);
+        glm::vec3 worldPoint = GameCode::screenToWorldPoint(&gameState, screenPoint);
+        glm::vec3 raycastDir = glm::vec3(worldPoint.x, worldPoint.y, -1);
+
+        ProcessInputRaycast(&gameState, raycastDir);
+    }
+
+    void endInteract(GameState& gameState, GameInput& gameInput)
+    {
+        gameState.isInteracting = false;
+        RemoveMouseJoint(&gameState);
+    }
+
+    void onInteracting(GameState& gameState, GameInput& gameInput)
+    {
+        glm::vec2 screenPoint = glm::vec2(gameInput.mousePosition.x, gameInput.mousePosition.y);
+        glm::vec3 worldPoint = GameCode::screenToWorldPoint(&gameState, screenPoint);
+        glm::vec2 tempWorldPoint = glm::vec2(worldPoint.x, worldPoint.y);
+
+        MoveMouseJoint(&gameState, tempWorldPoint);
+    }
+
+
+
+    void handleGameInputMouseClicks(GameState& gameState, GameInput& gameInput)
+    {
+        if (gameState.isInteracting)
+        {
+            onInteracting(gameState, gameInput);
+
+            for (int i = gameInput.mouseButtons[LEFT].halfTransitionCount; i > 1; i -= 2)
+            {
+                endInteract(gameState, gameInput);
+                beginInteract(gameState, gameInput);
+            }
+
+            if (!gameInput.mouseButtons[LEFT].endedDown)
+            {
+                endInteract(gameState, gameInput);
+            }
+        }
+        else
+        {
+            // two half Transitions is a full click, so we just do both
+            for (int i = gameInput.mouseButtons[LEFT].halfTransitionCount; i > 1; i-=2)
+            {
+                beginInteract(gameState, gameInput);
+                endInteract(gameState, gameInput);
+            }
+
+            if (gameInput.mouseButtons[LEFT].endedDown)
+            {
+                beginInteract(gameState, gameInput);
+            }
+        }
+    }
+
+
+    void tick(GameState* gameState, GameInput& gameInput)
+    {
+        handleGameInputMouseClicks(*gameState, gameInput);
+
+
         gameState->numDebugContactManifolds = 0;
 
         if(GRAVITY_ACTIVE)

@@ -67,7 +67,7 @@ const int INVALID_OBJECT = 0x7FFFFFFF;
 
 
 
-void FogOfWar::init()
+void PlatformState::init()
 {
 	frameNum = 0;
 
@@ -80,8 +80,6 @@ void FogOfWar::init()
 
 
 	isRunning = true;
-
-	containedFlag = false;
 
 	timeProfilerIndex = 0;
 	fpsProfilerIndex = 0;
@@ -100,7 +98,6 @@ void FogOfWar::init()
 
 
 	//Initialize clear color
-	glClearColor(0.0f, 0.5f, 0.0f, 1.0f);
 
 /*
 	mainCamera.setPos(glm::vec3(5, 5, 0));
@@ -117,41 +114,7 @@ void FogOfWar::init()
 	glDisable(GL_BLEND);
 
 	SDL_WM_SetCaption("MatchThree", NULL);
-
-
-	loadData = false;
-	bool runningTests = false;
-
-
-
-	if (runningTests == true)
-	{
-
-	}
-	else
-	{
-        /*
-		if (loadData)
-		{
-			map.saveLatest = false;
-			map.load("board1.txt");
-			fogManager.init(map.getWidth(), map.getHeight());
-			mapView.init(&world, &map);
-			debugDrawing();
-		}
-		else
-        */
-		{
-
-		//	debugDrawing();
-		}
-	}
-
-
-
-
 	ModelManager::enableVertexAttribArrays();
-
 }
 
 /*
@@ -201,7 +164,7 @@ void FogOfWar::debugDrawing(GameState* gameState)
 
 
 
-void FogOfWar::GetTimeProfilerAverages()
+void PlatformState::GetTimeProfilerAverages()
 {
 	long long total = 0;
 	for (int i = 0; i < TIME_PROFILER_BUFFER; i++)
@@ -212,7 +175,7 @@ void FogOfWar::GetTimeProfilerAverages()
 }
 
 
-void FogOfWar::start()
+void PlatformState::start()
 {
 	cout << "Start" << endl;
 
@@ -256,14 +219,11 @@ void FogOfWar::start()
 		newTime = utl::getCurrentTime_ms();
 
 		dt = newTime - oldTime;
-		update(&gameState);
+		GetInputs(&gameInput);
 
+        GameCode::tick(&gameState, gameInput);
 
-        GameCode::tick(gameInput, &gameState);
-
-
-
-        render(&gameState);
+        render(&gameState, &gameInput);
 
 
 		oldTime = newTime;
@@ -296,7 +256,7 @@ void FogOfWar::start()
 
 
 
-int FogOfWar::getAverageFPS()
+int PlatformState::getAverageFPS()
 {
 	float averageFrameTime = 0;
 	for (int i = 0; i < FPS_PROFILER_BUFFER; i++)
@@ -345,20 +305,40 @@ void FogOfWar::updateCamera()
 
 
 
-
-
-void FogOfWar::update(GameState* gameState)
+void PlatformState::SDLProcessMouseEvent(GameInputButtonState* newMouseButtonState, bool isDown)
 {
-	int mx, my;
-	SDL_GetMouseState(&mx, &my);
+    if (newMouseButtonState->endedDown != isDown)
+    {
+        newMouseButtonState->endedDown = isDown;
+        ++newMouseButtonState->halfTransitionCount;
+    }
+}
 
-	// need this for GUI
-	m_mouseState.m_pos = glm::vec2(mx, utl::SCREEN_HEIGHT - my);
+void PlatformState::GetInputs(GameInput* gameInput)
+{
+    // mouse position
+    int mx, my;
+    Uint32 mouseState = SDL_GetMouseState(&mx, &my);
+    // need this for GUI
+    gameInput->mousePosition = glm::vec3(mx, utl::SCREEN_HEIGHT - my, 0);
 
+    Uint32 SDLButtonID[NUM_GAME_INPUT_MOUSE_BUTTON] =
+    {
+        SDL_BUTTON_LMASK,
+        SDL_BUTTON_MMASK,
+        SDL_BUTTON_RMASK,
+    };
 
-	SDL_Event event;
+    for (int i = 0; i < NUM_GAME_INPUT_MOUSE_BUTTON; i++)
+    {
+        gameInput->mouseButtons[i].halfTransitionCount = 0;
+        SDLProcessMouseEvent(&gameInput->mouseButtons[i], mouseState & SDLButtonID[i]);
+    }
 
-	while (SDL_PollEvent(&event))
+    // mouse buttons
+    SDL_Event event;
+
+    while (SDL_PollEvent(&event))
 	{
 		switch (event.type)
 		{
@@ -384,7 +364,7 @@ void FogOfWar::update(GameState* gameState)
 						break;
 
 					case SDLK_q:
-                        gameState->mainCamera.zoomOut();
+                //        gameState->mainCamera.zoomOut();
 						break;
 
 					case SDLK_n:
@@ -420,11 +400,11 @@ void FogOfWar::update(GameState* gameState)
 				switch (event.button.button)
 				{
 					case SDL_BUTTON_LEFT:
-						onMouseBtnDown(gameState);
-						break;
+                    //    onMouseBtnDown(gameState);
+                        break;
 
 					case SDL_BUTTON_RIGHT:
-						onMouseBtnDown(gameState);
+                    //    onMouseBtnDown(gameState);
 						break;
 					case SDL_BUTTON_WHEELUP:
 						// m_cameraZoom -= CAMERA_ZOOM_DELTA;
@@ -441,58 +421,17 @@ void FogOfWar::update(GameState* gameState)
 				switch (event.button.button)
 				{
 					case SDL_BUTTON_LEFT:
-						onMouseBtnUp(gameState);
+                //        onMouseBtnUp(gameState);
 						break;
 				}
 				break;
 		}
 	}
 
-	onMouseBtnHold(gameState);
+//	onMouseBtnHold(gameState);
 
 //	glm::vec2 centerGridCoord =
 
-}
-
-
-void FogOfWar::onMouseBtnUp(GameState* gameState)
-{
-	int tmpx, tmpy;
-	SDL_GetMouseState(&tmpx, &tmpy);
-	tmpy = utl::SCREEN_HEIGHT - tmpy;
-
-    GameCode::RemoveMouseJoint(gameState);
-}
-
-
-void FogOfWar::onMouseBtnHold(GameState* gameState)
-{
-    int tmpx, tmpy;
-    SDL_GetMouseState(&tmpx, &tmpy);
-    tmpy = utl::SCREEN_HEIGHT - tmpy;
-
-    glm::vec2 screenPoint = glm::vec2(tmpx, tmpy);
-    glm::vec3 worldPoint = GameCode::screenToWorldPoint(gameState, screenPoint);
-    glm::vec2 tempWorldPoint = glm::vec2(worldPoint.x, worldPoint.y);
-
-    GameCode::MoveMouseJoint(gameState, tempWorldPoint, FIXED_UPATE_TIME_s);
-}
-
-void FogOfWar::onMouseBtnDown(GameState* gameState)
-{
-    int tmpx, tmpy;
-    SDL_GetMouseState(&tmpx, &tmpy);
-    tmpy = utl::SCREEN_HEIGHT - tmpy;
-
-    glm::vec2 screenPoint = glm::vec2(tmpx, tmpy);
-
-    glm::vec3 worldPoint = GameCode::screenToWorldPoint(gameState, screenPoint);
-    glm::vec3 raycastDir = glm::vec3(worldPoint.x, worldPoint.y, -1);
-    
-    // move this into GameCode
-    cout << "OnMouseBtnDown" << endl;
-    utl::debug("raycastDir", raycastDir);
-    GameCode::ProcessInputRaycast(gameState, raycastDir);
 }
 
 
@@ -502,49 +441,29 @@ fixing the first and end point,
 
 combine points that can do a line fit
 */
-void FogOfWar::render(GameState* gameState)
+void PlatformState::render(GameState* gameState, GameInput* gameInput)
 {
-	
-//	fogView.render(mainCamera.getPipeline());
-
     GameRendering::render(gameState);
 
-	long long timeNowMillis = getCurrentTimeMillis();
+    long long timeNowMillis = getCurrentTimeMillis();
 
-	int deltaTimeMillis = (unsigned int)(timeNowMillis - m_currentTimeMillis);
-	m_currentTimeMillis = timeNowMillis;
+    int deltaTimeMillis = (unsigned int)(timeNowMillis - m_currentTimeMillis);
+    m_currentTimeMillis = timeNowMillis;
 
-
-
-	m_gui.initGUIRenderingSetup();
-	glDisable(GL_BLEND);
-
-
-
-
-
-
-
+    m_gui.initGUIRenderingSetup();
+    glDisable(GL_BLEND);
 
     int numBodies = 0;
     for (int i = 0; i < gameState->numEntities; i++)
     {
-//        if (!gameState->entities[i].isDead)
-        {
-            numBodies++;
-        }
+        numBodies++;
     }
-
 
     int numJoints = 0;
     for (int i = 0; i < gameState->numJoints; i++)
     {
-     //   if (!gameState->joints[i].isDead)
-        {
-            numJoints++;
-        }
+        numJoints++;
     }
-
 
     int numContacts = 0;
     for (int i = 0; i < gameState->numContacts; i++)
@@ -553,14 +472,14 @@ void FogOfWar::render(GameState* gameState)
     }
     m_gui.update(numBodies, numJoints, numContacts);
 
-	m_gui.updateAndRender(m_mouseState);
+    m_gui.updateAndRender(*gameInput);
 
-	SDL_GL_SwapBuffers();
-	frameNum++;
+    SDL_GL_SwapBuffers();
+    frameNum++;
 }
 
 
-long long FogOfWar::getCurrentTimeMillis()
+long long PlatformState::getCurrentTimeMillis()
 {
 #ifdef WIN32
 	return GetTickCount();
@@ -581,7 +500,7 @@ int main(int argc, char *argv[])
 	utl::initSDL(utl::SCREEN_WIDTH, utl::SCREEN_HEIGHT, pDisplaySurface);
 	utl::initGLEW();
 
-	FogOfWar Martin;
+	PlatformState Martin;
     cout << sizeof(Entity) << endl;
 
 	Martin.init();
@@ -600,7 +519,7 @@ int main(int argc, char *argv[])
 }
 
 
-int FogOfWar::endWithError(char* msg, int error)
+int PlatformState::endWithError(char* msg, int error)
 {
 	//Display error message in console
 	cout << msg << "\n";
@@ -613,30 +532,13 @@ int FogOfWar::endWithError(char* msg, int error)
 
 
 
-void FogOfWar::initGUI()
+void PlatformState::initGUI()
 {
 	// run this before m_gui.init, so the textEngine is initialized
 	// need to comeback and re-organize the gui the minimize dependencies
 	Control::init("", 25, utl::SCREEN_WIDTH, utl::SCREEN_HEIGHT);
 	m_gui.init(utl::SCREEN_WIDTH, utl::SCREEN_HEIGHT);
 }
-
-
-void FogOfWar::renderGUI()
-{
-
-	m_gui.initGUIRenderingSetup();
-	/// http://sdl.beuc.net/sdl.wiki/SDL_Average_FPS_Measurement
-	//	unsigned int getTicks = SDL_GetTicks();
-
-	//	static string final_str = "(" + utl::floatToStr(m_mouseState.m_pos.x) + ", " + utl::floatToStr(m_mouseState.m_pos.y) + ")";
-	m_gui.updateAndRender(m_mouseState);
-
-	// healthbar and text
-
-
-}
-
 
 
 

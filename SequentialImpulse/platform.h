@@ -6,15 +6,33 @@
 #define Megabytes(value) (Kilobytes(value)*1024LL)
 #define Gigabytes(value) (Megabytes(value)*1024LL)
 
-struct CameraTransform
+
+
+enum GameInputMouseButton
 {
-    glm::vec3 position;
+    LEFT,
+    MIDDLE,
+    RIGHT,
+
+    NUM_GAME_INPUT_MOUSE_BUTTON
+};
+    
+
+// halfTransition is either up->down or down->up
+// so a full click up->down->up is 2 half transitions
+struct GameInputButtonState
+{
+    int halfTransitionCount;
+    bool endedDown;
 };
 
+
+// we store the states of keyboard buttons (ones you care about)
+// and the mouse buttons in GameInput
 struct GameInput
 {
-    glm::vec2 prevMousePoint;
-    glm::vec3 MousePoint;
+    GameInputButtonState mouseButtons[NUM_GAME_INPUT_MOUSE_BUTTON];
+    glm::vec3 mousePosition;
     float dt_s;
 };
 
