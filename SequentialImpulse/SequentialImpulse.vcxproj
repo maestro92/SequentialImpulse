@@ -151,6 +151,7 @@
     <ClInclude Include="gui\slider.h" />
     <ClInclude Include="gui\text_engine.h" />
     <ClInclude Include="main.h" />
+    <ClInclude Include="memory_util.h" />
     <ClInclude Include="model\mesh.h" />
     <ClInclude Include="model\model.h" />
     <ClInclude Include="model\model_constant.h" />

@@ -76,54 +76,46 @@ const int FPS_PROFILER_BUFFER = 20;
 
 class PlatformState
 {
-	public:
-		/// GUI
-		long long m_runningTime;
-		Uint32 m_nextGameTick = 0;
+    public:
+        /// GUI
+        long long m_runningTime;
+        Uint32 m_nextGameTick = 0;
 
-		float m_fps;
-		float m_iterRefreshRate;
-		float m_curIter;
-		unsigned int m_frameCount;
-		unsigned int m_frameTicks[FRAME_VALUES];
-		unsigned int m_frameTicksIndex;
-		unsigned int m_prevFrameTick;
+        float m_fps;
+        float m_iterRefreshRate;
+        float m_curIter;
+        unsigned int m_frameCount;
+        unsigned int m_frameTicks[FRAME_VALUES];
+        unsigned int m_frameTicksIndex;
+        unsigned int m_prevFrameTick;
 
-		bool isRunning;
+        bool isRunning;
 
 
-		GUIManager m_gui;
-		int frameNum;
-		float m_zoom;
-		float m_range;
-	public:
+        GUIManager m_gui;
+        int frameNum;
+        float m_zoom;
+        float m_range;
 
-		long long m_currentTimeMillis;
+    public:
+        long long m_currentTimeMillis;
+        int timeProfilerIndex;
+        long long timeProfiler[TIME_PROFILER_BUFFER];
 
-		int timeProfilerIndex;
-		long long timeProfiler[TIME_PROFILER_BUFFER];
-
-		int fpsProfilerIndex;
+        int fpsProfilerIndex;
         int fpsProfiler[FPS_PROFILER_BUFFER];
 
-
-		/// init functions
-		void init();
-
-		void initGUI();
-		int endWithError(char* msg, int error = 0);
+        /// init functions
+        void init();
+        void initGUI();
+        int endWithError(char* msg, int error = 0);
  
         void SDLProcessMouseEvent(GameInputButtonState *NewState, bool IsDown);
         void start();
-		void GetInputs(GameInput* gameInput);
+        void GetInputs(GameInput* gameInput);
 
-		int getAverageFPS();
-
-
+        int getAverageFPS();
         void render(GameState* gameState, GameInput* gameInput);
-
-
-
         void GetTimeProfilerAverages();
         long long getCurrentTimeMillis();
 

@@ -24,50 +24,5 @@
 		"data": {
 			"u_texture": "DP_INT"
 		}
-	},
-
-	{
-		"r": "r_map",
-		"vs": "map.vs",
-		"fs": "map.fs",
-		"data": {
-			"u_texture": "DP_INT"
-		}
-	},
-
-	{
-		"r": "r_fogEdgeBlur",
-		"vs": "fog_edge_blur.vs",
-		"fs": "fog_edge_blur.fs",
-		"data": {
-			"u_texture": "DP_INT",
-			"u_texelSize": "DP_VEC2",
-			"u_offset": "DP_FLOAT"
-		}
-	},
-
-	{
-		"r": "r_fogFadeUpdate",
-		"vs": "fog_fade_update.vs",
-		"fs": "fog_fade_update.fs",
-		"data": {
-			"u_texture": "DP_INT"
-		}
-	},
-
-	{
-		"r": "r_fow",
-		"vs": "fow.vs",
-		"fs": "fow.fs",
-		"data": {
-			"u_fogFadeTexture": "DP_INT",
-			"u_noiseTexture": "DP_INT",
-			"u_time": "DP_FLOAT",
-			"u_noiseSpeed": "DP_FLOAT",
-			"u_edgeShape": "DP_FLOAT",			
-			"u_noiseTexSamplingLocationScale": "DP_FLOAT",						
-			"u_fogMeshVertexOrigin": "DP_VEC2",			
-			"u_fogMeshVertex2UVMat": "DP_VEC4"
-		}
 	}
 ]
