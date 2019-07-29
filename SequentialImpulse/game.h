@@ -10,6 +10,7 @@
 #include "camera.h"
 #include "physics_core.h"
 #include "physics.h"
+#include "joint.h"
 #include "entity.h"
 #include "memory_util.h"
 
@@ -58,8 +59,8 @@ struct GameState
     float angle;
     int boxIndex;
 
-  //  int mouseJointIndex;
-    int mouseJointEntityIndex;
+    int mouseJointIndex;
+  //  int mouseJointEntityIndex;
 
     int frameCount;
 
@@ -115,7 +116,7 @@ namespace GameCode
     {
         Physics::PhysBodyDef def = {};
 
-        /*
+        
         float size = 2;
         def.halfDim = glm::vec3(size * utl::randInt(1, 3),
                                 size * utl::randInt(1, 3), 
@@ -128,9 +129,9 @@ namespace GameCode
                             0);
         float rot = utl::randFloat(0, 360);
         def.rot = glm::rotate(rot, glm::vec3(0, 0, 1));
-        */
+        
 
-
+        /*
         float size = 3;
         def.halfDim = glm::vec3(size,
                                 size,
@@ -143,7 +144,7 @@ namespace GameCode
                             0);
         float rot = 0; //utl::randFloat(0, 360);
         def.rot = glm::rotate(rot, glm::vec3(0, 0, 1));
-
+        */
 
         def.hasJoint = false;
         addEntity(gameState, Box, def);
@@ -297,14 +298,15 @@ namespace GameCode
 
     glm::vec3 computeLocalAnchorPoint(glm::vec3 anchor, Physics::PhysBody* body)
     {
-        return glm::mat3(body->orientationMat) * (anchor - body->position);
+        return glm::inverse(glm::mat3(body->orientationMat)) * (anchor - body->position);
     }
 
     void addJoint(GameState* gameState, glm::vec3 worldAnchorPoint, Physics::PhysBody* a, Physics::PhysBody* b, bool ignoreCollision)
     {
         Physics::Joint* joint = &gameState->joints[gameState->numJoints];
+        joint->type = Physics::JointType::RESOLUTE_JOINT;
         gameState->numJoints++;
-    //    joint->isDead = false;
+
         joint->a = a;
         joint->b = b;
 
@@ -315,20 +317,28 @@ namespace GameCode
     }
 
 
-    void addMouseJoint(GameState* gameState, glm::vec3 worldAnchorPoint, Physics::PhysBody* mouse, Physics::PhysBody* draggedEnt, bool ignoreCollision)
+    void addMouseJoint(GameState* gameState, glm::vec3 worldAnchorPoint, Physics::PhysBody* draggedEnt, bool ignoreCollision)
     {
+    //    utl::debug("##################### ADDING Mouse Joint");
+
         Physics::Joint* joint = &gameState->joints[gameState->numJoints];
+        joint->type = Physics::JointType::MOUSE_JOINT;
         gameState->numJoints++;
-     //   joint->isDead = false;
+
         joint->a = draggedEnt;
-        joint->b = mouse;
+        joint->b = NULL;
 
         joint->aLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, draggedEnt);
         joint->bLocalAnchor = glm::vec3(0,0,0);
 
+
+        joint->targetPos = worldAnchorPoint;
+
+        /*
+        utl::debug("        joint targetPos", joint->targetPos);
+        utl::debug("        joint aLocalAnchor", joint->aLocalAnchor);
+        */
         joint->ignoreCollision = ignoreCollision;
-
-
     }
 
     void addRagdoll(GameState* gameState)
@@ -488,10 +498,10 @@ namespace GameCode
 
     void RemoveMouseJoint(GameState* gameState)
     {
-        if (gameState->mouseJointEntityIndex != -1)
+        if (gameState->mouseJointIndex != -1)
         {
-            RemoveEntity(gameState, gameState->mouseJointEntityIndex);
-            gameState->mouseJointEntityIndex = -1;
+            RemoveJoint(gameState, gameState->mouseJointIndex);
+            gameState->mouseJointIndex = -1;
 
             if (jointcounter == 2)
             {
@@ -503,17 +513,17 @@ namespace GameCode
 
     void MoveMouseJoint(GameState* gameState, glm::vec2 raycastDirection)
     {
-        if (gameState->mouseJointEntityIndex != -1)
+        if (gameState->mouseJointIndex != -1)
         {
         //    glm::vec3 vel = (glm::vec3(raycastDirection.x, raycastDirection.y, 0) - gameState->entities[gameState->mouseJointEntityIndex].physBody.position);
         //    gameState->entities[gameState->mouseJointEntityIndex].physBody.velocity = vel;
-            gameState->entities[gameState->mouseJointEntityIndex].physBody.position = glm::vec3(raycastDirection.x, raycastDirection.y, 0);
+            gameState->joints[gameState->mouseJointIndex].targetPos = glm::vec3(raycastDirection.x, raycastDirection.y, 0);
         }
     }
 
     void ProcessInputRaycast(GameState* gameState, glm::vec3 raycastDirection)
     {
-        if (gameState->mouseJointEntityIndex == -1)
+        if (gameState->mouseJointIndex == -1)
         {
             for (int i = 0; i < gameState->numEntities; i++)
             {
@@ -528,6 +538,8 @@ namespace GameCode
 
                     if (Physics::testPointInsideOBB2D(raycastDirection, entity->physBody.shapeData.obb, entity->physBody.orientationMat, entity->physBody.position))
                     {
+                        /*
+                        // mouse joint as a point-point constraint
                         glm::vec3 anchor(raycastDirection.x, raycastDirection.y, 0);
 
                         Physics::PhysBodyDef physDef = {};
@@ -542,8 +554,18 @@ namespace GameCode
 
                     //    gameState->mouseJointIndex = gameState->numJoints - 1;
                         gameState->mouseJointEntityIndex = gameState->numEntities - 1;
-
+                        */
                         
+
+                         
+                        // mouse joint as a soft constraint                        
+                        glm::vec3 anchor(raycastDirection.x, raycastDirection.y, 0);
+                        addMouseJoint(gameState, anchor, &entity->physBody, true);
+
+                        gameState->mouseJointIndex = gameState->numJoints - 1;
+                        // gameState->mouseJointEntityIndex = gameState->numEntities - 1;
+
+
                         jointcounter++;
                         if (jointcounter == 2)
                         {
@@ -606,7 +628,8 @@ namespace GameCode
 //        gameState->joints = new Physics::Joint[64];
 
 
-        gameState->mouseJointEntityIndex = -1;
+//        gameState->mouseJointEntityIndex = -1;
+        gameState->mouseJointIndex = -1;
         gameState->angle = 0;
 
         float scale = 0;
@@ -655,11 +678,12 @@ namespace GameCode
         floor->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
 
         
-        for (int i = 0; i < 2; i++)
+        for (int i = 0; i < 1; i++)
         {
             addRandomBox(gameState, i);
         }
         
+
     //    addRagdoll(gameState);
 
 
@@ -973,6 +997,7 @@ namespace GameCode
         }
     }
 
+    /*
     void warmStartJoint(Physics::Joint* joint)
     {
         joint->a->velocity -= joint->impulse * joint->a->invMass;
@@ -984,9 +1009,9 @@ namespace GameCode
             joint->b->angularVelocity += joint->b->inverseInertiaTensor * glm::cross(joint->rB, joint->impulse);
         }
     }
+    */
 
-
-    void warmStart(GameState* gameState)
+    void warmStartContactPoints(GameState* gameState)
     {
         for (int i = 0; i < gameState->numContacts; i++)
         {
@@ -1316,16 +1341,13 @@ namespace GameCode
         }
 
 
-        warmStart(gameState);
-
-
+        warmStartContactPoints(gameState);
 
         for (int i = 0; i < gameState->numJoints; i++)
         {
             Physics::Joint* joint = &gameState->joints[i];
             {
-                Physics::InitJointVelocityConstraints(joint);
-                warmStartJoint(joint);
+                Physics::InitAndWarmStartJointVelocityConstraints(joint);
             }
         }
 
@@ -1341,7 +1363,7 @@ namespace GameCode
             {
           //      if (!gameState->joints[j].isDead)
                 {
-                    Physics::SolveJointVelocityConstraints(gameState->joints[j]);
+                    Physics::SolveJointVelocityConstraints(gameState->joints[j], gameInput.dt_s);
                 }
             }
 
@@ -1443,10 +1465,7 @@ namespace GameCode
 
             for (int j = 0; j < gameState->numJoints; j++)
             {
-          //      if (!gameState->joints[j].isDead)
-                {
-                    positionDone &= Physics::SolveJointPositionConstraints(gameState->joints[j]);
-                }
+                positionDone &= Physics::SolveJointPositionConstraints(gameState->joints[j]);
             }
 
             if (positionDone)

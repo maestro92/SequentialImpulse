@@ -131,6 +131,7 @@
     <ClInclude Include="global.h" />
     <ClInclude Include="gui\custom_gui\bar.h" />
     <ClInclude Include="gui\gui_renderer_constants.h" />
+    <ClInclude Include="joint.h" />
     <ClInclude Include="libraries\json_spirit\json_spirit.h" />
     <ClInclude Include="libraries\json_spirit\json_spirit_error_position.h" />
     <ClInclude Include="libraries\json_spirit\json_spirit_reader.h" />

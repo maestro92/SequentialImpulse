@@ -3,7 +3,7 @@
 namespace Physics
 {
 
-
+    const float LINEAR_SLOP = 0.005f;
 
     enum PhysBodyFlags
     {
@@ -22,7 +22,13 @@ namespace Physics
         PB_CIRCLE = 2
     };
 
-    
+
+    enum JointType
+    {
+        RESOLUTE_JOINT = 0,
+        MOUSE_JOINT = 1,
+    };
+
     struct PhysBodyTransform
     {
         glm::vec3 position;
@@ -357,19 +363,4 @@ namespace Physics
     };
 
 
-    struct Joint
-    {
-    //    bool isDead;
-        PhysBody* a;
-        PhysBody* b;
-
-        glm::vec3 aLocalAnchor;
-        glm::vec3 bLocalAnchor;
-
-        glm::vec3 rA;
-        glm::vec3 rB;
-
-        glm::vec3 impulse;
-        bool ignoreCollision;
-    };
 }
