@@ -112,6 +112,25 @@ namespace GameCode
     }
 
 
+    void addCharacterBox(GameState* gameState)
+    {
+        Physics::PhysBodyDef def = {};
+
+        float w = 3;
+        float h = 5;
+        def.halfDim = glm::vec3(w, h, 0.5);
+        def.flags = Physics::PhysBodyFlag_Collides | Physics::PhysBodyFlag_FixedRotation;
+        def.mass = 5;
+        float xOffset = 0;
+        def.pos = glm::vec3(0, 5, 0);
+        float rot = 0;
+        def.rot = glm::rotate(rot, glm::vec3(0, 0, 1));
+
+        def.hasJoint = false;
+        addEntity(gameState, Box, def);
+    }
+
+
     void addRandomBox(GameState* gameState, int height)
     {
         Physics::PhysBodyDef def = {};
@@ -678,13 +697,15 @@ namespace GameCode
         floor->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
 
         
-        for (int i = 0; i < 1; i++)
+        addCharacterBox(gameState);
+
+        for (int i = 0; i < 10; i++)
         {
             addRandomBox(gameState, i);
         }
         
 
-    //    addRagdoll(gameState);
+        addRagdoll(gameState);
 
 
      //   prev = &floor->physBody;

@@ -12,6 +12,8 @@ namespace Physics
         PhysBodyFlag_Collides = (1 << 0),
         PhysBodyFlag_Static = (1 << 1),
         PhysBodyFlag_Awake = (1 << 2),
+        PhysBodyFlag_FixedRotation = (1 << 3),
+
 
     };
 
@@ -167,6 +169,8 @@ namespace Physics
             }
         }
 
+
+
         glm::mat3 GetBoxInertiaTensor(float mass, glm::vec3 halfDim)
         {
             float dx = halfDim.x;
@@ -185,7 +189,12 @@ namespace Physics
 
         bool DoesCollides()
         {
-            return (flags & Physics::PhysBodyFlag_Collides) != 0;
+            return (flags & Physics::PhysBodyFlag_Collides) == Physics::PhysBodyFlag_Collides;
+        }
+
+        bool HasFixedRotation()
+        {
+            return  (flags & Physics::PhysBodyFlag_FixedRotation) == Physics::PhysBodyFlag_FixedRotation;
         }
 
         void initAsBox(PhysBodyDef def)
@@ -203,9 +212,17 @@ namespace Physics
             SyncOrientationMat();
             scale = def.halfDim;
 
-            glm::vec3 fullDim = def.halfDim * 2.0f;
-            inertiaTensor = GetBoxInertiaTensor(mass, fullDim);
-            transformInertiaTensor();
+            if (!HasFixedRotation())
+            {
+                glm::vec3 fullDim = def.halfDim * 2.0f;
+                inertiaTensor = GetBoxInertiaTensor(mass, fullDim);
+                transformInertiaTensor();
+            }
+            else
+            {
+                inertiaTensor = glm::mat3(0.0);
+                inverseInertiaTensor = glm::mat3(0.0);
+            }
 
             shapeData.InitAsBoxOBB(def.halfDim);
         }

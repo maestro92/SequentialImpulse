@@ -180,6 +180,7 @@ namespace Physics
         float iiA = joint.a->inverseInertiaTensor[2][2];
 
         // designer selects frequency and damping ratio
+        // frequency and period T = `1/f.  so the 
         float frequency = 5;
         float omega = 2.0f * 3.14f * frequency;
         float dampingRatio = 0.7;

@@ -83,19 +83,17 @@ namespace GameRendering
                     }
                     else
                     {
-                        p_renderer->setData(R_FULL_COLOR::u_color, COLOR_AZURE);
+                        if (entities[i].physBody.HasFixedRotation())
+                        {
+                            p_renderer->setData(R_FULL_COLOR::u_color, COLOR_RED);
+                        }
+                        else
+                        {
+                            p_renderer->setData(R_FULL_COLOR::u_color, COLOR_AZURE);
+                        }
                     }
                     gameState->entities[i].renderCore(gameState->mainCamera.getPipeline(), p_renderer);
-                    /*
-                    else if (i % 2 == 0)
-                    {
-                        p_renderer->setData(R_FULL_COLOR::u_color, COLOR_BLUE);
-                    }
-                    else
-                    {
-                        p_renderer->setData(R_FULL_COLOR::u_color, COLOR_LIGHT_BLUE_2);
-                    }
-                    */
+
                 }
 
                 p_renderer->setData(R_FULL_COLOR::u_color, COLOR_BLACK);

@@ -21,6 +21,7 @@ enum EntityType
     Box,
     Floor,
     Wall,
+    Character,
     XYZAxis,
 };
 
