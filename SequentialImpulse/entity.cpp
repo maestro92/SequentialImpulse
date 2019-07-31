@@ -8,6 +8,7 @@ void Entity::init()
     m_model = NULL;
 }
 
+/*
 void Entity::renderCore(Pipeline& p, Renderer* r)
 {
     p.pushMatrix();
@@ -18,7 +19,7 @@ void Entity::renderCore(Pipeline& p, Renderer* r)
         m_model->render();
     p.popMatrix();
 }
-
+*/
 
 bool Entity::canRender()
 {

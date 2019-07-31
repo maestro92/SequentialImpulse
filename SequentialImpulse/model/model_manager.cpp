@@ -21,7 +21,7 @@ void ModelManager::init()
     buildQuadModel(&m_models[ModelEnum::unitCenteredQuad], glm::vec3(-1,-1, -1), glm::vec3(1, 1, 1));
     buildQuadOutlineModel(&m_models[ModelEnum::unitCenteredQuadOutline], glm::vec3(-1, -1, -1), glm::vec3(1, 1, 1), 0.1);
     buildXYZModel(&m_models[ModelEnum::xyzAxis]);
-    buildCircleModel(&m_models[ModelEnum::circle], 1, 0.05);
+    buildCircleOutlineModel(&m_models[ModelEnum::circleOutline], 1, 0.1);
     buildArrowModel(&m_models[ModelEnum::arrow]);
 }
 
@@ -319,7 +319,7 @@ void ModelManager::buildXYZModel(Model* model)
     model->addMesh(m);
 }
 
-void ModelManager::buildCircleModel(Model* model, float radius, float thickness)
+void ModelManager::buildCircleOutlineModel(Model* model, float radius, float thickness)
 {
     std::vector<VertexData> vertices;
     std::vector<unsigned int> indices;

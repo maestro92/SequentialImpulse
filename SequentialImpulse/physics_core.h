@@ -21,7 +21,7 @@ namespace Physics
     {
         PB_OBB = 0,
         PB_PLANE = 1,
-        PB_CIRCLE = 2
+        PB_SPHERE = 2
     };
 
 
@@ -81,7 +81,19 @@ namespace Physics
             Sphere sphere;
         };
 
-        void InitAsBoxOBB(glm::vec3 halfDim)
+        void InitAsSphere(float radius)
+        {
+            shape = Physics::PhysBodyShape::PB_SPHERE;
+            sphere.center = glm::vec3(0.0);
+            sphere.radius = radius;
+        }
+
+        void InitAsPlane()
+        {
+
+        }
+
+        void InitAsOBB(glm::vec3 halfDim)
         {
             shape = Physics::PhysBodyShape::PB_OBB;
             obb.center = glm::vec3(0, 0, 0);
@@ -96,6 +108,7 @@ namespace Physics
 
     struct PhysBodyDef
     {
+        PhysBodyShape shape;
         glm::vec3 halfDim;
         float mass;
         glm::vec3 pos;
@@ -170,6 +183,15 @@ namespace Physics
         }
 
 
+        glm::mat3 GetSolidSphereInertiaTensor(float mass, float radius)
+        {
+            float I = mass * radius * radius * 2.0f / 5.0f;
+
+            return glm::mat3(I, 0, 0,
+                             0, I, 0,
+                             0, 0, I);
+        }
+
 
         glm::mat3 GetBoxInertiaTensor(float mass, glm::vec3 halfDim)
         {
@@ -197,34 +219,58 @@ namespace Physics
             return  (flags & Physics::PhysBodyFlag_FixedRotation) == Physics::PhysBodyFlag_FixedRotation;
         }
 
-        void initAsBox(PhysBodyDef def)
+        void initFromPhysBodyDef(PhysBodyDef def)
         {
             Init();
-            flags = def.flags; 
+            flags = def.flags;
             mass = def.mass;
             invMass = 1.0f / mass;
             position = def.pos;
             glm::mat4 om = def.rot;
             hasJoint = def.hasJoint;
-    //        isAwake = true;
+            //        isAwake = true;
 
             orientation = glm::toQuat(om);
             SyncOrientationMat();
             scale = def.halfDim;
 
-            if (!HasFixedRotation())
+            if (def.shape == PB_OBB)
             {
-                glm::vec3 fullDim = def.halfDim * 2.0f;
-                inertiaTensor = GetBoxInertiaTensor(mass, fullDim);
-                transformInertiaTensor();
+                if (!HasFixedRotation())
+                {
+                    glm::vec3 fullDim = def.halfDim * 2.0f;
+                    inertiaTensor = GetBoxInertiaTensor(mass, fullDim);
+                    transformInertiaTensor();
+                }
+                else
+                {
+                    inertiaTensor = glm::mat3(0.0);
+                    inverseInertiaTensor = glm::mat3(0.0);
+                }
+                shapeData.InitAsOBB(def.halfDim);
+            }
+            else if (def.shape == PB_SPHERE)
+            {
+                assert(def.halfDim.x == def.halfDim.y);
+                // when in 3D, we need           
+                // assert(def.halfDim.y == def.halfDim.z);
+
+                if (!HasFixedRotation())
+                {
+                    inertiaTensor = GetSolidSphereInertiaTensor(mass, def.halfDim.x);
+                    transformInertiaTensor();
+                }
+                else
+                {
+                    inertiaTensor = glm::mat3(0.0);
+                    inverseInertiaTensor = glm::mat3(0.0);
+                }
+                shapeData.InitAsSphere(def.halfDim.x);
             }
             else
             {
-                inertiaTensor = glm::mat3(0.0);
-                inverseInertiaTensor = glm::mat3(0.0);
+                assert(0);
             }
-
-            shapeData.InitAsBoxOBB(def.halfDim);
         }
 
 #if 0

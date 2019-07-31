@@ -78,7 +78,7 @@ namespace GameCode
     bool GRAVITY_ACTIVE = true;
     bool COLLISION_ACTIVE = true;
 
-    int jointcounter = 0;
+  //  int jointcounter = 0;
     bool debug = false;
 
     // sleeping is not correct currently
@@ -103,12 +103,37 @@ namespace GameCode
         ent->init();
         ent->id = index;
         ent->entityType = entType;
-        ent->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
-    //    ent->isDead = false;
+
         Physics::PhysBody* pb = &ent->physBody;
         pb->id = index;
-        pb->initAsBox(physDef);
+        
+        pb->initFromPhysBodyDef(physDef);
         return ent;
+    }
+
+
+    void addRandomSphere(GameState* gameState, int height)
+    {
+        Physics::PhysBodyDef def = {};
+
+        def.shape = Physics::PhysBodyShape::PB_SPHERE;
+        float size = 3;
+        def.halfDim = glm::vec3(size, size, 0.5);
+        def.flags = Physics::PhysBodyFlag_Collides;
+        def.mass = 5;
+        float xOffset = 0;
+
+        def.pos = glm::vec3(0, (height + 1) * 10, 0);
+
+        /*
+        def.pos = glm::vec3(utl::randFloat(-20, 20) + xOffset,
+            utl::randFloat(5, 20),
+            0);
+            */
+        def.rot = glm::rotate(0.0f, glm::vec3(0, 0, 1));
+
+        def.hasJoint = false;
+        addEntity(gameState, Sphere, def);
     }
 
 
@@ -116,6 +141,7 @@ namespace GameCode
     {
         Physics::PhysBodyDef def = {};
 
+        def.shape = Physics::PhysBodyShape::PB_OBB;
         float w = 3;
         float h = 5;
         def.halfDim = glm::vec3(w, h, 0.5);
@@ -135,7 +161,7 @@ namespace GameCode
     {
         Physics::PhysBodyDef def = {};
 
-        
+        def.shape = Physics::PhysBodyShape::PB_OBB;
         float size = 2;
         def.halfDim = glm::vec3(size * utl::randInt(1, 3),
                                 size * utl::randInt(1, 3), 
@@ -172,6 +198,7 @@ namespace GameCode
     Entity* addRagdollBody(GameState* gameState)
     {
         Physics::PhysBodyDef def = {};
+        def.shape = Physics::PhysBodyShape::PB_OBB;
         float size = 5;
         def.halfDim = glm::vec3(size, 1.5 * size, 0.5);
         def.flags = Physics::PhysBodyFlag_Collides;
@@ -190,6 +217,7 @@ namespace GameCode
     Entity* addRagdollHead(GameState* gameState, Physics::PhysBody* body, glm::vec3& anchor)
     {
         Physics::PhysBodyDef def = {};
+        def.shape = Physics::PhysBodyShape::PB_OBB;
         float size = 2;
         def.halfDim = glm::vec3(size, size, 0.5);
         def.flags = Physics::PhysBodyFlag_Collides;
@@ -205,6 +233,7 @@ namespace GameCode
     Entity* addRagdollShoulder(GameState* gameState, bool left, Physics::PhysBody* body, glm::vec3& anchor)
     {
         Physics::PhysBodyDef def = {};
+        def.shape = Physics::PhysBodyShape::PB_OBB;
         float size = 2;
         def.halfDim = glm::vec3(1.5 * size, size, 0.5);
         def.flags = Physics::PhysBodyFlag_Collides;
@@ -234,6 +263,7 @@ namespace GameCode
     Entity* addRagdollArm(GameState* gameState, bool left, Physics::PhysBody* parent, glm::vec3& anchor)
     {
         Physics::PhysBodyDef def = {};
+        def.shape = Physics::PhysBodyShape::PB_OBB;
         float size = 2;
         def.halfDim = glm::vec3(2 * size, size, 0.5);
         def.flags = Physics::PhysBodyFlag_Collides;
@@ -261,6 +291,7 @@ namespace GameCode
     Entity* addRagdollThigh(GameState* gameState, bool left, Physics::PhysBody* parent, glm::vec3& anchor)
     {
         Physics::PhysBodyDef def = {};
+        def.shape = Physics::PhysBodyShape::PB_OBB;
         float size = 2;
         def.halfDim = glm::vec3(size, 2 * size, 0.5);
         def.flags = Physics::PhysBodyFlag_Collides;
@@ -289,6 +320,7 @@ namespace GameCode
     Entity* addRagdollLeg(GameState* gameState, bool left, Physics::PhysBody* parent, glm::vec3& anchor)
     {
         Physics::PhysBodyDef def = {};
+        def.shape = Physics::PhysBodyShape::PB_OBB;
         float size = 2;
         def.halfDim = glm::vec3(size, 2.5 * size, 0.5);
         def.flags = Physics::PhysBodyFlag_Collides;
@@ -446,7 +478,7 @@ namespace GameCode
 
         Physics::PhysBody* pb = &entity->physBody;
         pb->id = index;
-        pb->initAsBox(def);
+        pb->initFromPhysBodyDef(def);
 
         return entity;
     }
@@ -522,10 +554,12 @@ namespace GameCode
             RemoveJoint(gameState, gameState->mouseJointIndex);
             gameState->mouseJointIndex = -1;
 
+            /*
             if (jointcounter == 2)
             {
         //        debug = true;
             }
+            */
         }
     }
 
@@ -585,13 +619,19 @@ namespace GameCode
                         // gameState->mouseJointEntityIndex = gameState->numEntities - 1;
 
 
-                        jointcounter++;
-                        if (jointcounter == 2)
-                        {
-                    //        debug = true;
-                        }
+//                        jointcounter++;
                         break;
-                    }  
+                    }
+                }
+                else if (entity->physBody.shapeData.shape == Physics::PhysBodyShape::PB_SPHERE)
+                {
+                    if (Physics::testPointInsideSphere2D(raycastDirection, entity->physBody.shapeData.sphere, entity->physBody.position))
+                    {
+                        glm::vec3 anchor(raycastDirection.x, raycastDirection.y, 0);
+                        addMouseJoint(gameState, anchor, &entity->physBody, true);
+
+                        gameState->mouseJointIndex = gameState->numJoints - 1;
+                    }
                 }
             }
         }
@@ -697,15 +737,22 @@ namespace GameCode
         floor->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
 
         
-        addCharacterBox(gameState);
+    //    addCharacterBox(gameState);
 
-        for (int i = 0; i < 10; i++)
+        /*
+        for (int i = 0; i < 1; i++)
         {
             addRandomBox(gameState, i);
         }
+        */
+        
+        for (int i = 0; i < 2; i++)
+        {
+            addRandomSphere(gameState, i);
+        }
         
 
-        addRagdoll(gameState);
+     //   addRagdoll(gameState);
 
 
      //   prev = &floor->physBody;

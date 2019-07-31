@@ -17,7 +17,7 @@ using namespace std;
 enum EntityType
 {
     None,
-    Ball,
+    Sphere,
     Box,
     Floor,
     Wall,
@@ -116,7 +116,7 @@ struct Entity
         bool canRender();
         bool shouldRender();
 
-        void renderCore(Pipeline& p, Renderer* r);
+    //    void renderCore(Pipeline& p, Renderer* r);
 
         // p211, holds the amount of damping applied to angular motion. Damping
         // is required to remove energy added through numerical instability in the integrator

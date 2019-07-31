@@ -58,7 +58,7 @@ class ModelManager
         static void buildCubeModel(Model* model, glm::vec3 maxP, glm::vec3 minP);
         static void buildXYZModel(Model* model);
         static void buildArrowModel(Model* model);
-        static void buildCircleModel(Model* model, float radius, float thickness);
+        static void buildCircleOutlineModel(Model* model, float radius, float thickness);
 
 
 // change all these to just data

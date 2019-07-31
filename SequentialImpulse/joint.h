@@ -181,9 +181,9 @@ namespace Physics
 
         // designer selects frequency and damping ratio
         // frequency and period T = `1/f.  so the 
-        float frequency = 5;
+        float frequency = 500;
         float omega = 2.0f * 3.14f * frequency;
-        float dampingRatio = 0.7;
+        float dampingRatio = 1.0;
 
         // we compute spring-damper coefficients 
         float c = 2.0f * joint.a->mass * dampingRatio * omega;
@@ -194,7 +194,7 @@ namespace Physics
         float gamma = dt_s * (c + dt_s * k);
         gamma = 1.0f / gamma;
         float beta = dt_s * k * gamma;
-    //    beta = 1.0f / dt_s;
+        beta = 1.0f / dt_s;
 
         float col00 = imA + iiA * joint.rA.y * joint.rA.y + gamma;
         float col01 = -iiA * joint.rA.x * joint.rA.y;

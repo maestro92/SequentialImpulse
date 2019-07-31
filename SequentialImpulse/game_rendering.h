@@ -9,6 +9,17 @@
 
 namespace GameRendering
 {
+    void render(Model* model, Pipeline &p, Entity& ent, Renderer* r)
+    {
+        p.pushMatrix();
+            p.translate(ent.physBody.position);
+            p.addMatrix(ent.physBody.orientationMat);
+            p.scale(ent.physBody.scale);
+            r->setUniLocs(p);
+            model->render();
+        p.popMatrix();
+    }
+
     void render(Model* model, Pipeline &p, glm::vec3 position, glm::mat4 orientation, glm::vec3 scale, Renderer* r)
     {
         p.pushMatrix();
@@ -54,10 +65,16 @@ namespace GameRendering
 
         for (int i = 0; i < gameState->numEntities; i++)
         {
-            if (entities[i].physBody.flags & Physics::PhysBodyFlag_Static)
+            if (entities[i].entityType == EntityType::Floor)
             {
                 p_renderer->setData(R_FULL_COLOR::u_color, COLOR_GRAY);
-                gameState->entities[i].renderCore(gameState->mainCamera.getPipeline(), p_renderer);
+                render(global.modelMgr->get(ModelEnum::unitCenteredQuad), gameState->mainCamera.getPipeline(), gameState->entities[i], p_renderer);
+            }
+            else if (entities[i].entityType == EntityType::Sphere)
+            {
+                p_renderer->setData(R_FULL_COLOR::u_color, COLOR_BLACK);
+            //    render(global.modelMgr->get(ModelEnum::circle), gameState->mainCamera.getPipeline(), gameState->entities[i], p_renderer);
+                render(global.modelMgr->get(ModelEnum::circleOutline), gameState->mainCamera.getPipeline(), gameState->entities[i], p_renderer);
             }
             else if (entities[i].entityType == EntityType::Box)
             {
@@ -92,17 +109,12 @@ namespace GameRendering
                             p_renderer->setData(R_FULL_COLOR::u_color, COLOR_AZURE);
                         }
                     }
-                    gameState->entities[i].renderCore(gameState->mainCamera.getPipeline(), p_renderer);
 
+                    render(global.modelMgr->get(ModelEnum::unitCenteredQuad), gameState->mainCamera.getPipeline(), gameState->entities[i], p_renderer);
                 }
 
                 p_renderer->setData(R_FULL_COLOR::u_color, COLOR_BLACK);
-
-                render(global.modelMgr->get(ModelEnum::unitCenteredQuadOutline), gameState->mainCamera.getPipeline(),
-                    gameState->entities[i].physBody.position,
-                    gameState->entities[i].physBody.orientationMat,
-                    gameState->entities[i].physBody.scale,
-                    p_renderer);
+                render(global.modelMgr->get(ModelEnum::unitCenteredQuadOutline), gameState->mainCamera.getPipeline(), gameState->entities[i], p_renderer);
             }
 
         //         
@@ -158,9 +170,9 @@ namespace GameRendering
         {
             if (gameState->entities[i].entityType == EntityType::XYZAxis)
             {
-                gameState->entities[i].renderCore(gameState->mainCamera.getPipeline(), p_renderer);
+                render(global.modelMgr->get(ModelEnum::xyzAxis), gameState->mainCamera.getPipeline(), gameState->entities[i], p_renderer);
             }
-            else if (!entities[i].physBody.flags & Physics::PhysBodyFlag_Static)
+            else if ( (entities[i].physBody.flags & Physics::PhysBodyFlag_Static) != Physics::PhysBodyFlag_Static)
             {
                 render(global.modelMgr->get(ModelEnum::xyzAxis), gameState->mainCamera.getPipeline(),
                     gameState->entities[i].physBody.position,
