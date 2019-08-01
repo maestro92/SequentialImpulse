@@ -21,7 +21,7 @@ void ModelManager::init()
     buildQuadModel(&m_models[ModelEnum::unitCenteredQuad], glm::vec3(-1,-1, -1), glm::vec3(1, 1, 1));
     buildQuadOutlineModel(&m_models[ModelEnum::unitCenteredQuadOutline], glm::vec3(-1, -1, -1), glm::vec3(1, 1, 1), 0.1);
     buildXYZModel(&m_models[ModelEnum::xyzAxis]);
-    buildCircleOutlineModel(&m_models[ModelEnum::circleOutline], 1, 0.1);
+    buildCircleOutlineModel(&m_models[ModelEnum::circleOutline], 1, 0.05);
     buildArrowModel(&m_models[ModelEnum::arrow]);
 }
 

@@ -209,6 +209,11 @@ namespace Physics
                 0, 0, m22);
         }
 
+        bool IsStatic()
+        {
+            return (flags & Physics::PhysBodyFlag_Static) == Physics::PhysBodyFlag_Static;
+        }
+
         bool DoesCollides()
         {
             return (flags & Physics::PhysBodyFlag_Collides) == Physics::PhysBodyFlag_Collides;

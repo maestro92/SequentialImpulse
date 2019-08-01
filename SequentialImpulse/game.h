@@ -117,19 +117,19 @@ namespace GameCode
         Physics::PhysBodyDef def = {};
 
         def.shape = Physics::PhysBodyShape::PB_SPHERE;
-        float size = 3;
+        float size = 2;
         def.halfDim = glm::vec3(size, size, 0.5);
         def.flags = Physics::PhysBodyFlag_Collides;
         def.mass = 5;
         float xOffset = 0;
 
-        def.pos = glm::vec3(0, (height + 1) * 10, 0);
+        // def.pos = glm::vec3(5, 2 + height * 5, 0);
 
-        /*
+        
         def.pos = glm::vec3(utl::randFloat(-20, 20) + xOffset,
             utl::randFloat(5, 20),
             0);
-            */
+           
         def.rot = glm::rotate(0.0f, glm::vec3(0, 0, 1));
 
         def.hasJoint = false;
@@ -169,10 +169,18 @@ namespace GameCode
         def.flags = Physics::PhysBodyFlag_Collides;
         def.mass = 5;
         float xOffset = 0;
+
+        def.pos = glm::vec3(0, 5, 0);
+
+        /*
         def.pos = glm::vec3(utl::randFloat(-20, 20) + xOffset,
                             utl::randFloat(5, 20),
                             0);
-        float rot = utl::randFloat(0, 360);
+                            */
+      
+        float rot = 0;
+
+        // float rot = utl::randFloat(0, 360);
         def.rot = glm::rotate(rot, glm::vec3(0, 0, 1));
         
 
@@ -739,14 +747,14 @@ namespace GameCode
         
     //    addCharacterBox(gameState);
 
-        /*
-        for (int i = 0; i < 1; i++)
+        
+        for (int i = 0; i < 10; i++)
         {
             addRandomBox(gameState, i);
         }
-        */
         
-        for (int i = 0; i < 2; i++)
+        
+        for (int i = 0; i < 10; i++)
         {
             addRandomSphere(gameState, i);
         }
@@ -1422,7 +1430,7 @@ namespace GameCode
 
 
    //     cout << "gameState->numContacts" << gameState->numContacts << endl;
-
+   //     cout << "tick" << endl;
         int velocityIterations = 4;
         for (int i = 0; i < velocityIterations; i++)
         {

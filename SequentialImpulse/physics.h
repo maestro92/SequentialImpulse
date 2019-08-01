@@ -105,7 +105,7 @@ namespace Physics
         enum Type
         {
             CIRCLES,
-            REFERENCE_FACE_CIRCLE,
+            CIRCLE_REFERENCE_FACE,
             REFERENCE_FACE_A,
             REFERENCE_FACE_B,
         };
@@ -132,6 +132,7 @@ namespace Physics
         // for circle to circle colliison, this is circle A radius
         // for face-vertex collision,
 
+        // these two are mainly used in solving the velocity constraint
         glm::vec3 normal;
         glm::vec3 tangent;
 
@@ -188,17 +189,7 @@ namespace Physics
     float restitution = 0.0;
     bool hasPolygonsCollided = false;
 
-       
-    void GetOBBInertiaTensor()
-    {
-
-    }
-
-
-    void GetSphereInertiaTensor()
-    {
-
-    }
+      
 
     bool testPointInsideSphere2D(glm::vec3 point, Sphere s, glm::vec3 sPos)
     {
@@ -230,12 +221,6 @@ namespace Physics
         // OBB after is just an rotated AABB
     }
 
-
-
-    void TestSphereSphere(ContactManifold& contact)
-    {
-        // to be done.
-    }
 
 
     // we prefer to use piont-face contacts if we can.
@@ -287,7 +272,7 @@ namespace Physics
 
         if (ball2PlaneDist <= 0)
         {
-            contactManifold.type = ContactManifold::Type::REFERENCE_FACE_CIRCLE;
+            contactManifold.type = ContactManifold::Type::CIRCLE_REFERENCE_FACE;
 
             contactManifold.localPoint = p.point;
             contactManifold.localNormal = p.normal;
@@ -617,27 +602,164 @@ namespace Physics
     }
 
 
-    void GetOBBSphereContacts(OBB a, PhysBody* aBody, Sphere b, PhysBody* bBody, ContactManifold& contactManifold)
-    {
 
+    
+    bool TestOBBSphereEarlyOut(OBB obbA, Sphere sphereB, glm::vec3 localSphereCenter)
+    {
+        if ( ( (abs(localSphereCenter.x) - sphereB.radius) > obbA.halfEdges.x) ||
+             ( (abs(localSphereCenter.y) - sphereB.radius) > obbA.halfEdges.y) )
+        {
+            return 0;
+        }
+        return 1;
+    }
+    
+
+
+    void GetSphereOBBContacts(Sphere sphereA, PhysBody* bodyA, OBB obbB, PhysBody* bodyB, ContactManifold& contactManifold)
+    {
+        // represent the sphere in OBB key frame
+        glm::vec3 c = glm::mat3(bodyA->orientationMat) * sphereA.center + bodyA->position;
+        glm::vec3 localC = glm::inverse(glm::mat3(bodyB->orientationMat)) * (c - bodyB->position);
+
+
+
+        // first check if they overlap
+        if (!TestOBBSphereEarlyOut(obbB, sphereA, localC))
+        {
+            return;
+        }
+
+        float dist = 0;
+
+        glm::vec3 closestPoint = glm::vec3(0.0);
+        
+        float minPenetration = FLT_MAX;
+        int minPenetrationAxisIndex = -1;
+        int axisDirection = 0;
+        float interiorPenetration = 0;
+
+        bool clamped = false;
+        for (int i = 0; i < 2; i++)
+        {
+            dist = localC[i];
+            if (dist > obbB.halfEdges[i])
+            {
+                dist = obbB.halfEdges[i];
+            }
+            else
+            {
+                interiorPenetration = abs(obbB.halfEdges[i] - localC[i]);
+                if (interiorPenetration < minPenetration)
+                {
+                    minPenetrationAxisIndex = i;
+                    axisDirection = 1;
+                }
+            }
+
+            if (dist < -obbB.halfEdges[i])
+            {
+                dist = -obbB.halfEdges[i];
+            }
+            else
+            {
+                interiorPenetration = abs(localC[i] - obbB.halfEdges[i]);
+                if (interiorPenetration < minPenetration)
+                {
+                    minPenetrationAxisIndex = i;
+                    axisDirection = -1;
+                }
+
+            }
+
+            closestPoint[i] = dist;
+        }
+
+        dist = glm::length2(closestPoint - localC);
+
+        if (dist > sphereA.radius * sphereA.radius)
+        {
+            return;
+        }
+
+
+        contactManifold.type = ContactManifold::Type::CIRCLE_REFERENCE_FACE;
+
+        // if sphere center is inside the polygon
+        if (dist < FLT_EPSILON)
+        {
+            // choose the min separation axis, clamp to that face
+            if (minPenetrationAxisIndex == 0)
+            {
+                contactManifold.localPoint = localC;
+                contactManifold.localPoint.x = axisDirection * obbB.halfEdges.x;
+                contactManifold.localNormal = (float)axisDirection * glm::vec3(1.0, 0.0, 0.0);
+            }
+            else if (minPenetrationAxisIndex == 1)
+            {
+                contactManifold.localPoint = localC;
+                contactManifold.localPoint.y = axisDirection * obbB.halfEdges.y;
+                contactManifold.localNormal = (float)axisDirection * glm::vec3(1.0, 0.0, 0.0);
+            }
+            else
+            {
+                assert(0);
+            }
+            contactManifold.localTangent = glm::cross(contactManifold.localNormal, glm::vec3(0.0, 0.0, 1.0));
+
+            glm::vec3 obbCenter = obbB.center + bodyB->position;
+
+            // we want normal to point from A to B
+            contactManifold.normal = -glm::mat3(bodyB->orientationMat) * contactManifold.localNormal;
+            contactManifold.tangent = glm::cross(contactManifold.normal, glm::vec3(0.0, 0.0, 1.0));
+        }
+        else
+        {
+            contactManifold.localPoint = closestPoint;
+            contactManifold.localNormal = glm::normalize(localC - closestPoint);
+            contactManifold.localTangent = glm::cross(contactManifold.localNormal, glm::vec3(0.0, 0.0, 1.0));
+
+
+            glm::vec3 obbCenter = obbB.center + bodyB->position;
+            contactManifold.normal = glm::normalize(obbCenter - c);
+            contactManifold.tangent = glm::cross(contactManifold.normal, glm::vec3(0.0, 0.0, 1.0));
+        }
+
+        contactManifold.contactPoints[0].localPosition = sphereA.center;
+        contactManifold.numContactPoints++;
+
+        
+
+        // find closest point in the box to the center of the sphere
+        // this closest point may be in a corner of the box, or on a face
+
+        // if the distance beteen the closest point and the center of the sphere is less than the r of the sphere
+
+
+        // transform the center of the sphere into box local coordinates
     }
 
     // for circles, we dont use the localNormal
-    void GetSphereSphereContacts(Sphere s0, PhysBody* sBody0, Sphere s1, PhysBody* sBody1, ContactManifold& contactManifold)
+    void GetSphereSphereContacts(Sphere sphereA, PhysBody* bodyA, Sphere sphereB, PhysBody* bodyB, ContactManifold& contactManifold)
     {
         // from a to b
-        glm::vec3 aToB = s1.center + sBody1->position - s0.center - sBody0->position;
+        glm::vec3 aToB = sphereB.center + bodyB->position - sphereA.center - bodyA->position;
         float distSquared = glm::dot(aToB, aToB);
-        float radiusSum = s1.radius + s0.radius;
+        float radiusSum = sphereB.radius + sphereA.radius;
 
         if (distSquared <= radiusSum * radiusSum)
         {
             contactManifold.type = ContactManifold::Type::CIRCLES;
 
-            contactManifold.localPoint = s0.center;
+            contactManifold.localPoint = sphereA.center;
             contactManifold.localNormal = glm::vec3(0.0);
 
-            contactManifold.contactPoints[0].localPosition = s1.center;
+            contactManifold.contactPoints[0].localPosition = sphereB.center;
+
+
+            contactManifold.normal = glm::normalize(aToB);     // this needs to be from A to B
+            contactManifold.tangent = glm::cross(contactManifold.normal, glm::vec3(0.0, 0.0, 1.0));
+
             contactManifold.numContactPoints++;           
         }
     }
@@ -999,11 +1121,12 @@ namespace Physics
             contact.type = ContactManifold::Type::REFERENCE_FACE_B;
 
             contact.localPoint = p.point;
-            contact.normal = -p.normal;     // this needs to be from A to B
-            contact.tangent = glm::cross(contact.normal, glm::vec3(0.0, 0.0, 1.0));
-
             contact.localNormal = p.normal; // this is the normal of the face, so we dont want the - sign
             contact.localTangent = glm::cross(contact.localNormal, glm::vec3(0.0, 0.0, 1.0));
+
+
+            contact.normal = -p.normal;     // this needs to be from A to B
+            contact.tangent = glm::cross(contact.normal, glm::vec3(0.0, 0.0, 1.0));
         }
     };
 
@@ -1315,7 +1438,7 @@ namespace Physics
          //   if (hasPolygonsCollided)
             {
             //    print = true;
-                print = false;
+            //    print = false;
             }
         }
     //    SolveTangentVelocityConstraints(cp, a, b, dt_s);
@@ -1348,18 +1471,18 @@ namespace Physics
             utl::debug("        normal ", normal);
         }
 
-        assert(glm::dot(aToB, normal) >= 0);
+        // assert(glm::dot(aToB, normal) >= 0);
 
 
 
 
-        if (a->id == 0 && b->id == 1)
+        if (a->id == 2 && b->id == 3)
         {
             int c = 1;
         //    print = true;
         }
 
-        /*
+        
         if (print)
         {
             utl::debug("         normal", normal);
@@ -1368,7 +1491,7 @@ namespace Physics
             utl::debug("         cp.desiredSeparatingVelocity", cp.desiredSeparatingVelocity);
             utl::debug("         vn", vn);
         }
-        */
+        
         /*
         if (flag)
         {
@@ -1383,14 +1506,14 @@ namespace Physics
         // this is the lambda for the impulse
         float effectiveMass = computeEffectiveInvMass(cp, normal, a, b);
         float lambda = effectiveMass * numerator;
-/*
+
         if (print)
         {
             utl::debug("         effectiveMass", effectiveMass);
             utl::debug("         lambda", lambda);
             utl::debug("         cp.normalImpulse ", cp.normalImpulse);
         }
-        */
+        
             //    if (flag)
      /* 
         {
@@ -1413,45 +1536,45 @@ namespace Physics
         }
 
         glm::vec3 newImpulseVec = lambda * normal;
-        /*
+        
         if (print)
         { 
             utl::debug("         before a->velocity", a->velocity);
             utl::debug("         before a->angularVelocity", a->angularVelocity);
         }
-        */
+        
         a->velocity -= newImpulseVec * a->invMass;
         a->angularVelocity -= a->inverseInertiaTensor * glm::cross(cp.relativeContactPositions[0], newImpulseVec);
 
-        /*
+        
         if (print)
         {
             utl::debug("            after a->velocity", a->velocity);
             utl::debug("            after a->angularVelocity", a->angularVelocity);
         }
-        */
+        
 
         // if (  !((b->flags >> Physics::PhysBodyFlag_Static) & 1U) )
         if ( !(b->flags & Physics::PhysBodyFlag_Static))
         {
-            /*
+            
             if (print)
             {
                 utl::debug("         before b->velocity", b->velocity);
                 utl::debug("         before b->angularVelocity", b->angularVelocity);
             }
-            */
+            
             b->velocity += newImpulseVec * b->invMass;
             b->angularVelocity += b->inverseInertiaTensor * glm::cross(cp.relativeContactPositions[1], newImpulseVec);
 
-            /*
+            
             if (print)
             {
                 utl::debug("            after b->velocity", b->velocity);
                 utl::debug("            after b->angularVelocity", b->angularVelocity);
                 cout << endl << endl;
             }
-            */
+            
         }
     }
 
@@ -1509,6 +1632,7 @@ namespace Physics
         }
 
 
+
         // TODO: change this into switch statement
         if (contactManifold->type == Physics::ContactManifold::CIRCLES)
         {
@@ -1522,8 +1646,9 @@ namespace Physics
             manifold.penetration = a->shapeData.sphere.radius + b->shapeData.sphere.radius - glm::length(aToB);
 
   //          if (useHalfPoint)
+            if(manifold.penetration > 0)
             {
-            //    manifold.point = p0 + manifold.normal * (a->shapeData.sphere.radius - 0.5f * manifold.penetration);// -glm::vec3(0.0, 0.01, 0.0);
+                 manifold.point = aPos + manifold.normal * (a->shapeData.sphere.radius - 0.5f * manifold.penetration);// -glm::vec3(0.0, 0.01, 0.0);
             }
 
             manifold.point = 0.5f * (aPos + bPos);
@@ -1533,7 +1658,7 @@ namespace Physics
 
             }
         }
-        else if (contactManifold->type == Physics::ContactManifold::REFERENCE_FACE_CIRCLE)
+        else if (contactManifold->type == Physics::ContactManifold::CIRCLE_REFERENCE_FACE)
         {
             manifold.normal = glm::mat3(b->orientationMat) * contactManifold->localNormal; 
             glm::vec3 planePoint = b->position + glm::mat3(b->orientationMat) * contactManifold->localPoint;
@@ -1635,7 +1760,7 @@ namespace Physics
 
             cp.relativeContactPositions[0] = manifold.point - a->position;
 
-            if (!(b->flags & Physics::PhysBodyFlag_Static))
+            if (!b->IsStatic())
             {
                 cp.relativeContactPositions[1] = manifold.point - b->position;
             }
@@ -1711,7 +1836,7 @@ namespace Physics
         {
             ContactManifold& contact = contactManifolds[i];
             print = false;
-            if (contact.a->id == 8 && contact.b->id == 9)
+            if (contact.a->id == 2 && contact.b->id == 3)
             {
                 int c = 1;
 
@@ -1751,7 +1876,7 @@ namespace Physics
                 }
 
                 // apparently not even box2d really handles this, so im gonna temporary comment this line out
-           //     assert(glm::dot(aToB, positionManifold.normal) >= 0);
+            //    assert(glm::dot(aToB, positionManifold.normal) >= 0);
 
                 // we track the largest penetration
                 largestPenetration = max(largestPenetration, positionManifold.penetration);
@@ -1824,8 +1949,7 @@ namespace Physics
                     //    utl::debug("        impulsePerInvMassVec ", impulsePerInvMassVec);
                 }
 
-                if (!(contact.b->flags & Physics::PhysBodyFlag_Static))
-
+                if (!contact.b->IsStatic())
                 {
                     float angle = atan2(contact.b->orientationMat[1][0], contact.b->orientationMat[0][0])* 180.0f / 3.14f;
 
@@ -1885,20 +2009,22 @@ namespace Physics
             GenerateContactInfo(b, a, contact);
         }
 
-        // OBB vs circle
-        else if (a->shapeData.shape == PhysBodyShape::PB_OBB && b->shapeData.shape == PhysBodyShape::PB_SPHERE)
-        {
-            /*
+
+
+        // circle vs OBB 
+        else if (a->shapeData.shape == PhysBodyShape::PB_SPHERE && b->shapeData.shape == PhysBodyShape::PB_OBB)
+        {            
             contact.a = a;
             contact.b = b;
 
-            GetOBBPlaneContacts(a->shapeData.obb, a, b->shapeData.plane, b, contact);
-            */
+            GetSphereOBBContacts(a->shapeData.sphere, a, b->shapeData.obb, b, contact);            
         }
-        else if (a->shapeData.shape == PhysBodyShape::PB_SPHERE && b->shapeData.shape == PhysBodyShape::PB_OBB)
+        else if (a->shapeData.shape == PhysBodyShape::PB_OBB && b->shapeData.shape == PhysBodyShape::PB_SPHERE)
         {
             GenerateContactInfo(b, a, contact);
         }
+
+
 
         // circle vs plane
         else if (a->shapeData.shape == PhysBodyShape::PB_SPHERE && b->shapeData.shape == PhysBodyShape::PB_PLANE)
