@@ -79,13 +79,16 @@ namespace Physics
         }
 
 
-        float col00 = imA + iiA * joint.rA.y * joint.rA.y + imB + iiB * joint.rB.y * joint.rB.y;
-        float col01 = -iiA * joint.rA.x * joint.rA.y -iiB * joint.rB.x * joint.rB.y;
+        float col00 = imA + iiA * joint.rA.y * joint.rA.y + 
+                      imB + iiB * joint.rB.y * joint.rB.y;
+
+        float col01 = -iiA * joint.rA.x * joint.rA.y 
+                      -iiB * joint.rB.x * joint.rB.y;
 
 
         float col10 = col01;
-        float col11 = imA + iiA * joint.rA.x * joint.rA.x +
-            imB + iiB * joint.rB.x * joint.rB.x;
+        float col11 = imA + iiA * joint.rA.x * joint.rA.x + 
+                      imB + iiB * joint.rB.x * joint.rB.x;
 
 
 
@@ -122,8 +125,8 @@ namespace Physics
     {
         float positionError = 0.0f;
 
-        joint.rA = glm::mat3(joint.a->orientationMat) * joint.aLocalAnchor;
-        joint.rB = glm::mat3(joint.b->orientationMat) * joint.bLocalAnchor;
+        glm::vec3 rA = glm::mat3(joint.a->orientationMat) * joint.aLocalAnchor;
+        glm::vec3 rB = glm::mat3(joint.b->orientationMat) * joint.bLocalAnchor;
 
         float imA = joint.a->invMass;
         float iiA = joint.a->inverseInertiaTensor[2][2];
@@ -137,15 +140,18 @@ namespace Physics
         }
 
         // the constraint
-        glm::vec3 C = joint.b->position + joint.rB - joint.a->position - joint.rA;
+        glm::vec3 C = joint.b->position + rB - joint.a->position - rA;
 
         positionError = glm::length(C);
 
-        float col00 = joint.a->invMass + iiA * joint.rA.y * joint.rA.y + joint.b->invMass + iiB * joint.rB.y * joint.rB.y;
-        float col01 = -iiA * joint.rA.x * joint.rA.y - iiB * joint.rB.x * joint.rB.y;
+        float col00 = joint.a->invMass + iiA * rA.y * rA.y + 
+                      joint.b->invMass + iiB * rB.y * rB.y;
+        float col01 = -iiA * rA.x * rA.y 
+                      -iiB * rB.x * rB.y;
 
         float col10 = col01;
-        float col11 = joint.a->invMass + iiA * joint.rA.x * joint.rA.x + joint.b->invMass + iiB * joint.rB.x * joint.rB.x;
+        float col11 = joint.a->invMass + iiA * rA.x * rA.x + 
+                      joint.b->invMass + iiB * rB.x * rB.x;
 
 
 
@@ -159,13 +165,13 @@ namespace Physics
 
 
         joint.a->position -= impulse * joint.a->invMass;
-        glm::vec3 rotation = -joint.a->inverseInertiaTensor * glm::cross(joint.rA, impulse);
+        glm::vec3 rotation = -joint.a->inverseInertiaTensor * glm::cross(rA, impulse);
         joint.a->addRotation(rotation, 1.0);
 
         if (!(joint.b->flags & Physics::PhysBodyFlag_Static))
         {
             joint.b->position += impulse * joint.b->invMass;
-            rotation = joint.b->inverseInertiaTensor * glm::cross(joint.rB, impulse);
+            rotation = joint.b->inverseInertiaTensor * glm::cross(rB, impulse);
             joint.b->addRotation(rotation, 1.0);
         }
         return positionError <= LINEAR_SLOP;
@@ -181,7 +187,7 @@ namespace Physics
 
         // designer selects frequency and damping ratio
         // frequency and period T = `1/f.  so the 
-        float frequency = 500;
+        float frequency = 5;
         float omega = 2.0f * 3.14f * frequency;
         float dampingRatio = 1.0;
 
@@ -194,7 +200,7 @@ namespace Physics
         float gamma = dt_s * (c + dt_s * k);
         gamma = 1.0f / gamma;
         float beta = dt_s * k * gamma;
-        beta = 1.0f / dt_s;
+     //   beta = 1.0f / dt_s;
 
         float col00 = imA + iiA * joint.rA.y * joint.rA.y + gamma;
         float col01 = -iiA * joint.rA.x * joint.rA.y;
@@ -281,14 +287,11 @@ namespace Physics
     {
         switch (joint.type)
         {
-            switch (joint.type)
-            {
             case MOUSE_JOINT:
                 return true;
 
             case RESOLUTE_JOINT:
-                return SolveResoluteJointPositionConstraints(joint);
-            }
+                return SolveResoluteJointPositionConstraints(joint);            
         }
         return true;
     }

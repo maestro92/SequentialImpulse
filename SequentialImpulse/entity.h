@@ -19,6 +19,7 @@ enum EntityType
     None,
     Sphere,
     Box,
+    Capsule,
     Floor,
     Wall,
     Character,
@@ -76,8 +77,6 @@ struct Entity
      //   char name[16];
         EntityType entityType;
 
-        void init();
-
         glm::mat4 modelMatrix;
 
         // position, velocity,
@@ -100,12 +99,10 @@ struct Entity
 
         bool active;
 
-        Model* m_model;
+     //   Model* m_model;
       
 
-
-        inline void setModel(Model* model);
-        inline void resetModel();
+;
         inline void updateModelMatrix();
 
         glm::vec3 m_xAxis;
@@ -139,7 +136,7 @@ struct Entity
 
 
 
-
+/*
 inline void Entity::setModel(Model* model)
 {
 	m_model = model;
@@ -150,7 +147,7 @@ inline void Entity::resetModel()
 	// we don't delete it here, cuz model manager owns the actual models
 	m_model = NULL;
 }
-
+*/
 
 inline void Entity::updateModelMatrix()
 {

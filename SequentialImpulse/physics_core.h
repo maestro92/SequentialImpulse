@@ -13,8 +13,6 @@ namespace Physics
         PhysBodyFlag_Static = (1 << 1),
         PhysBodyFlag_Awake = (1 << 2),
         PhysBodyFlag_FixedRotation = (1 << 3),
-
-
     };
 
     enum PhysBodyShape
@@ -67,10 +65,19 @@ namespace Physics
         glm::vec3 point;
     };
 
+    struct AABB
+    {
+        glm::vec3 min;
+        glm::vec3 max;
+
+        glm::vec3 getBoundsHalfDim()
+        {
+            return (max - min) / 2.0f;
+        }
+    };
 
 
-
-
+    struct PhysBody;
     struct PhysBodyShapeData
     {
         PhysBodyShape shape;
@@ -80,11 +87,20 @@ namespace Physics
             Plane plane;
             Sphere sphere;
         };
+        float mass;
+        PhysBody* physBody;
 
-        void InitAsSphere(float radius)
+        PhysBodyShapeData()
+        {
+
+        }
+
+
+
+        void InitAsSphere(glm::vec3 center, float radius)
         {
             shape = Physics::PhysBodyShape::PB_SPHERE;
-            sphere.center = glm::vec3(0.0);
+            sphere.center = center;
             sphere.radius = radius;
         }
 
@@ -93,24 +109,22 @@ namespace Physics
 
         }
 
-        void InitAsOBB(glm::vec3 halfDim)
+        void InitAsOBB(glm::vec3 center, glm::vec3 halfDim)
         {
             shape = Physics::PhysBodyShape::PB_OBB;
-            obb.center = glm::vec3(0, 0, 0);
+            obb.center = center;
+            obb.halfEdges = halfDim;
             obb.axes[0] = glm::vec3(1, 0, 0);
             obb.axes[1] = glm::vec3(0, 1, 0);
             obb.axes[2] = glm::vec3(0, 0, 1);
-            obb.halfEdges = halfDim;
         }
+
     };
 
 
 
     struct PhysBodyDef
     {
-        PhysBodyShape shape;
-        glm::vec3 halfDim;
-        float mass;
         glm::vec3 pos;
         glm::mat4 rot;
         bool hasJoint;
@@ -120,8 +134,11 @@ namespace Physics
 
     struct PhysBody
     {
+        PhysBodyShapeData shapes[4];
+        int numShapes;
+
         int id;
-        PhysBodyShapeData shapeData;
+//        PhysBodyShapeData shapeData;
         unsigned int flags;
         float mass;
         float invMass;
@@ -162,6 +179,86 @@ namespace Physics
             torqueAccum = glm::vec3(0.0);
         }
 
+        void ResetMassData()
+        {
+            mass = 0;
+            inertiaTensor = glm::mat3(0.0);
+            for (int i = 0; i < numShapes; i++)
+            {
+                mass += shapes[i].mass;
+
+                // if we want to do this correclty for a capsule, we want 
+                // two hemistphere + cylinder for a capsule
+                if (!HasFixedRotation())
+                {
+                    switch (shapes[i].shape)
+                    {
+                        // only calculating this for z axis
+                        case PB_OBB:
+                        {
+                            inertiaTensor += GetBoxInertiaTensor(shapes[i].mass, shapes[i].obb.halfEdges);
+                            float rzSquared = shapes[i].obb.center.x * shapes[i].obb.center.x +
+                                shapes[i].obb.center.y * shapes[i].obb.center.y;
+
+                            float temp[9] = { 0, 0, 0,
+                                              0, 0, 0,
+                                              0, 0, rzSquared };
+                            glm::mat3 mds = shapes[i].mass * glm::make_mat3(temp);
+
+                            /*
+                            utl::debug("shapes[i].obb.halfEdges ", shapes[i].obb.halfEdges);
+
+                            utl::debug("rzSquared ", rzSquared);
+                            utl::debug("mds ", mds);
+                            */
+                            inertiaTensor += mds;
+                        }
+                        break;
+
+                        case PB_SPHERE:
+                        {
+                            inertiaTensor += GetSolidSphereInertiaTensor(shapes[i].mass, shapes[i].sphere.radius);
+                            float rzSquared = shapes[i].sphere.center.x * shapes[i].sphere.center.x +
+                                shapes[i].sphere.center.y * shapes[i].sphere.center.y;
+
+                            float temp[9] = { 0, 0, 0,
+                                              0, 0, 0,
+                                              0, 0, rzSquared };
+                            glm::mat3 mds = shapes[i].mass * glm::make_mat3(temp);
+                            inertiaTensor += mds;
+                        }
+                        break;
+                    }
+                }                
+            }
+
+        //    utl::debug("mass ", mass);
+        //    utl::debug("inertiaTensor ", inertiaTensor);
+
+            invMass = 1.0 / mass;
+
+            // use parallel axis theorem
+            glm::vec3 fakeDim = glm::vec3(2.0, 2.0, 2.0);
+
+            if (!HasFixedRotation())
+            {
+                transformInertiaTensor();
+            }
+            else
+            {
+                inertiaTensor = glm::mat3(0.0);
+                inverseInertiaTensor = glm::mat3(0.0);
+            }
+        }
+
+
+        void AddShape(PhysBodyShapeData* shape)
+        {
+            memcpy(&shapes[numShapes], shape, sizeof(PhysBodyShapeData));
+            shapes[numShapes].physBody = this;
+            numShapes++;
+        }
+
         void SetAwake(bool awake)
         {
             if (awake)
@@ -195,9 +292,9 @@ namespace Physics
 
         glm::mat3 GetBoxInertiaTensor(float mass, glm::vec3 halfDim)
         {
-            float dx = halfDim.x;
-            float dy = halfDim.y;
-            float dz = halfDim.z;
+            float dx = halfDim.x * 2;
+            float dy = halfDim.y * 2;
+            float dz = halfDim.z * 2;
 
             float oneOver12 = 1 / 12.0f;
             float m00 = oneOver12 * mass * (dy * dy + dz * dz);
@@ -207,6 +304,48 @@ namespace Physics
             return glm::mat3(m00, 0, 0,
                 0, m11, 0,
                 0, 0, m22);
+        }
+
+        AABB GetBoundingAABB()
+        {
+            glm::vec3 curmin(FLT_MAX);
+            glm::vec3 curmax(FLT_MIN);
+
+            for (int i = 0; i < numShapes; i++)
+            {                
+                switch (shapes[i].shape)
+                {
+                    case PB_OBB:
+                    {
+                        glm::vec3 min2 = shapes[i].obb.center - shapes[i].obb.halfEdges;
+                        glm::vec3 max2 = shapes[i].obb.center + shapes[i].obb.halfEdges;
+
+                        curmin = glm::min(curmin, min2);
+                        curmax = glm::max(curmax, max2);
+                    }
+                    break;
+
+                    case PB_SPHERE:
+                    {
+                        glm::vec3 min2 = shapes[i].sphere.center - shapes[i].sphere.radius;
+                        glm::vec3 max2 = shapes[i].sphere.center + shapes[i].sphere.radius;
+
+                        curmin = glm::min(curmin, min2);
+                        curmax = glm::max(curmax, max2);
+                    }
+                    break;
+                }
+            }
+
+            AABB aabb;
+            aabb.min = curmin;
+            aabb.max = curmax;
+            return aabb;
+        }
+
+        glm::mat3 GetCapsuleInertiaTensor()
+        {
+
         }
 
         bool IsStatic()
@@ -228,7 +367,6 @@ namespace Physics
         {
             Init();
             flags = def.flags;
-            mass = def.mass;
             invMass = 1.0f / mass;
             position = def.pos;
             glm::mat4 om = def.rot;
@@ -237,8 +375,9 @@ namespace Physics
 
             orientation = glm::toQuat(om);
             SyncOrientationMat();
-            scale = def.halfDim;
-
+            scale = glm::vec3(1.0);
+            //    scale = def.halfDim;
+            /*
             if (def.shape == PB_OBB)
             {
                 if (!HasFixedRotation())
@@ -276,7 +415,9 @@ namespace Physics
             {
                 assert(0);
             }
+            */
         }
+
 
 #if 0
         inline void Entity::setOrientation(glm::mat4 rot)

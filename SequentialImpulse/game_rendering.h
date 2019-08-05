@@ -5,6 +5,8 @@
 #include "global.h"
 #include "renderer_manager.h"
 #include "game.h"
+#include "physics_core.h"
+#include "physics.h"
 
 
 namespace GameRendering
@@ -31,6 +33,136 @@ namespace GameRendering
         p.popMatrix();
     }
 
+    void renderPhysBody(GameState* gameState, Physics::PhysBody* physBody, Renderer* renderer)
+    {
+        for (int i = 0; i < physBody->numShapes; i++)
+        {
+            Physics::PhysBodyShapeData* shapeData = &physBody->shapes[i];
+            
+            switch (shapeData->shape)
+            {
+                /*
+                case PB_PLANE:
+                    render(global.modelMgr->get(ModelEnum::unitCenteredQuadOutline), gameState->mainCamera.getPipeline(), gameState->entities[i], p_renderer);
+                    break;
+                */
+                case Physics::PhysBodyShape::PB_OBB:
+                {
+                    glm::vec3 pos = physBody->position + glm::mat3(physBody->orientationMat) * shapeData->obb.center;
+                    
+                    
+                    
+                    glm::vec3 scale = glm::vec3(shapeData->obb.halfEdges);
+
+                    if (physBody->hasJoint)
+                    {
+                        if (i % 2 == 0)
+                        {
+                            renderer->setData(R_FULL_COLOR::u_color, COLOR_PURPLE);
+                        }
+                        else
+                        {
+                            renderer->setData(R_FULL_COLOR::u_color, COLOR_ORANGE);
+                        }
+                    }
+                    else
+                    {
+                        if (physBody->HasFixedRotation())
+                        {
+                            renderer->setData(R_FULL_COLOR::u_color, COLOR_RED);
+                        }
+                        else
+                        {
+                            renderer->setData(R_FULL_COLOR::u_color, COLOR_AZURE);
+                        }
+                    }
+
+
+                    render(global.modelMgr->get(ModelEnum::unitCenteredQuad), gameState->mainCamera.getPipeline(),
+                        pos,
+                        physBody->orientationMat,
+                        scale,
+                        renderer);
+
+                    renderer->setData(R_FULL_COLOR::u_color, COLOR_BLACK);
+                    render(global.modelMgr->get(ModelEnum::unitCenteredQuadOutline), gameState->mainCamera.getPipeline(),
+                        pos,
+                        physBody->orientationMat,
+                        scale,
+                        renderer);
+                }
+                    break;
+
+                case Physics::PhysBodyShape::PB_SPHERE:    
+                {
+                    glm::vec3 pos = physBody->position + glm::mat3(physBody->orientationMat) * shapeData->sphere.center;
+                    glm::vec3 scale = glm::vec3(shapeData->sphere.radius);
+                    render(global.modelMgr->get(ModelEnum::circleOutline), gameState->mainCamera.getPipeline(),
+                        pos,
+                        physBody->orientationMat,
+                        scale,
+                        renderer);
+                }
+                break;
+            }
+        }
+    }
+    
+
+
+
+
+
+
+
+
+    void renderPhysBodyOutline(GameState* gameState, Physics::PhysBody* physBody, Renderer* renderer)
+    {
+        for (int i = 0; i < physBody->numShapes; i++)
+        {
+            Physics::PhysBodyShapeData* shapeData = &physBody->shapes[i];
+
+            switch (shapeData->shape)
+            {
+                /*
+                case PB_PLANE:
+                    render(global.modelMgr->get(ModelEnum::unitCenteredQuadOutline), gameState->mainCamera.getPipeline(), gameState->entities[i], p_renderer);
+                    break;
+                */
+            case Physics::PhysBodyShape::PB_OBB:
+            {
+                glm::vec3 pos = physBody->position + shapeData->sphere.center;
+                glm::vec3 scale = glm::vec3(shapeData->obb.halfEdges);
+
+                render(global.modelMgr->get(ModelEnum::xyzAxis), gameState->mainCamera.getPipeline(),
+                    pos,
+                    physBody->orientationMat,
+                    scale,
+                    renderer);
+            }
+            break;
+
+            case Physics::PhysBodyShape::PB_SPHERE:
+            {
+                glm::vec3 pos = physBody->position + shapeData->sphere.center;
+                glm::vec3 scale = glm::vec3(shapeData->sphere.radius);
+                render(global.modelMgr->get(ModelEnum::xyzAxis), gameState->mainCamera.getPipeline(),
+                    pos,
+                    physBody->orientationMat,
+                    scale,
+                    renderer);
+            }
+            break;
+            }
+        }
+    }
+
+
+
+
+
+
+
     void render(GameState* gameState)
     {
         gameState->mainCamera.getPipeline().setMatrixMode(MODEL_MATRIX);
@@ -54,8 +186,6 @@ namespace GameRendering
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-        //	mapView.render(mainCamera.getPipeline());
-
         Entity* entities = gameState->entities;
 
 
@@ -65,6 +195,8 @@ namespace GameRendering
 
         for (int i = 0; i < gameState->numEntities; i++)
         {
+
+
             if (entities[i].entityType == EntityType::Floor)
             {
                 p_renderer->setData(R_FULL_COLOR::u_color, COLOR_GRAY);
@@ -72,50 +204,24 @@ namespace GameRendering
             }
             else if (entities[i].entityType == EntityType::Sphere)
             {
-                p_renderer->setData(R_FULL_COLOR::u_color, COLOR_BLACK);
-            //    render(global.modelMgr->get(ModelEnum::circle), gameState->mainCamera.getPipeline(), gameState->entities[i], p_renderer);
-                render(global.modelMgr->get(ModelEnum::circleOutline), gameState->mainCamera.getPipeline(), gameState->entities[i], p_renderer);
+                renderPhysBody(gameState, &gameState->entities[i].physBody, p_renderer);
             }
+            else if (entities[i].entityType == EntityType::Capsule)
+            {
+                renderPhysBody(gameState, &gameState->entities[i].physBody, p_renderer);
+            }
+            
             else if (entities[i].entityType == EntityType::Box)
             {
+                renderPhysBody(gameState, &gameState->entities[i].physBody, p_renderer);
 
-/*
-                if (entities[i].physBody.isAwake == false)
-                {
-                    p_renderer->setData(R_FULL_COLOR::u_color, COLOR_GRAY);
-                }
-                else
-                */
-                {
-                    if (entities[i].physBody.hasJoint)
-                    {
-                        if (i % 2 == 0)
-                        {
-                            p_renderer->setData(R_FULL_COLOR::u_color, COLOR_PURPLE);
-                        }
-                        else
-                        {
-                            p_renderer->setData(R_FULL_COLOR::u_color, COLOR_ORANGE);
-                        }
-                    }
-                    else
-                    {
-                        if (entities[i].physBody.HasFixedRotation())
-                        {
-                            p_renderer->setData(R_FULL_COLOR::u_color, COLOR_RED);
-                        }
-                        else
-                        {
-                            p_renderer->setData(R_FULL_COLOR::u_color, COLOR_AZURE);
-                        }
-                    }
+//                    render(global.modelMgr->get(ModelEnum::unitCenteredQuad), gameState->mainCamera.getPipeline(), gameState->entities[i], p_renderer);
 
-                    render(global.modelMgr->get(ModelEnum::unitCenteredQuad), gameState->mainCamera.getPipeline(), gameState->entities[i], p_renderer);
-                }
-
-                p_renderer->setData(R_FULL_COLOR::u_color, COLOR_BLACK);
-                render(global.modelMgr->get(ModelEnum::unitCenteredQuadOutline), gameState->mainCamera.getPipeline(), gameState->entities[i], p_renderer);
+   //             p_renderer->setData(R_FULL_COLOR::u_color, COLOR_BLACK);
+ //               renderPhysBody(global.modelMgr->get(ModelEnum::unitCenteredQuadOutline), gameState, &gameState->entities[i].physBody, p_renderer);
+ //               render(global.modelMgr->get(ModelEnum::unitCenteredQuadOutline), gameState->mainCamera.getPipeline(), gameState->entities[i], p_renderer);
             }
+            
 
         //         
             
@@ -174,11 +280,9 @@ namespace GameRendering
             }
             else if ( (entities[i].physBody.flags & Physics::PhysBodyFlag_Static) != Physics::PhysBodyFlag_Static)
             {
-                render(global.modelMgr->get(ModelEnum::xyzAxis), gameState->mainCamera.getPipeline(),
-                    gameState->entities[i].physBody.position,
-                    gameState->entities[i].physBody.orientationMat,
-                    gameState->entities[i].physBody.scale,
-                    p_renderer);
+                render(global.modelMgr->get(ModelEnum::xyzAxis), gameState->mainCamera.getPipeline(), gameState->entities[i], p_renderer);
+            //    renderPhysBody(global.modelMgr->get(ModelEnum::xyzAxis), gameState, &gameState->entities[i].physBody, p_renderer);
+            //    renderPhysBodyOutline(gameState, &gameState->entities[i].physBody, p_renderer);
             }
         }
         p_renderer->disableShader();

@@ -95,270 +95,514 @@ namespace GameCode
     float MAX_ROTATION_SQUARED = MAX_ROTATION * MAX_ROTATION;
 
 
-    Entity* addEntity(GameState* gameState, EntityType entType, Physics::PhysBodyDef physDef)
+    Entity* addEntity(GameState* gameState, EntityType entType)
     {
         int index = gameState->numEntities++;
         Entity* ent = &gameState->entities[index];
 
-        ent->init();
         ent->id = index;
         ent->entityType = entType;
 
-        Physics::PhysBody* pb = &ent->physBody;
-        pb->id = index;
+        return ent;
+    }
+    
+    void addCapsuleToBody(Physics::PhysBody* pb, float cylinderHalfLength, float radius, bool horizontal)
+    {
+        Physics::PhysBodyShapeData circle;
+
+        circle.shape = Physics::PhysBodyShape::PB_SPHERE;
+        if (horizontal)
+        {
+            circle.sphere.center = glm::vec3(cylinderHalfLength, 0, 0);
+        }
+        else
+        {
+            circle.sphere.center = glm::vec3(0, cylinderHalfLength, 0);
+        }
+        circle.sphere.radius = radius;
+        circle.mass = 5;
+
+
+        Physics::PhysBodyShapeData circle2;
+        circle2.shape = Physics::PhysBodyShape::PB_SPHERE;
+        if (horizontal)
+        {
+            circle2.sphere.center = glm::vec3(-cylinderHalfLength, 0, 0);
+        }
+        else
+        {
+            circle2.sphere.center = glm::vec3(0, -cylinderHalfLength, 0);
+        }
         
+        circle2.sphere.radius = radius;
+        circle2.mass = 5;
+
+
+
+        Physics::PhysBodyShapeData box2;
+
+        box2.shape = Physics::PhysBodyShape::PB_OBB;
+        box2.obb.center = glm::vec3(0, 0, 0);
+        if (horizontal)
+        {
+            box2.obb.halfEdges = glm::vec3(cylinderHalfLength, radius, 0.5);
+        }
+        else
+        {
+            box2.obb.halfEdges = glm::vec3(radius, cylinderHalfLength, 0.5);
+        }
+        box2.obb.axes[0] = glm::vec3(1, 0, 0);
+        box2.obb.axes[1] = glm::vec3(0, 1, 0);
+        box2.obb.axes[2] = glm::vec3(0, 0, 1);
+        box2.mass = 5;
+
+
+        pb->AddShape(&circle);
+        pb->AddShape(&circle2);
+        pb->AddShape(&box2);
+
+        pb->ResetMassData();
+
+    }
+
+    void addRandomSphere(GameState* gameState, int height)
+    {
+        Entity* ent = addEntity(gameState, EntityType::Sphere);
+
+        Physics::PhysBody* pb = &ent->physBody;
+        pb->id = ent->id;
+
+        // init physBody
+        Physics::PhysBodyDef physDef = {};
+        physDef.flags = Physics::PhysBodyFlag_Collides;
+
+        float xOffset = 0;
+        physDef.pos = glm::vec3(utl::randFloat(-20, 20) + xOffset,
+                                utl::randFloat(5, 20),
+                                0);
+        physDef.rot = glm::rotate(0.0f, glm::vec3(0, 0, 1));
+
+        physDef.hasJoint = false;
         pb->initFromPhysBodyDef(physDef);
+
+
+        // add shape to the physBody
+        Physics::PhysBodyShapeData shapeData;
+
+        float size = 2;
+        shapeData.shape = Physics::PhysBodyShape::PB_SPHERE;
+        shapeData.sphere.center = glm::vec3(0);
+        shapeData.sphere.radius = size;
+        shapeData.mass = 5;
+
+        pb->AddShape(&shapeData);
+        pb->ResetMassData();
+    }
+    
+    void addCharacterBox(GameState* gameState)
+    {
+        Entity* ent = addEntity(gameState, EntityType::Box);
+
+        Physics::PhysBody* pb = &ent->physBody;
+        pb->id = ent->id;
+
+        Physics::PhysBodyDef physDef = {};
+        physDef.flags = Physics::PhysBodyFlag_Collides | Physics::PhysBodyFlag_FixedRotation;
+
+        float xOffset = 0;
+        physDef.pos = glm::vec3(0, 5, 0);
+        physDef.rot = glm::rotate(0.0f, glm::vec3(0, 0, 1));
+
+        physDef.hasJoint = false;
+        pb->initFromPhysBodyDef(physDef);
+
+        // add shape to the physBody
+        Physics::PhysBodyShapeData shapeData;
+
+        float size = 5;
+        shapeData.shape = Physics::PhysBodyShape::PB_OBB;
+        shapeData.obb.center = glm::vec3(0);
+        shapeData.obb.halfEdges = glm::vec3(2 * size, size, 0.5);
+        shapeData.obb.axes[0] = glm::vec3(1, 0, 0);
+        shapeData.obb.axes[1] = glm::vec3(0, 1, 0);
+        shapeData.obb.axes[2] = glm::vec3(0, 0, 1);
+        shapeData.mass = 10;
+
+        pb->AddShape(&shapeData);
+        pb->ResetMassData();
+    }
+
+    void addRandomBox(GameState* gameState, int height)
+    {
+        Entity* ent = addEntity(gameState, EntityType::Box);
+
+        Physics::PhysBody* pb = &ent->physBody;
+        pb->id = ent->id;
+
+        Physics::PhysBodyDef physDef = {};
+        physDef.flags = Physics::PhysBodyFlag_Collides;
+
+        float xOffset = 0;
+        physDef.pos = glm::vec3(utl::randFloat(-20, 20) + xOffset,
+                            utl::randFloat(5, 20),
+                            0);
+
+        float rot = utl::randFloat(0, 360);
+        physDef.rot = glm::rotate(rot, glm::vec3(0, 0, 1));
+
+
+        physDef.hasJoint = false;
+        pb->initFromPhysBodyDef(physDef);
+
+        // add shape to the physBody
+        Physics::PhysBodyShapeData shapeData;
+
+        float size = 2;
+        shapeData.shape = Physics::PhysBodyShape::PB_OBB;
+        shapeData.obb.center = glm::vec3(0);
+        shapeData.obb.halfEdges = glm::vec3(size * utl::randInt(1, 3), 
+                                            size * utl::randInt(1, 3), 
+                                            0.5);
+
+        shapeData.obb.axes[0] = glm::vec3(1, 0, 0);
+        shapeData.obb.axes[1] = glm::vec3(0, 1, 0);
+        shapeData.obb.axes[2] = glm::vec3(0, 0, 1);
+        shapeData.mass = 10;
+
+        pb->AddShape(&shapeData);
+        pb->ResetMassData();
+    }
+
+
+
+    void addRandomCapsule(GameState* gameState, int height)
+    {
+        Entity* ent = addEntity(gameState, EntityType::Capsule);
+
+        Physics::PhysBody* pb = &ent->physBody;
+        pb->id = ent->id;
+
+        Physics::PhysBodyDef physDef = {};
+        physDef.flags = Physics::PhysBodyFlag_Collides;
+
+        float xOffset = 0;
+        physDef.pos = glm::vec3(0, 18 * (height + 1), 0);
+        physDef.rot = glm::rotate(0.0f, glm::vec3(0, 0, 1));
+
+        physDef.hasJoint = false;
+        pb->initFromPhysBodyDef(physDef);
+
+        // add shape to the physBody
+        Physics::PhysBodyShapeData box;
+
+        float size = 5;
+        box.shape = Physics::PhysBodyShape::PB_OBB;
+        box.obb.center = glm::vec3(0);
+        box.obb.halfEdges = glm::vec3(size, size , 0.5);
+        box.obb.axes[0] = glm::vec3(1, 0, 0);
+        box.obb.axes[1] = glm::vec3(0, 1, 0);
+        box.obb.axes[2] = glm::vec3(0, 0, 1);
+        box.mass = 5;
+
+
+
+        Physics::PhysBodyShapeData circle;
+        size = 2;
+        circle.shape = Physics::PhysBodyShape::PB_SPHERE;
+        circle.sphere.center = glm::vec3(2, 0, 0);
+        circle.sphere.radius = size;
+        circle.mass = 5;
+
+        Physics::PhysBodyShapeData circle2;
+        size = 2;
+        circle2.shape = Physics::PhysBodyShape::PB_SPHERE;
+        circle2.sphere.center = glm::vec3(-2, 0, 0);
+        circle2.sphere.radius = size;
+        circle2.mass = 5;
+
+        Physics::PhysBodyShapeData box2;
+        size = 2;
+        box2.shape = Physics::PhysBodyShape::PB_OBB;
+        box2.obb.center = glm::vec3(0, 0, 0);
+        box2.obb.halfEdges = glm::vec3(size, size, 0.5);
+        box2.obb.axes[0] = glm::vec3(1, 0, 0);
+        box2.obb.axes[1] = glm::vec3(0, 1, 0);
+        box2.obb.axes[2] = glm::vec3(0, 0, 1);
+        box2.mass = 5;
+
+
+        pb->AddShape(&circle);
+        pb->AddShape(&circle2);
+        pb->AddShape(&box2);
+
+        pb->ResetMassData();
+
+
+        for (int i = 0; i < pb->numShapes; i++)
+        {
+            cout << pb->shapes[i].shape << endl;
+        }
+    }
+
+
+
+    Entity* addRagdollBody(GameState* gameState)
+    {
+        Entity* ent = addEntity(gameState, EntityType::Box);
+
+        Physics::PhysBody* pb = &ent->physBody;
+        pb->id = ent->id;
+
+        Physics::PhysBodyDef physDef = {};
+        physDef.flags = Physics::PhysBodyFlag_Collides;
+
+        float xOffset = 0;
+        physDef.pos = glm::vec3(xOffset, 50, 0);
+        float rot = 0;
+        physDef.rot = glm::rotate(rot, glm::vec3(0, 0, 1));
+
+        physDef.hasJoint = true;
+        pb->initFromPhysBodyDef(physDef);
+
+        // add shape to the physBody
+        Physics::PhysBodyShapeData shapeData;
+
+        float size = 5;
+        shapeData.shape = Physics::PhysBodyShape::PB_OBB;
+        shapeData.InitAsOBB(glm::vec3(0.0), glm::vec3(size, 1.5 * size, 0.5));
+        shapeData.mass = 5;
+
+        pb->AddShape(&shapeData);
+        pb->ResetMassData();
+
         return ent;
     }
 
 
-    void addRandomSphere(GameState* gameState, int height)
-    {
-        Physics::PhysBodyDef def = {};
-
-        def.shape = Physics::PhysBodyShape::PB_SPHERE;
-        float size = 2;
-        def.halfDim = glm::vec3(size, size, 0.5);
-        def.flags = Physics::PhysBodyFlag_Collides;
-        def.mass = 5;
-        float xOffset = 0;
-
-        // def.pos = glm::vec3(5, 2 + height * 5, 0);
-
-        
-        def.pos = glm::vec3(utl::randFloat(-20, 20) + xOffset,
-            utl::randFloat(5, 20),
-            0);
-           
-        def.rot = glm::rotate(0.0f, glm::vec3(0, 0, 1));
-
-        def.hasJoint = false;
-        addEntity(gameState, Sphere, def);
-    }
-
-
-    void addCharacterBox(GameState* gameState)
-    {
-        Physics::PhysBodyDef def = {};
-
-        def.shape = Physics::PhysBodyShape::PB_OBB;
-        float w = 3;
-        float h = 5;
-        def.halfDim = glm::vec3(w, h, 0.5);
-        def.flags = Physics::PhysBodyFlag_Collides | Physics::PhysBodyFlag_FixedRotation;
-        def.mass = 5;
-        float xOffset = 0;
-        def.pos = glm::vec3(0, 5, 0);
-        float rot = 0;
-        def.rot = glm::rotate(rot, glm::vec3(0, 0, 1));
-
-        def.hasJoint = false;
-        addEntity(gameState, Box, def);
-    }
-
-
-    void addRandomBox(GameState* gameState, int height)
-    {
-        Physics::PhysBodyDef def = {};
-
-        def.shape = Physics::PhysBodyShape::PB_OBB;
-        float size = 2;
-        def.halfDim = glm::vec3(size * utl::randInt(1, 3),
-                                size * utl::randInt(1, 3), 
-                                0.5);
-        def.flags = Physics::PhysBodyFlag_Collides;
-        def.mass = 5;
-        float xOffset = 0;
-
-        def.pos = glm::vec3(0, 5, 0);
-
-        /*
-        def.pos = glm::vec3(utl::randFloat(-20, 20) + xOffset,
-                            utl::randFloat(5, 20),
-                            0);
-                            */
-      
-        float rot = 0;
-
-        // float rot = utl::randFloat(0, 360);
-        def.rot = glm::rotate(rot, glm::vec3(0, 0, 1));
-        
-
-        /*
-        float size = 3;
-        def.halfDim = glm::vec3(size,
-                                size,
-                                0.5);
-        def.flags = Physics::PhysBodyFlag_Collides;
-        def.mass = 5;
-        float xOffset = 0;
-        def.pos = glm::vec3(0,
-                            50,
-                            0);
-        float rot = 0; //utl::randFloat(0, 360);
-        def.rot = glm::rotate(rot, glm::vec3(0, 0, 1));
-        */
-
-        def.hasJoint = false;
-        addEntity(gameState, Box, def);
-    }
-
-    Entity* addRagdollBody(GameState* gameState)
-    {
-        Physics::PhysBodyDef def = {};
-        def.shape = Physics::PhysBodyShape::PB_OBB;
-        float size = 5;
-        def.halfDim = glm::vec3(size, 1.5 * size, 0.5);
-        def.flags = Physics::PhysBodyFlag_Collides;
-        def.mass = 5;
-        def.hasJoint = true;
-
-        float xOffset = 0;
-        def.pos = glm::vec3(xOffset, 50, 0);
-
-        float rot = 0;
-        def.rot = glm::rotate(rot, glm::vec3(0, 0, 1));
-
-        return addEntity(gameState, EntityType::Box, def);
-    }
-
     Entity* addRagdollHead(GameState* gameState, Physics::PhysBody* body, glm::vec3& anchor)
     {
-        Physics::PhysBodyDef def = {};
-        def.shape = Physics::PhysBodyShape::PB_OBB;
-        float size = 2;
-        def.halfDim = glm::vec3(size, size, 0.5);
-        def.flags = Physics::PhysBodyFlag_Collides;
-        def.mass = 5;
-        def.hasJoint = true;
+        Entity* ent = addEntity(gameState, EntityType::Box);
 
-        anchor = body->position + glm::vec3(0, body->scale.y, 0);
-        def.pos = body->position + glm::vec3(0, body->scale.y + def.halfDim.y, 0);
+        Physics::PhysBody* pb = &ent->physBody;
+        pb->id = ent->id;
 
-        return addEntity(gameState, EntityType::Box, def);
+        Physics::PhysBodyDef physDef = {};
+        physDef.flags = Physics::PhysBodyFlag_Collides;
+
+        physDef.hasJoint = true;
+        pb->initFromPhysBodyDef(physDef);
+
+        // add shape to the physBody
+        Physics::PhysBodyShapeData circle;
+
+        float size = 3;
+        circle.shape = Physics::PhysBodyShape::PB_SPHERE;
+        circle.sphere.center = glm::vec3(0.0);
+        circle.sphere.radius = size;
+        circle.mass = 5;
+
+        pb->AddShape(&circle);
+        pb->ResetMassData();
+
+
+        Physics::AABB parentBounds = body->GetBoundingAABB();
+        glm::vec3 parentBoundsHalfDim = parentBounds.getBoundsHalfDim();
+
+        Physics::AABB headBounds = pb->GetBoundingAABB();
+        glm::vec3 headBoundsHalfDim = headBounds.getBoundsHalfDim();
+
+
+        anchor = body->position + glm::vec3(0, parentBoundsHalfDim.y, 0);
+        pb->position = body->position + glm::vec3(0, parentBoundsHalfDim.y + headBoundsHalfDim.y, 0);
+
+        return ent;
     }
+
 
     Entity* addRagdollShoulder(GameState* gameState, bool left, Physics::PhysBody* body, glm::vec3& anchor)
     {
-        Physics::PhysBodyDef def = {};
-        def.shape = Physics::PhysBodyShape::PB_OBB;
+        Entity* ent = addEntity(gameState, EntityType::Box);
+
+        Physics::PhysBody* pb = &ent->physBody;
+        pb->id = ent->id;
+
+        Physics::PhysBodyDef physDef = {};
+        physDef.flags = Physics::PhysBodyFlag_Collides;
+
+        physDef.hasJoint = true;
+        pb->initFromPhysBodyDef(physDef);
+
+        // add shape to the physBody
         float size = 2;
-        def.halfDim = glm::vec3(1.5 * size, size, 0.5);
-        def.flags = Physics::PhysBodyFlag_Collides;
-        def.mass = 5;
-        def.hasJoint = true;
+        addCapsuleToBody(pb, 1.5 * size, size, true);
+
+        float hemisphereRadius = size;
+        Physics::AABB parentBounds = body->GetBoundingAABB();
+        glm::vec3 parentBoundsHalfDim = parentBounds.getBoundsHalfDim();
+
+        Physics::AABB childBounds = pb->GetBoundingAABB();
+        glm::vec3 childBoundsHalfDim = childBounds.getBoundsHalfDim();
 
         // assume in identity orientation
         if (left)
         {
-            glm::vec3 topCorner = body->position + glm::vec3(-body->scale.x, body->scale.y, 0);
+            glm::vec3 topCorner = body->position + glm::vec3(-parentBoundsHalfDim.x, parentBoundsHalfDim.y, 0);
 
-            anchor = topCorner + glm::vec3(0, -def.halfDim.y, 0);
-            glm::vec3 pos = topCorner + glm::vec3(-def.halfDim.x, -def.halfDim.y, 0);
-            def.pos = pos;
+            anchor = topCorner + glm::vec3(0, -childBoundsHalfDim.y, 0);
+            glm::vec3 pos = topCorner + glm::vec3(-childBoundsHalfDim.x + hemisphereRadius, -childBoundsHalfDim.y, 0);
+            pb->position = pos;
         }
         else
         {
-            glm::vec3 topCorner = body->position + glm::vec3(body->scale.x, body->scale.y, 0);
+            glm::vec3 topCorner = body->position + glm::vec3(parentBoundsHalfDim.x, parentBoundsHalfDim.y, 0);
 
-            anchor = topCorner + glm::vec3(0, -def.halfDim.y, 0);
-            glm::vec3 pos = topCorner + glm::vec3(def.halfDim.x, -def.halfDim.y, 0);
-            def.pos = pos;
+            anchor = topCorner + glm::vec3(0, -childBoundsHalfDim.y, 0);
+            glm::vec3 pos = topCorner + glm::vec3(childBoundsHalfDim.x - hemisphereRadius, -childBoundsHalfDim.y, 0);
+            pb->position = pos;
         }
-        return addEntity(gameState, EntityType::Box, def);
+
+        return ent;
     }
+
+    
+
 
     Entity* addRagdollArm(GameState* gameState, bool left, Physics::PhysBody* parent, glm::vec3& anchor)
     {
-        Physics::PhysBodyDef def = {};
-        def.shape = Physics::PhysBodyShape::PB_OBB;
+        Entity* ent = addEntity(gameState, EntityType::Box);
+
+        Physics::PhysBody* pb = &ent->physBody;
+        pb->id = ent->id;
+
+        Physics::PhysBodyDef physDef = {};
+        physDef.flags = Physics::PhysBodyFlag_Collides;
+
+        physDef.hasJoint = true;
+        pb->initFromPhysBodyDef(physDef);
+
+        // add shape to the physBody
         float size = 2;
-        def.halfDim = glm::vec3(2 * size, size, 0.5);
-        def.flags = Physics::PhysBodyFlag_Collides;
-        def.mass = 5;
-        def.hasJoint = true;
+        addCapsuleToBody(pb, 1.5 * size, size, true);
+
+        float hemisphereRadius = size;
+        Physics::AABB parentBounds = parent->GetBoundingAABB();
+        glm::vec3 parentBoundsHalfDim = parentBounds.getBoundsHalfDim();
+
+        Physics::AABB childBounds = pb->GetBoundingAABB();
+        glm::vec3 childBoundsHalfDim = childBounds.getBoundsHalfDim();
+
+        // assume in identity orientation
         if (left)
         {
-            glm::vec3 corner = parent->position + glm::vec3(-parent->scale.x, parent->scale.y, 0);
+            glm::vec3 topCorner = parent->position + glm::vec3(-parentBoundsHalfDim.x, parentBoundsHalfDim.y, 0);
 
-            anchor = corner + glm::vec3(0, -def.halfDim.y, 0);
-            glm::vec3 pos = corner + glm::vec3(-def.halfDim.x, -def.halfDim.y, 0);
-            def.pos = pos;
+            anchor = topCorner + glm::vec3(hemisphereRadius, -childBoundsHalfDim.y, 0);
+            glm::vec3 pos = topCorner + glm::vec3(-childBoundsHalfDim.x + 2 * hemisphereRadius, -childBoundsHalfDim.y, 0);
+            pb->position = pos;
         }
         else
         {
-            glm::vec3 corner = parent->position + glm::vec3(parent->scale.x, parent->scale.y, 0);
+            glm::vec3 topCorner = parent->position + glm::vec3(parentBoundsHalfDim.x, parentBoundsHalfDim.y, 0);
 
-            anchor = corner + glm::vec3(0, -def.halfDim.y, 0);
-            glm::vec3 pos = corner + glm::vec3(def.halfDim.x, -def.halfDim.y, 0);
-            def.pos = pos;
+            anchor = topCorner + glm::vec3(-hemisphereRadius, -childBoundsHalfDim.y, 0);
+            glm::vec3 pos = topCorner + glm::vec3(childBoundsHalfDim.x - 2 * hemisphereRadius, -childBoundsHalfDim.y, 0);
+            pb->position = pos;
         }
-        return addEntity(gameState, EntityType::Box, def);
+
+        return ent;
     }
+
 
     Entity* addRagdollThigh(GameState* gameState, bool left, Physics::PhysBody* parent, glm::vec3& anchor)
     {
-        Physics::PhysBodyDef def = {};
-        def.shape = Physics::PhysBodyShape::PB_OBB;
-        float size = 2;
-        def.halfDim = glm::vec3(size, 2 * size, 0.5);
-        def.flags = Physics::PhysBodyFlag_Collides;
-        def.mass = 5;
-        def.hasJoint = true;
+        Entity* ent = addEntity(gameState, EntityType::Box);
 
+        Physics::PhysBody* pb = &ent->physBody;
+        pb->id = ent->id;
+
+        Physics::PhysBodyDef physDef = {};
+        physDef.flags = Physics::PhysBodyFlag_Collides;
+
+        physDef.hasJoint = true;
+        pb->initFromPhysBodyDef(physDef);
+
+        // add shape to the physBody
+        float size = 2;
+        addCapsuleToBody(pb, 1.5 * size, size, false);
+
+        float hemisphereRadius = size;
+        Physics::AABB parentBounds = parent->GetBoundingAABB();
+        glm::vec3 parentBoundsHalfDim = parentBounds.getBoundsHalfDim();
+
+        Physics::AABB childBounds = pb->GetBoundingAABB();
+        glm::vec3 childBoundsHalfDim = childBounds.getBoundsHalfDim();
+
+        // assume in identity orientation
         if (left)
         {
-            glm::vec3 corner = parent->position + glm::vec3(-parent->scale.x, -parent->scale.y, 0);
+            glm::vec3 corner = parent->position + glm::vec3(-parentBoundsHalfDim.x, -parentBoundsHalfDim.y, 0);
 
-            anchor = corner + glm::vec3(def.halfDim.x, 0, 0);
-            glm::vec3 pos = corner + glm::vec3(def.halfDim.x, -def.halfDim.y, 0);
-            def.pos = pos;
+            anchor = corner + glm::vec3(hemisphereRadius, 0, 0);
+            glm::vec3 pos = corner + glm::vec3(childBoundsHalfDim.x, -childBoundsHalfDim.y + hemisphereRadius, 0);
+            pb->position = pos;
         }
         else
         {
-            glm::vec3 corner = parent->position + glm::vec3(parent->scale.x, -parent->scale.y, 0);
+            glm::vec3 corner = parent->position + glm::vec3(parentBoundsHalfDim.x, -parentBoundsHalfDim.y, 0);
 
-            anchor = corner + glm::vec3(-def.halfDim.x, 0, 0);
-            glm::vec3 pos = corner + glm::vec3(-def.halfDim.x, -def.halfDim.y, 0);
-            def.pos = pos;
+            anchor = corner + glm::vec3(-hemisphereRadius, 0, 0);
+            glm::vec3 pos = corner + glm::vec3(-childBoundsHalfDim.x, -childBoundsHalfDim.y + hemisphereRadius, 0);
+            pb->position = pos;
         }
-        return addEntity(gameState, EntityType::Box, def);
+
+        return ent;
     }
 
+    
     Entity* addRagdollLeg(GameState* gameState, bool left, Physics::PhysBody* parent, glm::vec3& anchor)
     {
-        Physics::PhysBodyDef def = {};
-        def.shape = Physics::PhysBodyShape::PB_OBB;
-        float size = 2;
-        def.halfDim = glm::vec3(size, 2.5 * size, 0.5);
-        def.flags = Physics::PhysBodyFlag_Collides;
-        def.mass = 5;
-        def.hasJoint = true;
+        Entity* ent = addEntity(gameState, EntityType::Box);
 
+        Physics::PhysBody* pb = &ent->physBody;
+        pb->id = ent->id;
+
+        Physics::PhysBodyDef physDef = {};
+        physDef.flags = Physics::PhysBodyFlag_Collides;
+
+        physDef.hasJoint = true;
+        pb->initFromPhysBodyDef(physDef);
+
+        // add shape to the physBody
+        float size = 2;
+        addCapsuleToBody(pb, 2.5 * size, size, false);
+
+        float hemisphereRadius = size;
+        Physics::AABB parentBounds = parent->GetBoundingAABB();
+        glm::vec3 parentBoundsHalfDim = parentBounds.getBoundsHalfDim();
+
+        Physics::AABB childBounds = pb->GetBoundingAABB();
+        glm::vec3 childBoundsHalfDim = childBounds.getBoundsHalfDim();
+
+        // assume in identity orientation
         if (left)
         {
-            glm::vec3 corner = parent->position + glm::vec3(-parent->scale.x, -parent->scale.y, 0);
+            glm::vec3 corner = parent->position + glm::vec3(-parentBoundsHalfDim.x, -parentBoundsHalfDim.y, 0);
 
-            anchor = corner + glm::vec3(def.halfDim.x, 0, 0);
+            anchor = corner + glm::vec3(hemisphereRadius, hemisphereRadius, 0);
+            pb->position = corner + glm::vec3(childBoundsHalfDim.x, -childBoundsHalfDim.y + 2 * hemisphereRadius, 0);
 
-            def.pos = corner + glm::vec3(def.halfDim.x, -def.halfDim.y, 0);
         }
         else
         {
-            glm::vec3 corner = parent->position + glm::vec3(parent->scale.x, -parent->scale.y, 0);
+            glm::vec3 corner = parent->position + glm::vec3(parentBoundsHalfDim.x, -parentBoundsHalfDim.y, 0);
 
-            anchor = corner + glm::vec3(-def.halfDim.x, 0, 0);
-
-            def.pos = corner + glm::vec3(-def.halfDim.x, -def.halfDim.y, 0);
+            anchor = corner + glm::vec3(-hemisphereRadius, hemisphereRadius, 0);
+            pb->position = corner + glm::vec3(-childBoundsHalfDim.x, -childBoundsHalfDim.y + 2 * hemisphereRadius, 0);
         }
-        return addEntity(gameState, EntityType::Box, def);
-    }
 
-
-    glm::vec3 computeLocalAnchorPoint(glm::vec3 anchor, Physics::PhysBody* body)
-    {
-        return glm::inverse(glm::mat3(body->orientationMat)) * (anchor - body->position);
+        return ent;
     }
+            
 
     void addJoint(GameState* gameState, glm::vec3 worldAnchorPoint, Physics::PhysBody* a, Physics::PhysBody* b, bool ignoreCollision)
     {
@@ -369,11 +613,12 @@ namespace GameCode
         joint->a = a;
         joint->b = b;
 
-        joint->aLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, a);
-        joint->bLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, b);
+        joint->aLocalAnchor = Physics::computeLocalAnchorPoint(worldAnchorPoint, a);
+        joint->bLocalAnchor = Physics::computeLocalAnchorPoint(worldAnchorPoint, b);
 
         joint->ignoreCollision = ignoreCollision;
     }
+
 
 
     void addMouseJoint(GameState* gameState, glm::vec3 worldAnchorPoint, Physics::PhysBody* draggedEnt, bool ignoreCollision)
@@ -387,7 +632,7 @@ namespace GameCode
         joint->a = draggedEnt;
         joint->b = NULL;
 
-        joint->aLocalAnchor = computeLocalAnchorPoint(worldAnchorPoint, draggedEnt);
+        joint->aLocalAnchor = Physics::computeLocalAnchorPoint(worldAnchorPoint, draggedEnt);
         joint->bLocalAnchor = glm::vec3(0,0,0);
 
 
@@ -400,13 +645,15 @@ namespace GameCode
         joint->ignoreCollision = ignoreCollision;
     }
 
+
+
+
     void addRagdoll(GameState* gameState)
     {
         Entity* body = addRagdollBody(gameState);
 
         glm::vec3 headAnchor = glm::vec3(0.0);
         Entity* head = addRagdollHead(gameState, &body->physBody, headAnchor);
-
         
         glm::vec3 leftShouldAnchor = glm::vec3(0.0);
         Entity* leftShoulder = addRagdollShoulder(gameState, true, &body->physBody, leftShouldAnchor);
@@ -459,37 +706,35 @@ namespace GameCode
 
 
 
-
-    Entity* addBoxForJointDemo(GameState* gameState, float startY, int i)
-    {
-        Physics::PhysBodyDef def = {};
-        float size = 2;
-        def.halfDim = glm::vec3(size, 
-                                1, 
-                                0.5);
-        def.mass = 5;
-        def.pos = glm::vec3(i * 4,
-                            startY,
-                            0);
-
-        float rot = utl::randFloat(0, 360);
-        def.rot = glm::rotate(rot, glm::vec3(0, 0, 1));
-
-
-        int index = gameState->numEntities++;
-        Entity* entity = &gameState->entities[index];
-
-        entity->init();
-        entity->id = index;
-        entity->entityType = EntityType::Box;
-        entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
-
-        Physics::PhysBody* pb = &entity->physBody;
-        pb->id = index;
-        pb->initFromPhysBodyDef(def);
-
-        return entity;
-    }
+//    Entity* addBoxForJointDemo(GameState* gameState, float startY, int i)
+//    {
+//        Physics::PhysBodyDef def = {};
+//        float size = 2;
+//        def.halfDim = glm::vec3(size, 
+//                                1, 
+//                                0.5);
+//        def.mass = 5;
+//        def.pos = glm::vec3(i * 4,
+//                            startY,
+//                            0);
+//
+//        float rot = utl::randFloat(0, 360);
+//        def.rot = glm::rotate(rot, glm::vec3(0, 0, 1));
+//
+//
+//        int index = gameState->numEntities++;
+//        Entity* entity = &gameState->entities[index];
+//
+//        entity->id = index;
+//        entity->entityType = EntityType::Box;
+//        entity->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
+//
+//        Physics::PhysBody* pb = &entity->physBody;
+//        pb->id = index;
+//        pb->initFromPhysBodyDef(def);
+//
+//        return entity;
+//    }
 
 
 
@@ -572,6 +817,7 @@ namespace GameCode
     }
 
 
+
     void MoveMouseJoint(GameState* gameState, glm::vec2 raycastDirection)
     {
         if (gameState->mouseJointIndex != -1)
@@ -594,52 +840,12 @@ namespace GameCode
                     continue;
                 }
             
-                if (entity->physBody.shapeData.shape == Physics::PhysBodyShape::PB_OBB)
-                {                
-
-                    if (Physics::testPointInsideOBB2D(raycastDirection, entity->physBody.shapeData.obb, entity->physBody.orientationMat, entity->physBody.position))
-                    {
-                        /*
-                        // mouse joint as a point-point constraint
-                        glm::vec3 anchor(raycastDirection.x, raycastDirection.y, 0);
-
-                        Physics::PhysBodyDef physDef = {};
-                        physDef.halfDim = glm::vec3(0.01f, 0.01f, 0.01);
-                        physDef.mass = 1;
-                        physDef.flags = Physics::PhysBodyFlag_Static;
-                        physDef.pos = anchor;
-
-                        Entity* mouseEnt = addEntity(gameState, Box, physDef);
-
-                        addMouseJoint(gameState, anchor, &mouseEnt->physBody, &entity->physBody,  true);
-
-                    //    gameState->mouseJointIndex = gameState->numJoints - 1;
-                        gameState->mouseJointEntityIndex = gameState->numEntities - 1;
-                        */
-                        
-
-                         
-                        // mouse joint as a soft constraint                        
-                        glm::vec3 anchor(raycastDirection.x, raycastDirection.y, 0);
-                        addMouseJoint(gameState, anchor, &entity->physBody, true);
-
-                        gameState->mouseJointIndex = gameState->numJoints - 1;
-                        // gameState->mouseJointEntityIndex = gameState->numEntities - 1;
-
-
-//                        jointcounter++;
-                        break;
-                    }
-                }
-                else if (entity->physBody.shapeData.shape == Physics::PhysBodyShape::PB_SPHERE)
+                if (Physics::TestPointInsidePhysBody(&entity->physBody, raycastDirection))
                 {
-                    if (Physics::testPointInsideSphere2D(raycastDirection, entity->physBody.shapeData.sphere, entity->physBody.position))
-                    {
-                        glm::vec3 anchor(raycastDirection.x, raycastDirection.y, 0);
-                        addMouseJoint(gameState, anchor, &entity->physBody, true);
+                    glm::vec3 anchor(raycastDirection.x, raycastDirection.y, 0);
+                    addMouseJoint(gameState, anchor, &entity->physBody, true);
 
-                        gameState->mouseJointIndex = gameState->numJoints - 1;
-                    }
+                    gameState->mouseJointIndex = gameState->numJoints - 1;
                 }
             }
         }
@@ -710,10 +916,8 @@ namespace GameCode
         scale = 100.0;
         index = gameState->numEntities++;
         entity = &gameState->entities[index];
-        entity->init();
         entity->id = index;
         entity->entityType = EntityType::XYZAxis;
-        entity->setModel(global.modelMgr->get(ModelEnum::xyzAxis));
         pb = &entity->physBody;
         pb->Init();
         pb->flags = Physics::PhysBodyFlag_Static;
@@ -722,45 +926,49 @@ namespace GameCode
 
         
         // floor needs to be at the last
-
+        
         // the floor 
         index = gameState->numEntities++;
         Entity* floor = &gameState->entities[index];
-        floor->init();
         floor->id = index;
         floor->entityType = EntityType::Floor;
+
     //    floor->isDead = false;
 
         pb = &floor->physBody;
         pb->Init();
-        pb->shapeData.shape = Physics::PhysBodyShape::PB_PLANE;
-        pb->shapeData.plane.normal = glm::vec3(0, 1, 0);
-        pb->shapeData.plane.point = glm::vec3(0, 0, 0);       // dot(glm::vec3(0, 1, 0),  glm::vec3(0, 0, 0));
         pb->id = index;
+
+        Physics::PhysBodyShapeData shapeData;
+        shapeData.shape = Physics::PhysBodyShape::PB_PLANE;
+        shapeData.plane.normal = glm::vec3(0, 1, 0);
+        shapeData.plane.point = glm::vec3(0, 0, 0);       // dot(glm::vec3(0, 1, 0),  glm::vec3(0, 0, 0));
+        pb->AddShape(&shapeData);
+        pb->ResetMassData();
 
         pb->position = glm::vec3(0, 0, 0);
         pb->scale = glm::vec3(gameState->worldWidth, 0.2, 0.2);
 
         pb->flags = Physics::PhysBodyFlag_Collides | Physics::PhysBodyFlag_Static;
-        floor->setModel(global.modelMgr->get(ModelEnum::unitCenteredQuad));
-
         
-    //    addCharacterBox(gameState);
+        /*
+        addCharacterBox(gameState);
+        addRandomBox(gameState, 0);
+        addRandomCapsule(gameState, 0);
+        */
 
         
         for (int i = 0; i < 10; i++)
         {
             addRandomBox(gameState, i);
-        }
-        
+        }        
         
         for (int i = 0; i < 10; i++)
         {
             addRandomSphere(gameState, i);
         }
         
-
-     //   addRagdoll(gameState);
+        addRagdoll(gameState);
 
 
      //   prev = &floor->physBody;
@@ -886,6 +1094,7 @@ namespace GameCode
         // apply linear damping        
      //   entity->velocity = entity->velocity * 1.0f / (1.0f + linearDamping * dt_s);
 
+
         pb->angularVelocity += pb->inverseInertiaTensor * pb->torqueAccum * dt_s;
         // apply angular damping
     //    entity->angularVelocity = entity->angularVelocity * 1.0f / (1.0f + linearDamping * dt_s);
@@ -960,6 +1169,7 @@ namespace GameCode
             */
             // https://math.stackexchange.com/questions/22437/combining-two-3d-rotations
 
+
             glm::vec3 rotation = dt_s * pb->angularVelocity;
             if (glm::dot(rotation, rotation) > MAX_ROTATION_SQUARED)
             {
@@ -969,6 +1179,7 @@ namespace GameCode
 
             pb->addRotation(pb->angularVelocity, dt_s);
             pb->transformInertiaTensor();
+
 
             if (Physics::hasPolygonsCollided == true)
             {
@@ -1048,14 +1259,15 @@ namespace GameCode
             gameState->contacts[index] = newContact;
             gameState->numContacts++;
 
-            gameState->contacts[index].a->SetAwake(true);
-            gameState->contacts[index].b->SetAwake(true);
+//            gameState->contacts[index].a->SetAwake(true);
+//            gameState->contacts[index].b->SetAwake(true);
         }
 
     }
 
 
-    void tryRemovingInvalidContacts(GameState* gameState, Physics::PhysBody* a, Physics::PhysBody* b, vector<Physics::ContactManifold*>& manifoldsToRemove)
+    void tryRemovingInvalidContacts(GameState* gameState, Physics::PhysBodyShapeData* a, Physics::PhysBodyShapeData* b, 
+        vector<Physics::ContactManifold*>& manifoldsToRemove)
     {
         for (int i = 0; i < gameState->numContacts; i++)
         {
@@ -1092,8 +1304,8 @@ namespace GameCode
         for (int i = 0; i < gameState->numContacts; i++)
         {
             Physics::ContactManifold* manifold = &gameState->contacts[i];
-            Physics::PhysBody* a = manifold->a;
-            Physics::PhysBody* b = manifold->b;
+            Physics::PhysBody* a = manifold->a->physBody;
+            Physics::PhysBody* b = manifold->b->physBody;
 
             for (int j = 0; j < manifold->numContactPoints; j++)
             {
@@ -1278,6 +1490,34 @@ namespace GameCode
     }
 
 
+    
+    void GenerateContactInfo(GameState* gameState, Physics::PhysBody* a, Physics::PhysBody* b)
+    {
+        vector<Physics::ContactManifold*> manifoldsToRemove;
+
+        for (int i = 0; i < a->numShapes; i++)
+        {
+            for (int j = 0; j < b->numShapes; j++)
+            {
+                Physics::ContactManifold newContact = {};
+
+                Physics::GenerateContactInfoForShapes(&a->shapes[i], &b->shapes[j], newContact);
+
+                if (newContact.numContactPoints > 0)
+                {
+                    // if doenst exists in contacts list, add it
+                    tryAddContactManifold(gameState, newContact);
+                }
+                else
+                {
+                    // remove contact between the two if there are any in our old list
+                    tryRemovingInvalidContacts(gameState, &a->shapes[i], &b->shapes[j], manifoldsToRemove);
+                }
+            }
+        }
+    }
+
+
     void tick(GameState* gameState, GameInput& gameInput)
     {
         handleGameInputMouseClicks(*gameState, gameInput);
@@ -1328,7 +1568,7 @@ namespace GameCode
         
 
 
-        vector<Physics::ContactManifold*> manifoldsToRemove;
+
 
         if (COLLISION_ACTIVE)
         {
@@ -1344,8 +1584,6 @@ namespace GameCode
                     {
                         //    cout << i <<  " " << j << endl;
 
-
-
         //                bool activeA = ent0->physBody.isAwake && (!(ent0->physBody.flags & Physics::PhysBodyFlag_Static));
         //                bool activeB = ent1->physBody.isAwake && (!(ent1->physBody.flags & Physics::PhysBodyFlag_Static));
 
@@ -1359,25 +1597,7 @@ namespace GameCode
                             continue;
                         }
 
-                        Physics::ContactManifold newContact = {};
-
-                     //   if ( gameState->entities[i].isDead == false && gameState->entities[j].isDead == false)
-                        {
-                            Physics::GenerateContactInfo(&gameState->entities[i].physBody, &gameState->entities[j].physBody, newContact);
-                            //    cout << newContact.numContactPoints << endl;
-                        }
-
-                        if (newContact.numContactPoints > 0)
-                        {
-                            // if doenst exists in contacts list, add it
-                            tryAddContactManifold(gameState, newContact);
-                        }
-                        else
-                        {
-                            // remove contact between the two if there are any in our old list
-                            tryRemovingInvalidContacts(gameState, &gameState->entities[i].physBody,
-                                &gameState->entities[j].physBody, manifoldsToRemove);
-                        }                        
+                        GenerateContactInfo(gameState, &gameState->entities[i].physBody, &gameState->entities[j].physBody);
                     }
                 }
             }
@@ -1412,7 +1632,7 @@ namespace GameCode
         {
             if (gameState->contacts[i].numContactPoints > 0)
             {
-                Physics::InitVelocityConstraints(gameState->contacts[i], gameState->contacts[i].a, gameState->contacts[i].b);
+                Physics::InitVelocityConstraints(gameState->contacts[i]);
             }
         }
 
@@ -1443,11 +1663,13 @@ namespace GameCode
                 }
             }
 
+        //    utl::debug("gameState->numContacts ", gameState->numContacts);
+
             for (int j = 0; j < gameState->numContacts; j++)
             {
                 if (gameState->contacts[j].numContactPoints > 0)
                 {
-                    Physics::ResolveVelocity(gameState->contacts[j], gameState->contacts[j].a, gameState->contacts[j].b, gameInput.dt_s);
+                    Physics::ResolveVelocity(gameState->contacts[j], gameInput.dt_s);
                 }
             }
         }
@@ -1532,6 +1754,8 @@ namespace GameCode
             utl::debug("vel ", gameState->entities[3].physBody.velocity);
             utl::debug("pos ", gameState->entities[3].physBody.position);
         }
+
+//        utl::debug("gameState->numContacts2 ", gameState->numContacts);
 
         int positionIterations = 3;
         bool positionDone = false;
