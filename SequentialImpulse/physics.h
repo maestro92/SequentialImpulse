@@ -186,28 +186,35 @@ namespace Physics
     float restitution = 0.0;
     bool hasPolygonsCollided = false;
 
-    glm::vec3 world2Local(glm::vec3 worldPos, PhysBody* body)
+    inline glm::vec3 world2Local(glm::vec3 worldPos, PhysBody* body)
     {
-        glm::vec3 local = worldPos - body->position;
-        return glm::mat3(glm::inverse(body->orientationMat)) * local;
+      glm::vec3 local = worldPos - body->position;
+    //  return glm::mat3(glm::inverse(body->orientationMat)) * local;
+
+    //  in 2D we can cheat with using the transpose
+    //    glm::vec3 local = worldPos - body->position;
+        float x = body->orientationMat[0][0] * local.x + body->orientationMat[0][1] * local.y;
+        float y = body->orientationMat[1][0] * local.x + body->orientationMat[1][1] * local.y;
+        
+        return glm::vec3(x, y, 0);
     }
 
-    glm::vec3 Local2World(glm::vec3 localPoint, PhysBody* physBody)
+    inline glm::vec3 Local2World(glm::vec3 localPoint, PhysBody* physBody)
     {
         return physBody->position + glm::mat3(physBody->orientationMat) * localPoint;
     }
 
-    glm::vec3 GetWorldPos(PhysBody* physBody, Plane plane)
+    inline glm::vec3 GetWorldPos(PhysBody* physBody, Plane plane)
     {
         return physBody->position;
     }
 
-    glm::vec3 GetWorldPos(PhysBody* physBody, OBB obb)
+    inline glm::vec3 GetWorldPos(PhysBody* physBody, OBB obb)
     {
         return physBody->position + glm::mat3(physBody->orientationMat) * obb.center;
     }
 
-    glm::vec3 GetWorldPos(PhysBody* physBody, Sphere sphere)
+    inline glm::vec3 GetWorldPos(PhysBody* physBody, Sphere sphere)
     {
         return physBody->position + glm::mat3(physBody->orientationMat) * sphere.center;
     }
@@ -583,7 +590,7 @@ namespace Physics
         
         // represent the sphere in OBB key frame
         glm::vec3 c = GetWorldPos(bodyA, sphereA);
-        glm::vec3 localC = glm::inverse(glm::mat3(bodyB->orientationMat)) * (c - bodyB->position);
+        glm::vec3 localC = world2Local(c, bodyB); 
 
         // first check if they overlap
         if (!TestOBBSphereEarlyOut(obbB, sphereA, localC))

@@ -62,6 +62,9 @@ struct GameState
     int mouseJointIndex;
   //  int mouseJointEntityIndex;
 
+    Physics::ContactManifold* manifoldsToRemove;
+    int numManifoldsToRemove;
+
     int frameCount;
 
     bool isInteracting;
@@ -898,7 +901,10 @@ namespace GameCode
 
         gameState->numJoints = 0;
         gameState->joints = PushArray(&gameState->simMemorySection, 64, Physics::Joint);
-//        gameState->joints = new Physics::Joint[64];
+
+
+        gameState->numManifoldsToRemove = 0;
+        gameState->manifoldsToRemove = PushArray(&gameState->simMemorySection, 64, Physics::ContactManifold);
 
 
 //        gameState->mouseJointEntityIndex = -1;
@@ -1229,13 +1235,14 @@ namespace GameCode
 
 
 
+
     // if we remove items, we need to think about how to maintaint contacts->a Body and contacts->b Body
     void tryAddContactManifold(GameState* gameState, Physics::ContactManifold newContact)
     {
         bool found = false;
         for (int i = 0; i < gameState->numContacts; i++)
         {
-            Physics::ContactManifold oldContact = gameState->contacts[i];
+            Physics::ContactManifold& oldContact = gameState->contacts[i];
 
             if (oldContact.a == newContact.a && oldContact.b == newContact.b)
             {
@@ -1266,8 +1273,7 @@ namespace GameCode
     }
 
 
-    void tryRemovingInvalidContacts(GameState* gameState, Physics::PhysBodyShapeData* a, Physics::PhysBodyShapeData* b, 
-        vector<Physics::ContactManifold*>& manifoldsToRemove)
+    void tryRemovingInvalidContacts(GameState* gameState, Physics::PhysBodyShapeData* a, Physics::PhysBodyShapeData* b)
     {
         for (int i = 0; i < gameState->numContacts; i++)
         {
@@ -1493,8 +1499,6 @@ namespace GameCode
     
     void GenerateContactInfo(GameState* gameState, Physics::PhysBody* a, Physics::PhysBody* b)
     {
-        vector<Physics::ContactManifold*> manifoldsToRemove;
-
         for (int i = 0; i < a->numShapes; i++)
         {
             for (int j = 0; j < b->numShapes; j++)
@@ -1511,7 +1515,7 @@ namespace GameCode
                 else
                 {
                     // remove contact between the two if there are any in our old list
-                    tryRemovingInvalidContacts(gameState, &a->shapes[i], &b->shapes[j], manifoldsToRemove);
+                    tryRemovingInvalidContacts(gameState, &a->shapes[i], &b->shapes[j]);
                 }
             }
         }

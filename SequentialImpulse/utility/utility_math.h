@@ -51,6 +51,5 @@ namespace utl
 
 	float sqDistBetweenPointAndLineSetment(glm::vec2 l0, glm::vec2 l1, glm::vec2 p);
 	float sqDistBetweenPointAndLineSetment(glm::vec3 l0, glm::vec3 l1, glm::vec3 p);
-
 }
 #endif
