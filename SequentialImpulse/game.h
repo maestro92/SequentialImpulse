@@ -68,7 +68,7 @@ struct GameState
     int frameCount;
 
     bool isInteracting;
-
+    Physics::ContactManifold tempNewContact;
 };
 
 
@@ -906,7 +906,7 @@ namespace GameCode
         gameState->numManifoldsToRemove = 0;
         gameState->manifoldsToRemove = PushArray(&gameState->simMemorySection, 64, Physics::ContactManifold);
 
-
+        gameState->tempNewContact = {};
 //        gameState->mouseJointEntityIndex = -1;
         gameState->mouseJointIndex = -1;
         gameState->angle = 0;
@@ -1237,16 +1237,16 @@ namespace GameCode
 
 
     // if we remove items, we need to think about how to maintaint contacts->a Body and contacts->b Body
-    void tryAddContactManifold(GameState* gameState, Physics::ContactManifold newContact)
+    void tryAddContactManifold(GameState* gameState, Physics::ContactManifold* newContact)
     {
         bool found = false;
         for (int i = 0; i < gameState->numContacts; i++)
         {
             Physics::ContactManifold& oldContact = gameState->contacts[i];
 
-            if (oldContact.a == newContact.a && oldContact.b == newContact.b)
+            if (oldContact.a == newContact->a && oldContact.b == newContact->b)
             {
-                gameState->contacts[i] = newContact;
+                memcpy(&gameState->contacts[i], newContact, sizeof(Physics::ContactManifold));
 
                 ReplaceExistingContactManifoldPoints(gameState, oldContact, gameState->contacts[i]);
                 found = true;
@@ -1263,7 +1263,9 @@ namespace GameCode
             assert(gameState->numContacts < 1024);
 
             int index = gameState->numContacts;
-            gameState->contacts[index] = newContact;
+//            gameState->contacts[index] = newContact;
+
+            memcpy(&gameState->contacts[index], newContact, sizeof(Physics::ContactManifold));
             gameState->numContacts++;
 
 //            gameState->contacts[index].a->SetAwake(true);
@@ -1503,14 +1505,13 @@ namespace GameCode
         {
             for (int j = 0; j < b->numShapes; j++)
             {
-                Physics::ContactManifold newContact = {};
+                gameState->tempNewContact.Reset();
+                Physics::GenerateContactInfoForShapes(&a->shapes[i], &b->shapes[j], gameState->tempNewContact);
 
-                Physics::GenerateContactInfoForShapes(&a->shapes[i], &b->shapes[j], newContact);
-
-                if (newContact.numContactPoints > 0)
+                if (gameState->tempNewContact.numContactPoints > 0)
                 {
                     // if doenst exists in contacts list, add it
-                    tryAddContactManifold(gameState, newContact);
+                    tryAddContactManifold(gameState, &gameState->tempNewContact);
                 }
                 else
                 {

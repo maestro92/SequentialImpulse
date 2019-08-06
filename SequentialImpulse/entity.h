@@ -77,7 +77,7 @@ struct Entity
      //   char name[16];
         EntityType entityType;
 
-        glm::mat4 modelMatrix;
+    //    glm::mat4 modelMatrix;
 
         // position, velocity,
         // Orientation, angular Velocity (aka rotation)
@@ -148,12 +148,12 @@ inline void Entity::resetModel()
 	m_model = NULL;
 }
 */
-
+/*
 inline void Entity::updateModelMatrix()
 {
 	modelMatrix = glm::translate(physBody.position) * physBody.orientationMat * glm::scale(physBody.scale);
 }
-
+*/
 #endif
 
 

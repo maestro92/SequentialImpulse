@@ -146,7 +146,10 @@ namespace Physics
         glm::vec3 velocity;
         glm::vec3 scale;
         glm::quat orientation;
-        glm::mat4 orientationMat;
+        glm::mat3 orientationMat;
+
+
+        // glm::mat4 orientationMat;
 
         glm::vec3 angularVelocity;
 
@@ -171,7 +174,7 @@ namespace Physics
             velocity = glm::vec3(0.0, 0.0, 0.0);
             scale = glm::vec3(1.0, 1.0, 1.0);
             orientation = glm::quat(1.0, 0.0, 0.0, 0.0);
-            orientationMat = glm::mat4(1.0);
+            orientationMat = glm::mat3(1.0);
             angularVelocity = glm::vec3(0.0, 0.0, 0.0);
             flags = 0;
 
@@ -501,7 +504,7 @@ namespace Physics
 
         void SyncOrientationMat()
         {
-            orientationMat = glm::toMat4(orientation);
+            orientationMat = glm::toMat3(orientation);
         }
 
         // not really needed in 2D, but we will keep this code for completeness
@@ -510,13 +513,11 @@ namespace Physics
         {
             // convert this to world coordinates
             // the world 3 axes is just (1,0,0), (0,1,0), and (0,0,1)
-
-            glm::mat3 orientation3x3 = glm::mat3(orientationMat);
             //    utl::debug("orientation ", orientation);
             //    utl::debug("orientation3x3 ", orientation3x3);
             //    utl::debug("inertiaTensor ", inertiaTensor);
 
-            inverseInertiaTensor = glm::inverse(orientation3x3) * inertiaTensor;
+            inverseInertiaTensor = glm::inverse(orientationMat) * inertiaTensor;
             // then inverse it 
             inverseInertiaTensor = glm::inverse(inverseInertiaTensor);
 

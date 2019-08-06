@@ -15,7 +15,7 @@ namespace GameRendering
     {
         p.pushMatrix();
             p.translate(ent.physBody.position);
-            p.addMatrix(ent.physBody.orientationMat);
+            p.addMatrix(glm::mat4(ent.physBody.orientationMat));
             p.scale(ent.physBody.scale);
             r->setUniLocs(p);
             model->render();
@@ -80,14 +80,14 @@ namespace GameRendering
 
                     render(global.modelMgr->get(ModelEnum::unitCenteredQuad), gameState->mainCamera.getPipeline(),
                         pos,
-                        physBody->orientationMat,
+                        glm::mat4(physBody->orientationMat),
                         scale,
                         renderer);
 
                     renderer->setData(R_FULL_COLOR::u_color, COLOR_BLACK);
                     render(global.modelMgr->get(ModelEnum::unitCenteredQuadOutline), gameState->mainCamera.getPipeline(),
                         pos,
-                        physBody->orientationMat,
+                        glm::mat4(physBody->orientationMat),
                         scale,
                         renderer);
                 }
@@ -99,7 +99,7 @@ namespace GameRendering
                     glm::vec3 scale = glm::vec3(shapeData->sphere.radius);
                     render(global.modelMgr->get(ModelEnum::circleOutline), gameState->mainCamera.getPipeline(),
                         pos,
-                        physBody->orientationMat,
+                        glm::mat4(physBody->orientationMat),
                         scale,
                         renderer);
                 }
@@ -136,7 +136,7 @@ namespace GameRendering
 
                 render(global.modelMgr->get(ModelEnum::xyzAxis), gameState->mainCamera.getPipeline(),
                     pos,
-                    physBody->orientationMat,
+                    glm::mat4(physBody->orientationMat),
                     scale,
                     renderer);
             }
@@ -148,7 +148,7 @@ namespace GameRendering
                 glm::vec3 scale = glm::vec3(shapeData->sphere.radius);
                 render(global.modelMgr->get(ModelEnum::xyzAxis), gameState->mainCamera.getPipeline(),
                     pos,
-                    physBody->orientationMat,
+                    glm::mat4(physBody->orientationMat),
                     scale,
                     renderer);
             }

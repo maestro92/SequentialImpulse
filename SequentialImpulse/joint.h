@@ -6,6 +6,10 @@ namespace Physics
 {
     // for the two bodies just involved in the the contact Which we just resolved, 
     // if they were invovled in other contacts, we have to recompute the closing velocities
+    
+    // 1000 * 5 mass * 0.016
+    float MAX_JOINT_IMPULSE = 80;
+
     struct Joint
     {
         JointType type;
@@ -30,6 +34,9 @@ namespace Physics
         switch (joint.type)
         {
         case MOUSE_JOINT:
+            // cheat with some damping
+            joint.a->angularVelocity *= 0.98f;
+
             joint.a->velocity -= joint.impulse * joint.a->invMass;
             joint.a->angularVelocity -= joint.a->inverseInertiaTensor * glm::cross(joint.rA, joint.impulse);
             break;
@@ -189,7 +196,7 @@ namespace Physics
         // frequency and period T = `1/f.  so the 
         float frequency = 5;
         float omega = 2.0f * 3.14f * frequency;
-        float dampingRatio = 1.0;
+        float dampingRatio = 0.7;
 
         // we compute spring-damper coefficients 
         float c = 2.0f * joint.a->mass * dampingRatio * omega;
@@ -200,7 +207,6 @@ namespace Physics
         float gamma = dt_s * (c + dt_s * k);
         gamma = 1.0f / gamma;
         float beta = dt_s * k * gamma;
-     //   beta = 1.0f / dt_s;
 
         float col00 = imA + iiA * joint.rA.y * joint.rA.y + gamma;
         float col01 = -iiA * joint.rA.x * joint.rA.y;
@@ -260,12 +266,13 @@ namespace Physics
         joint.impulse += dImpulse;
 
         // TODO: clamping
+        if (glm::dot(joint.impulse, joint.impulse) > (MAX_JOINT_IMPULSE * MAX_JOINT_IMPULSE))
+        {
+            joint.impulse *= MAX_JOINT_IMPULSE / glm::length(joint.impulse);
+        }
+
         dImpulse = joint.impulse - oldImpulse;
 
-        if (print)
-        {
-            utl::debug("            dImpulse", dImpulse);
-        }
         joint.a->velocity -= dImpulse * joint.a->invMass;
         joint.a->angularVelocity -= joint.a->inverseInertiaTensor * glm::cross(joint.rA, dImpulse);
     }

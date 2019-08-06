@@ -7,7 +7,7 @@
 
 namespace Physics
 {
-    const int MAX_CONTACT_POINTS = 16;
+    const int MAX_CONTACT_POINTS = 4;
 
 
 
@@ -67,17 +67,6 @@ namespace Physics
         }
 
 
-        /*
-        glm::mat3 WorldToContact()
-        {
-            return glm::mat3(worldToContact);
-        }
-
-        glm::mat3 ContactToWorld()
-        {
-            return glm::mat3(glm::inverse(worldToContact));
-        }
-        */
 
         void PrintDebug()
         {
@@ -124,7 +113,6 @@ namespace Physics
             localPoint = localReferencePoint;
 
         */
-
         int numContactPoints;
         ContactPoint contactPoints[MAX_CONTACT_POINTS];
         Type type;
@@ -132,27 +120,19 @@ namespace Physics
         // for circle to circle colliison, this is circle A radius
         // for face-vertex collision,
 
-        // these two are mainly used in solving the velocity constraint
+        // these two are in world space
+        // mainly used in solving the velocity constraint
         glm::vec3 normal;
         glm::vec3 tangent;
-
 
         glm::vec3 localPoint;           
         glm::vec3 localNormal;   // we want normals to point from A to B
         glm::vec3 localTangent;
 
-        // glm::vec3 normal;
-        // glm::vec3 tangent;
-
-
-    //    PhysBody* a;
-    //    PhysBody* b;
-      
         PhysBodyShapeData* a;
         PhysBodyShapeData* b;
 
-
-        ContactManifold()
+        void Reset()
         {
             normal = glm::vec3(0.0);
             tangent = glm::vec3(0.0);
@@ -160,10 +140,9 @@ namespace Physics
             localNormal = glm::vec3(0.0);
             localTangent = glm::vec3(0.0);
 
-            //    normal = glm::vec3(0.0);
             numContactPoints = 0;
-            //    penetration = 0;
         }
+
     };
 
     /*
@@ -201,7 +180,7 @@ namespace Physics
 
     inline glm::vec3 Local2World(glm::vec3 localPoint, PhysBody* physBody)
     {
-        return physBody->position + glm::mat3(physBody->orientationMat) * localPoint;
+        return physBody->position + physBody->orientationMat * localPoint;
     }
 
     inline glm::vec3 GetWorldPos(PhysBody* physBody, Plane plane)
@@ -211,12 +190,12 @@ namespace Physics
 
     inline glm::vec3 GetWorldPos(PhysBody* physBody, OBB obb)
     {
-        return physBody->position + glm::mat3(physBody->orientationMat) * obb.center;
+        return physBody->position + physBody->orientationMat * obb.center;
     }
 
     inline glm::vec3 GetWorldPos(PhysBody* physBody, Sphere sphere)
     {
-        return physBody->position + glm::mat3(physBody->orientationMat) * sphere.center;
+        return physBody->position + physBody->orientationMat * sphere.center;
     }
 
 
@@ -228,10 +207,10 @@ namespace Physics
 
     bool testPointInsideOBB2D(glm::vec3 point, OBB b, PhysBody* physBody)
     {
-        glm::mat4 rot = physBody->orientationMat;
-        glm::vec3 realAxes[3] = { glm::vec3(rot * glm::vec4(b.axes[0], 0)),
-                                  glm::vec3(rot * glm::vec4(b.axes[1], 0)),
-                                  glm::vec3(rot * glm::vec4(b.axes[2], 0))};
+        glm::mat3 rot = physBody->orientationMat;
+        glm::vec3 realAxes[3] = { glm::vec3(rot * b.axes[0]),
+                                  glm::vec3(rot * b.axes[1]),
+                                  glm::vec3(rot * b.axes[2])};
 
         glm::vec3 d = point - GetWorldPos(physBody, b);
 
@@ -293,7 +272,7 @@ namespace Physics
     void GetSpherePlaneContacts(Sphere s, PhysBody* sBody, Plane p, PhysBody* pBody, ContactManifold& contactManifold)
     {
         glm::vec3 worldPlaneP = GetWorldPos(pBody, p);
-        glm::vec3 worldPlaneNormal = glm::mat3(pBody->orientationMat) * p.normal;
+        glm::vec3 worldPlaneNormal = pBody->orientationMat * p.normal;
 
         float planeOffset = glm::dot(worldPlaneNormal, worldPlaneP);
         float ballCenterToOrigin = glm::dot(worldPlaneNormal, GetWorldPos(sBody, s));
@@ -680,7 +659,7 @@ namespace Physics
             glm::vec3 obbCenter = GetWorldPos(bodyB, obbB);
             
             // we want normal to point from A to B
-            contactManifold.normal = -glm::mat3(bodyB->orientationMat) * contactManifold.localNormal;
+            contactManifold.normal = -bodyB->orientationMat * contactManifold.localNormal;
             contactManifold.tangent = glm::cross(contactManifold.normal, glm::vec3(0.0, 0.0, 1.0));            
            
         }
@@ -746,13 +725,13 @@ namespace Physics
     {
 
         // early out test using principle of separating axes
-        glm::vec3 aAxes[3] = { glm::vec3(aBody->orientation * glm::vec4(a.axes[0], 0)),
-                               glm::vec3(aBody->orientation * glm::vec4(a.axes[1], 0)),
-                               glm::vec3(aBody->orientation * glm::vec4(a.axes[2], 0)) };
+        glm::vec3 aAxes[3] = { aBody->orientation * a.axes[0],
+                               aBody->orientation * a.axes[1],
+                               aBody->orientation * a.axes[2]};
 
-        glm::vec3 bAxes[3] = { glm::vec3(bBody->orientation * glm::vec4(b.axes[0], 0)),
-                               glm::vec3(bBody->orientation * glm::vec4(b.axes[1], 0)),
-                               glm::vec3(bBody->orientation * glm::vec4(b.axes[2], 0)) };
+        glm::vec3 bAxes[3] = { bBody->orientation * b.axes[0],
+                               bBody->orientation * b.axes[1],
+                               bBody->orientation * b.axes[2]};
 
 
 
@@ -1660,7 +1639,7 @@ namespace Physics
         }
         else if (contactManifold->type == Physics::ContactManifold::CIRCLE_REFERENCE_FACE)
         {
-            manifold.normal = glm::mat3(bBody->orientationMat) * contactManifold->localNormal; 
+            manifold.normal = bBody->orientationMat * contactManifold->localNormal; 
             glm::vec3 planePoint = Local2World(contactManifold->localPoint, bBody);
 
             glm::vec3 circleCenter = GetWorldPos(aBody, aShape->sphere);
@@ -1677,7 +1656,7 @@ namespace Physics
 
         else if (contactManifold->type == Physics::ContactManifold::REFERENCE_FACE_A)
         {
-            manifold.normal = glm::mat3(aBody->orientationMat) * contactManifold->localNormal;
+            manifold.normal = aBody->orientationMat * contactManifold->localNormal;
             glm::vec3 planePoint = Local2World(contactManifold->localPoint, aBody); 
 
             glm::vec3 clippedPoint = Local2World(contactManifold->contactPoints[i].localPosition, bBody);
@@ -1714,7 +1693,7 @@ namespace Physics
         }
         else if (contactManifold->type == Physics::ContactManifold::REFERENCE_FACE_B)
         {
-            manifold.normal = glm::mat3(bBody->orientationMat) * contactManifold->localNormal;
+            manifold.normal = bBody->orientationMat * contactManifold->localNormal;
             glm::vec3 planePoint = Local2World(contactManifold->localPoint, bBody);
 
             glm::vec3 clippedPoint = Local2World(contactManifold->contactPoints[i].localPosition, aBody);
@@ -1847,7 +1826,7 @@ namespace Physics
 
     glm::vec3 computeLocalAnchorPoint(glm::vec3 anchor, Physics::PhysBody* body)
     {
-        return glm::inverse(glm::mat3(body->orientationMat)) * (anchor - body->position);
+        return glm::inverse(body->orientationMat) * (anchor - body->position);
     }
 
     bool ResolvePosition(ContactManifold* contactManifolds, int numContacts, float dt_s, int iter)
