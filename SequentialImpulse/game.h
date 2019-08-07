@@ -183,6 +183,7 @@ namespace GameCode
         physDef.pos = glm::vec3(utl::randFloat(-20, 20) + xOffset,
                                 utl::randFloat(5, 20),
                                 0);
+        
         physDef.rot = glm::rotate(0.0f, glm::vec3(0, 0, 1));
 
         physDef.hasJoint = false;
@@ -314,14 +315,14 @@ namespace GameCode
         circle.shape = Physics::PhysBodyShape::PB_SPHERE;
         circle.sphere.center = glm::vec3(2, 0, 0);
         circle.sphere.radius = size;
-        circle.mass = 5;
+        circle.mass = 1;
 
         Physics::PhysBodyShapeData circle2;
         size = 2;
         circle2.shape = Physics::PhysBodyShape::PB_SPHERE;
         circle2.sphere.center = glm::vec3(-2, 0, 0);
         circle2.sphere.radius = size;
-        circle2.mass = 5;
+        circle2.mass = 1;
 
         Physics::PhysBodyShapeData box2;
         size = 2;
@@ -331,7 +332,7 @@ namespace GameCode
         box2.obb.axes[0] = glm::vec3(1, 0, 0);
         box2.obb.axes[1] = glm::vec3(0, 1, 0);
         box2.obb.axes[2] = glm::vec3(0, 0, 1);
-        box2.mass = 5;
+        box2.mass = 1;
 
 
         pb->AddShape(&circle);

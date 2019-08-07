@@ -1311,6 +1311,7 @@ namespace Physics
         PhysBody* aBody = aShape->physBody;
         PhysBody* bBody = bShape->physBody;
 
+        bool print = false;
 
         float frictionCoefficient = 0.2;
 
@@ -1322,48 +1323,52 @@ namespace Physics
         //  float oldVelocityAlongTangent = ComputeRelativeVelocityAlongTangent(cp, a, b) - tangentSpeed;
     //    utl::debug("         after a->velocity", a->velocity);
     //    std::cout << "      oldVelocityAlongTangent " << oldVelocityAlongTangent << endl;
- 
-#if DEBUGGING
-        utl::debug("         a->velocity", a->velocity);
-        
+    //    print = true;
+        if (print)
+        {
 
-        utl::debug("         cp tanget", cp.tangent);
-        
-        utl::debug("         vt", oldVelocityAlongTangent);
-#endif 
+            utl::debug("         a->velocity", aBody->velocity);
 
 
-        
+            utl::debug("         cp tanget", cp.tangentImpulse);
+            utl::debug("         tangent", tangent);
+            utl::debug("         vt", oldVelocityAlongTangent);
+        }
+
+
+
 
         // since the old Velocity is traveling in one direction,
         // we want friction to be in the other direction
         float effectiveInvMass = computeEffectiveTangentMass(cp, tangent, aBody, bBody);
         float lambda = -effectiveInvMass * oldVelocityAlongTangent;
 
-#if DEBUGGING
+        if (print)
+        {
 
-        utl::debug("         effectiveMass", effectiveInvMass);
-#endif 
+        //    utl::debug("         effectiveMass", effectiveInvMass);
+        }   
 
-   //     std::cout << "      lambda " << lambda << endl;
+        //     std::cout << "      lambda " << lambda << endl;
 
 
-        // static friction is static coefficient * normal force
-        // we dont have normal force, but only normal impulse
-        // recall vel = impulse / mass
-        // we have the amount of velocity we need to remove, so we can calculate the impulse required to remove the normal impulse
-        //      impulse = force * t
-        //          f = dv * t * mass
-        //      so 
-        //          friction_impulse = normal_impulse * static coefficient 
-#if DEBUGGING
-        utl::debug("         cp.normalImpulse", cp.normalImpulse);
-        utl::debug("         cp.tangentImpulse", cp.tangentImpulse);
 
-        utl::debug("         frictionCoefficiente", frictionCoefficient);
-        utl::debug("         lambda", lambda);
+             // static friction is static coefficient * normal force
+             // we dont have normal force, but only normal impulse
+             // recall vel = impulse / mass
+             // we have the amount of velocity we need to remove, so we can calculate the impulse required to remove the normal impulse
+             //      impulse = force * t
+             //          f = dv * t * mass
+             //      so 
+             //          friction_impulse = normal_impulse * static coefficient 
+        if (print)
+        {
+            utl::debug("         cp.normalImpulse", cp.normalImpulse);
+            utl::debug("         cp.tangentImpulse", cp.tangentImpulse);
 
-#endif 
+        //    utl::debug("         frictionCoefficiente", frictionCoefficient);
+            utl::debug("         lambda", lambda);
+        }
 
 
         // in the first iteration, cp.normalImpulse is 0. but we will be running a few iterations anyway
@@ -1371,23 +1376,31 @@ namespace Physics
         float newFrictionImpulse = cp.tangentImpulse + lambda;
         newFrictionImpulse = max(-maxFrictionImpulse, newFrictionImpulse);
         newFrictionImpulse = min(maxFrictionImpulse, newFrictionImpulse);
-#if DEBUGGING  
-        utl::debug("         newFrictionImpulse", newFrictionImpulse);
-#endif
+
+        if (print)
+        {
+            utl::debug("         newFrictionImpulse", newFrictionImpulse);
+        }
+
         lambda = newFrictionImpulse - cp.tangentImpulse;
 
-#if DEBUGGING
-        utl::debug("         lambda", lambda);
-#endif
+   
+        if (print)
+        {
+            utl::debug("         lambda", lambda);
+        }
         cp.tangentImpulse = newFrictionImpulse;
 
-
         glm::vec3 newImpulseVec = lambda * tangent;
-#if DEBUGGING
-        utl::debug("         a->velocity", a->velocity);
-        utl::debug("         newImpulseVec", newImpulseVec);
-        cout << endl;
-#endif
+        if (print)
+        {
+
+            utl::debug("         a->velocity", aBody->velocity);
+            utl::debug("         newImpulseVec", newImpulseVec);
+            cout << endl;
+        }
+
+
         aBody->velocity -= newImpulseVec * aBody->invMass;
         aBody->angularVelocity -= aBody->inverseInertiaTensor * glm::cross(cp.relativeContactPositions[0], newImpulseVec);
 
@@ -1646,12 +1659,12 @@ namespace Physics
             float planeOffset = glm::dot(manifold.normal, planePoint);
             manifold.penetration = -(glm::dot(circleCenter - planePoint, manifold.normal) - aShape->sphere.radius);
 
-            manifold.point = circleCenter + 0.5f * manifold.penetration * manifold.normal;// -glm::vec3(0.0, 0.01, 0.0);
-
             // we want normal from A to B
             // a is sphere
             // b is plane
             manifold.normal = -manifold.normal;
+
+            manifold.point = circleCenter + (aShape->sphere.radius - 0.5f * manifold.penetration) * manifold.normal;// -glm::vec3(0.0, 0.01, 0.0);
         }
 
         else if (contactManifold->type == Physics::ContactManifold::REFERENCE_FACE_A)

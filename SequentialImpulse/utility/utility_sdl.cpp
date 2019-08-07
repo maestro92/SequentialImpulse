@@ -6,6 +6,11 @@
 void utl::initSDL(int w, int h, SDL_Surface* & m_displaySurface)
 {
     SDL_Init(SDL_INIT_EVERYTHING);
+
+    // these two needs to be called before SDL_SetVideoMode
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
+    SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 4);
+
     m_displaySurface = SDL_SetVideoMode(w, h, 32, SDL_SWSURFACE|SDL_OPENGL);
     //error check
     if (m_displaySurface == NULL)

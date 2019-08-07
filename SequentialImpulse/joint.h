@@ -246,11 +246,8 @@ namespace Physics
         utl::debug("            displacement", displacement);
         */
 
-        glm::vec3 softness = glm::vec3(0.0);// gamma * joint.impulse;
-
+        glm::vec3 softness = gamma * joint.impulse;
         glm::vec3 b = -jv - displacement - softness;
-
-
 
         glm::vec3 dImpulse = utl::solve22(A, b);
 
@@ -270,7 +267,7 @@ namespace Physics
         {
             joint.impulse *= MAX_JOINT_IMPULSE / glm::length(joint.impulse);
         }
-
+        
         dImpulse = joint.impulse - oldImpulse;
 
         joint.a->velocity -= dImpulse * joint.a->invMass;

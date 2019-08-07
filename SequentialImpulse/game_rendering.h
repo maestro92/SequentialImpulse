@@ -180,6 +180,8 @@ namespace GameRendering
         glClear(GL_COLOR_BUFFER_BIT);
         glDepthMask(true);
 
+        glEnable(GL_MULTISAMPLE);
+
         glCullFace(GL_BACK);
         glClear(GL_DEPTH_BUFFER_BIT);
 
