@@ -4,7 +4,7 @@ namespace Physics
 {
 
     const float LINEAR_SLOP = 0.005f;
-
+    const float MAX_LINEAR_CORRECTION = 0.2f;
     enum PhysBodyFlags
     {
         // TODO(casey): Does it make more sense to have the flag be for _non_ colliding entities?
@@ -27,6 +27,7 @@ namespace Physics
     {
         RESOLUTE_JOINT = 0,
         MOUSE_JOINT = 1,
+        MOUSE_DISTANCE_JOINT = 2,
     };
 
     struct PhysBodyTransform

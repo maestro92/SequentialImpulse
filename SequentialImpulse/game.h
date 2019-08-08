@@ -620,6 +620,7 @@ namespace GameCode
         joint->aLocalAnchor = Physics::computeLocalAnchorPoint(worldAnchorPoint, a);
         joint->bLocalAnchor = Physics::computeLocalAnchorPoint(worldAnchorPoint, b);
 
+        joint->mouseDistanceJointImpulse = 0;
         joint->ignoreCollision = ignoreCollision;
     }
 
@@ -630,7 +631,8 @@ namespace GameCode
     //    utl::debug("##################### ADDING Mouse Joint");
 
         Physics::Joint* joint = &gameState->joints[gameState->numJoints];
-        joint->type = Physics::JointType::MOUSE_JOINT;
+       joint->type = Physics::JointType::MOUSE_DISTANCE_JOINT;
+ //       joint->type = Physics::JointType::MOUSE_JOINT;
         gameState->numJoints++;
 
         joint->a = draggedEnt;
@@ -639,6 +641,7 @@ namespace GameCode
         joint->aLocalAnchor = Physics::computeLocalAnchorPoint(worldAnchorPoint, draggedEnt);
         joint->bLocalAnchor = glm::vec3(0,0,0);
 
+        joint->mouseDistanceJointImpulse = 0;
 
         joint->targetPos = worldAnchorPoint;
 
@@ -954,10 +957,62 @@ namespace GameCode
         pb->ResetMassData();
 
         pb->position = glm::vec3(0, 0, 0);
-        pb->scale = glm::vec3(gameState->worldWidth, 0.2, 0.2);
+        pb->scale = glm::vec3(gameState->worldWidth * 2, 0.2, 0.2);
 
         pb->flags = Physics::PhysBodyFlag_Collides | Physics::PhysBodyFlag_Static;
         
+
+        // left wall
+        index = gameState->numEntities++;
+        Entity* leftWall = &gameState->entities[index];
+        leftWall->id = index;
+        leftWall->entityType = EntityType::Floor;
+
+        pb = &leftWall->physBody;
+        pb->Init();
+        pb->id = index;
+
+
+
+        pb->position = glm::vec3(-70, 0, 0);
+        pb->scale = glm::vec3(0.2, gameState->worldWidth * 2, 0.2);
+        pb->flags = Physics::PhysBodyFlag_Collides | Physics::PhysBodyFlag_Static;
+
+        Physics::PhysBodyShapeData shapeData1;
+        shapeData1.shape = Physics::PhysBodyShape::PB_PLANE;
+        shapeData1.plane.normal = glm::vec3(1, 0, 0);
+        shapeData1.plane.point = pb->position;
+        pb->AddShape(&shapeData1);
+        pb->ResetMassData();
+
+
+
+
+
+        // right wall
+        index = gameState->numEntities++;
+        Entity* rightWall = &gameState->entities[index];
+        rightWall->id = index;
+        rightWall->entityType = EntityType::Floor;
+
+        pb = &rightWall->physBody;
+        pb->Init();
+        pb->id = index;
+
+        pb->position = glm::vec3(70, 0, 0);
+        pb->scale = glm::vec3(0.2, gameState->worldWidth * 2, 0.2);
+
+        pb->flags = Physics::PhysBodyFlag_Collides | Physics::PhysBodyFlag_Static;
+
+        Physics::PhysBodyShapeData shapeData2;
+        shapeData2.shape = Physics::PhysBodyShape::PB_PLANE;
+        shapeData2.plane.normal = glm::vec3(-1, 0, 0);
+        shapeData2.plane.point = pb->position;       // dot(glm::vec3(0, 1, 0),  glm::vec3(0, 0, 0));
+        pb->AddShape(&shapeData2);
+        pb->ResetMassData();
+
+
+
         /*
         addCharacterBox(gameState);
         addRandomBox(gameState, 0);
@@ -970,13 +1025,14 @@ namespace GameCode
             addRandomBox(gameState, i);
         }        
         
+        
         for (int i = 0; i < 10; i++)
         {
             addRandomSphere(gameState, i);
         }
         
         addRagdoll(gameState);
-
+        
 
      //   prev = &floor->physBody;
 
@@ -1649,7 +1705,7 @@ namespace GameCode
         {
             Physics::Joint* joint = &gameState->joints[i];
             {
-                Physics::InitAndWarmStartJointVelocityConstraints(joint);
+                Physics::InitAndWarmStartJointVelocityConstraints(*joint, gameInput.dt_s);
             }
         }
 
@@ -1771,7 +1827,7 @@ namespace GameCode
 
             for (int j = 0; j < gameState->numJoints; j++)
             {
-                positionDone &= Physics::SolveJointPositionConstraints(gameState->joints[j]);
+                positionDone &= Physics::SolveJointPositionConstraints(gameState->joints[j], gameInput.dt_s);
             }
 
             if (positionDone)

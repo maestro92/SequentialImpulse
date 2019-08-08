@@ -9,7 +9,7 @@ namespace Physics
     
     // 1000 * 5 mass * 0.016
     float MAX_JOINT_IMPULSE = 80;
-
+    bool print = false;
     struct Joint
     {
         JointType type;
@@ -27,45 +27,120 @@ namespace Physics
 
         glm::vec3 impulse;
         bool ignoreCollision;
+
+        glm::mat3 KMatrix;
+        glm::vec3 c;
+
+
+
+
+        // used in distance joint
+        glm::vec3 mouseDistanceJointU;
+        float mouseDistanceJointC;
+        float mouseDistanceJointImpulse;
+        float mouseDistanceJointAMatrix;
+        float mouseDistanceJointBias;
+
+        float mouseDistanceJointGamma;
     };
 
-    void WarmStart(Joint& joint)
+
+    void InitAndWarmStartJointVelocityConstraints(Physics::Joint& joint, float dt_s)
     {
+        if (joint.a != NULL)
+        {
+            joint.rA = glm::mat3(joint.a->orientationMat) * joint.aLocalAnchor;
+        }
+        if (joint.b != NULL)
+        {
+            joint.rB = glm::mat3(joint.b->orientationMat) * joint.bLocalAnchor;
+        }
+
+
         switch (joint.type)
         {
-        case MOUSE_JOINT:
-            // cheat with some damping
-            joint.a->angularVelocity *= 0.98f;
+            case RESOLUTE_JOINT:
+                joint.a->velocity -= joint.impulse * joint.a->invMass;
+                joint.a->angularVelocity -= joint.a->inverseInertiaTensor * glm::cross(joint.rA, joint.impulse);
 
-            joint.a->velocity -= joint.impulse * joint.a->invMass;
-            joint.a->angularVelocity -= joint.a->inverseInertiaTensor * glm::cross(joint.rA, joint.impulse);
-            break;
+                if (!(joint.b->flags & Physics::PhysBodyFlag_Static))
+                {
+                    joint.b->velocity += joint.impulse * joint.b->invMass;
+                    joint.b->angularVelocity += joint.b->inverseInertiaTensor * glm::cross(joint.rB, joint.impulse);
+                }
+                break;
 
-        case RESOLUTE_JOINT:
-            joint.a->velocity -= joint.impulse * joint.a->invMass;
-            joint.a->angularVelocity -= joint.a->inverseInertiaTensor * glm::cross(joint.rA, joint.impulse);
+            case MOUSE_JOINT:
+                // cheat with some damping
+                joint.a->velocity -= joint.impulse * joint.a->invMass;
+                joint.a->angularVelocity -= joint.a->inverseInertiaTensor * glm::cross(joint.rA, joint.impulse);
+                break;
 
-            if (!(joint.b->flags & Physics::PhysBodyFlag_Static))
-            {
-                joint.b->velocity += joint.impulse * joint.b->invMass;
-                joint.b->angularVelocity += joint.b->inverseInertiaTensor * glm::cross(joint.rB, joint.impulse);
+            case MOUSE_DISTANCE_JOINT:
+                joint.mouseDistanceJointU = joint.targetPos - (joint.a->position + joint.rA);
+                joint.mouseDistanceJointC = glm::length(joint.mouseDistanceJointU);
+
+                float uLength = glm::length(joint.mouseDistanceJointU);
+                if (uLength > LINEAR_SLOP)
+                {
+                    joint.mouseDistanceJointU *= 1.0f / uLength;
+                }
+                else
+                {
+                    joint.mouseDistanceJointU = glm::vec3(0.0);
+                }
+
+                float imA = joint.a->invMass;
+                float iiA = joint.a->inverseInertiaTensor[2][2];
+
+                // designer selects frequency and damping ratio
+                // frequency and period T = `1/f.  so the 
+                float frequency = 5;
+
+                float gamma = 0;
+                float beta = 0;
+
+
+                if (frequency > 0)
+                {
+                    float omega = 2.0f * 3.14f * frequency;
+                    float dampingRatio = 0.9;
+
+                    // we compute spring-damper coefficients 
+                    float c = 2.0f * joint.a->mass * dampingRatio * omega;
+                    float k = joint.a->mass * (omega * omega);
+
+                    // we then compute softness paramters
+                    gamma = dt_s * (c + dt_s * k);
+                    gamma = 1.0f / gamma;
+                    beta = dt_s * k * gamma;
+                    joint.mouseDistanceJointGamma = gamma;
+                }
+
+
+
+                glm::vec3 crossURa = glm::cross(joint.rA, joint.mouseDistanceJointU);
+                // since we are in 2D
+
+                // JMJ
+                joint.mouseDistanceJointAMatrix = imA + iiA * crossURa.z * crossURa.z + joint.mouseDistanceJointGamma;
+
+                if (print)
+                {
+                    cout << "imA " << imA << endl;
+                    cout << "iiA " << iiA << endl;
+                    utl::debug("crossURa ", crossURa);
+                    cout << "joint.mouseDistanceJointGamma " << joint.mouseDistanceJointGamma << endl;
+                }
+                
+                joint.mouseDistanceJointBias = joint.mouseDistanceJointC * beta;
+
+                // warm start
+                glm::vec3 p = joint.mouseDistanceJointImpulse * joint.mouseDistanceJointU;
+                joint.a->velocity -= p * joint.a->invMass;
+                joint.a->angularVelocity -= joint.a->inverseInertiaTensor * glm::cross(joint.rA, p);
+                break;
             }
-            break;
-        }
-    }
-
-    void InitAndWarmStartJointVelocityConstraints(Physics::Joint* joint)
-    {
-        if (joint->a != NULL)
-        {
-            joint->rA = glm::mat3(joint->a->orientationMat) * joint->aLocalAnchor;
-        }
-        if (joint->b != NULL)
-        {
-            joint->rB = glm::mat3(joint->b->orientationMat) * joint->bLocalAnchor;
-        }
-
-        WarmStart(*joint);
     }
 
 
@@ -185,7 +260,6 @@ namespace Physics
     }
 
 
-    bool print = false;
 
     void SolveMouseJointVelocityConstraints(Joint& joint, float dt_s)
     {
@@ -274,28 +348,108 @@ namespace Physics
         joint.a->angularVelocity -= joint.a->inverseInertiaTensor * glm::cross(joint.rA, dImpulse);
     }
 
+
+    
+    
+
+    void SolveMouseDistanceJointVelocityConstraints(Joint& joint, float dt_s)
+    {
+        // right hand side
+        glm::vec3 jv = -glm::cross(joint.a->angularVelocity, joint.rA);
+        jv -= joint.a->velocity;
+
+        float velocityAlongU = glm::dot(joint.mouseDistanceJointU, jv);
+
+
+        // very important, that we go from posA to posB
+
+        float softness = joint.mouseDistanceJointGamma * joint.mouseDistanceJointImpulse;
+        float b = -velocityAlongU -joint.mouseDistanceJointBias - softness;
+
+        float dImpulse = b / joint.mouseDistanceJointAMatrix;
+
+        if (print)
+        {
+            cout << ">>>>>>>>>" << endl;
+            cout << "       velocityAlongU " << velocityAlongU << endl;
+            cout << "       joint.mouseDistanceJointBias " << joint.mouseDistanceJointBias << endl;
+            cout << "       softness " << softness << endl;
+
+            cout << "       impulse " << dImpulse << endl;
+
+            cout << "       joint.mouseDistanceJointAMatrix " << joint.mouseDistanceJointAMatrix << endl;;
+        }
+
+        float oldImpulse = joint.mouseDistanceJointImpulse;
+        joint.mouseDistanceJointImpulse += dImpulse;
+
+        if (glm::dot(joint.impulse, joint.impulse) > (MAX_JOINT_IMPULSE * MAX_JOINT_IMPULSE))
+        {
+            joint.mouseDistanceJointImpulse *= MAX_JOINT_IMPULSE / glm::length(joint.impulse);
+        }
+
+        dImpulse = joint.mouseDistanceJointImpulse - oldImpulse;
+
+        glm::vec3 p = joint.mouseDistanceJointU * dImpulse;
+
+        joint.a->velocity -= p * joint.a->invMass;
+        joint.a->angularVelocity -= joint.a->inverseInertiaTensor * glm::cross(joint.rA, p);
+    }
+
+    bool SolveMouseDistanceJointPositionConstraints(Joint& joint, float dt_s)
+    {
+        joint.rA = glm::mat3(joint.a->orientationMat) * joint.aLocalAnchor;
+
+        glm::vec3 u = joint.targetPos - (joint.a->position + joint.rA);
+        float uLength = glm::length(u);
+        
+        glm::vec3 unitU = glm::normalize(u);
+
+        float correction = uLength; // if want to maintain a length, then it will be correction = uLength - desired length
+
+        correction = max(correction, -MAX_LINEAR_CORRECTION);
+        correction = min(correction, MAX_LINEAR_CORRECTION);
+
+
+        float impulse = -correction / joint.mouseDistanceJointAMatrix;
+
+        glm::vec3 p = impulse * unitU;
+
+        joint.a->position -= p * joint.a->invMass;
+        glm::vec3 rotation = -joint.a->inverseInertiaTensor * glm::cross(joint.rA, p);
+        joint.a->addRotation(rotation, 1.0);
+
+        return abs(correction) <= LINEAR_SLOP;
+    }
+
     void SolveJointVelocityConstraints(Joint& joint, float dt_s)
     {
         switch (joint.type)
         {
+        case RESOLUTE_JOINT:
+            SolveResoluteJointVelocityConstraints(joint);
+            break;
         case MOUSE_JOINT:
             SolveMouseJointVelocityConstraints(joint, dt_s);
             break;
-        case RESOLUTE_JOINT:
-            SolveResoluteJointVelocityConstraints(joint);
+        case MOUSE_DISTANCE_JOINT:
+            SolveMouseDistanceJointVelocityConstraints(joint, dt_s);
             break;
         }
     }
 
-    bool SolveJointPositionConstraints(Joint& joint)
+    bool SolveJointPositionConstraints(Joint& joint, float dt_s)
     {
         switch (joint.type)
         {
+            case RESOLUTE_JOINT:
+                return SolveResoluteJointPositionConstraints(joint);            
+
             case MOUSE_JOINT:
                 return true;
 
-            case RESOLUTE_JOINT:
-                return SolveResoluteJointPositionConstraints(joint);            
+            case MOUSE_DISTANCE_JOINT:
+                return SolveMouseDistanceJointPositionConstraints(joint, dt_s);
         }
         return true;
     }

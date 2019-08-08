@@ -1846,7 +1846,7 @@ namespace Physics
     {
         float baumgarte = 0.2;
 
-        float maxLinearCorrection = 0.2f;
+
 
         bool print = true;
 
@@ -1927,7 +1927,7 @@ namespace Physics
                 // even at max, we only want to resolve cp.penetrate - linearSlop of penetration
                 float positionCorrection = baumgarte * (positionManifold.penetration - LINEAR_SLOP);
                 positionCorrection = max(0.0f, positionCorrection);
-                positionCorrection = min(maxLinearCorrection, positionCorrection);
+                positionCorrection = min(MAX_LINEAR_CORRECTION, positionCorrection);
 
                 if (print)
                 {
@@ -2101,82 +2101,5 @@ namespace Physics
             GetSphereSphereContacts(a->sphere, a->physBody, b->sphere, b->physBody, contact);
         }
     }
-
-#if 0
-    void GenerateContactInfo(PhysBody* a, PhysBody* b, ContactManifold& contact)
-    {
-        bool found = false;
-
-        for (int i = 0; i < a->numShapes; i++)
-        {
-            for (int j = 0; j < b->numShapes; j++)
-            {
-                GenerateContactInfoForShapes(&a->shapes[i], &b->shapes[j], contact);
-            }
-        }
-        /*
-        // OBB vs plane
-        if (a->shapeData.shape == PhysBodyShape::PB_OBB && b->shapeData.shape == PhysBodyShape::PB_PLANE)
-        {
-            contact.a = a;
-            contact.b = b;
-
-            GetOBBPlaneContacts(a->shapeData.obb, a, b->shapeData.plane, b, contact);
-        }
-        else if (a->shapeData.shape == PhysBodyShape::PB_PLANE && b->shapeData.shape == PhysBodyShape::PB_OBB)
-        {
-            GenerateContactInfo(b, a, contact);
-        }
-
-
-
-        // circle vs OBB 
-        else if (a->shapeData.shape == PhysBodyShape::PB_SPHERE && b->shapeData.shape == PhysBodyShape::PB_OBB)
-        {            
-            contact.a = a;
-            contact.b = b;
-
-            GetSphereOBBContacts(a->shapeData.sphere, a, b->shapeData.obb, b, contact);            
-        }
-        else if (a->shapeData.shape == PhysBodyShape::PB_OBB && b->shapeData.shape == PhysBodyShape::PB_SPHERE)
-        {
-            GenerateContactInfo(b, a, contact);
-        }
-
-
-
-        // circle vs plane
-        else if (a->shapeData.shape == PhysBodyShape::PB_SPHERE && b->shapeData.shape == PhysBodyShape::PB_PLANE)
-        {
-            contact.a = a;
-            contact.b = b;
-
-            GetSpherePlaneContacts(a->shapeData.sphere, a, b->shapeData.plane, b, contact);
-        }
-        else if (a->shapeData.shape == PhysBodyShape::PB_PLANE && b->shapeData.shape == PhysBodyShape::PB_SPHERE)
-        {
-            GenerateContactInfo(b, a, contact);
-        }
-        
-        
-        else if (a->shapeData.shape == PhysBodyShape::PB_OBB && b->shapeData.shape == PhysBodyShape::PB_OBB)
-        {
-            contact.a = a;
-            contact.b = b;
-
-            GetOBBOBBContacts(a->shapeData.obb, a, b->shapeData.obb, b, contact);
-        }
-        else if (a->shapeData.shape == PhysBodyShape::PB_SPHERE && b->shapeData.shape == PhysBodyShape::PB_SPHERE)
-        {
-            contact.a = a;
-            contact.b = b;
-
-            GetSphereSphereContacts(a->shapeData.sphere, a, b->shapeData.sphere, b, contact);
-        }
-        */
-    };
-#endif
-
-
 };
 
