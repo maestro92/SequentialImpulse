@@ -620,6 +620,8 @@ namespace GameCode
         joint->aLocalAnchor = Physics::computeLocalAnchorPoint(worldAnchorPoint, a);
         joint->bLocalAnchor = Physics::computeLocalAnchorPoint(worldAnchorPoint, b);
 
+
+
         joint->mouseDistanceJointImpulse = 0;
         joint->ignoreCollision = ignoreCollision;
     }
@@ -628,7 +630,6 @@ namespace GameCode
 
     void addMouseJoint(GameState* gameState, glm::vec3 worldAnchorPoint, Physics::PhysBody* draggedEnt, bool ignoreCollision)
     {
-    //    utl::debug("##################### ADDING Mouse Joint");
 
         Physics::Joint* joint = &gameState->joints[gameState->numJoints];
        joint->type = Physics::JointType::MOUSE_DISTANCE_JOINT;
@@ -650,6 +651,8 @@ namespace GameCode
         utl::debug("        joint aLocalAnchor", joint->aLocalAnchor);
         */
         joint->ignoreCollision = ignoreCollision;
+
+    //    Physics::print = true;
     }
 
 
@@ -952,7 +955,7 @@ namespace GameCode
         Physics::PhysBodyShapeData shapeData;
         shapeData.shape = Physics::PhysBodyShape::PB_PLANE;
         shapeData.plane.normal = glm::vec3(0, 1, 0);
-        shapeData.plane.point = glm::vec3(0, 0, 0);       // dot(glm::vec3(0, 1, 0),  glm::vec3(0, 0, 0));
+        shapeData.plane.point = glm::vec3(0);       // dot(glm::vec3(0, 1, 0),  glm::vec3(0, 0, 0));
         pb->AddShape(&shapeData);
         pb->ResetMassData();
 
@@ -962,6 +965,7 @@ namespace GameCode
         pb->flags = Physics::PhysBodyFlag_Collides | Physics::PhysBodyFlag_Static;
         
 
+        
         // left wall
         index = gameState->numEntities++;
         Entity* leftWall = &gameState->entities[index];
@@ -981,14 +985,14 @@ namespace GameCode
         Physics::PhysBodyShapeData shapeData1;
         shapeData1.shape = Physics::PhysBodyShape::PB_PLANE;
         shapeData1.plane.normal = glm::vec3(1, 0, 0);
-        shapeData1.plane.point = pb->position;
+        shapeData1.plane.point = glm::vec3(0);
         pb->AddShape(&shapeData1);
         pb->ResetMassData();
+        
+        
 
 
-
-
-
+        
         // right wall
         index = gameState->numEntities++;
         Entity* rightWall = &gameState->entities[index];
@@ -1007,10 +1011,10 @@ namespace GameCode
         Physics::PhysBodyShapeData shapeData2;
         shapeData2.shape = Physics::PhysBodyShape::PB_PLANE;
         shapeData2.plane.normal = glm::vec3(-1, 0, 0);
-        shapeData2.plane.point = pb->position;       // dot(glm::vec3(0, 1, 0),  glm::vec3(0, 0, 0));
+        shapeData2.plane.point = glm::vec3(0);       // dot(glm::vec3(0, 1, 0),  glm::vec3(0, 0, 0));
         pb->AddShape(&shapeData2);
         pb->ResetMassData();
-
+        
 
 
         /*
@@ -1020,12 +1024,11 @@ namespace GameCode
         */
 
         
-        for (int i = 0; i < 10; i++)
+        for (int i = 0; i < 1; i++)
         {
             addRandomBox(gameState, i);
         }        
-        
-        
+                
         for (int i = 0; i < 10; i++)
         {
             addRandomSphere(gameState, i);
@@ -1193,13 +1196,18 @@ namespace GameCode
             utl::debug("        entity->velocity * dt_s", entity->velocity * dt_s);
             */
 
-            if (Physics::hasPolygonsCollided == true)
+      //      if (Physics::hasPolygonsCollided == true)
             {
-                float angle = acos(pb->orientationMat[0][0]);
-                utl::debug("        before pb->velocity", pb->velocity);
-                utl::debug("        before pb->position", pb->position);
-                utl::debug("        before pb->angularVelocity", pb->angularVelocity);
-                utl::debug("        before pb->angle ", angle);
+                if (Physics::print == true)
+                {
+                    float angle = acos(pb->orientationMat[0][0]);
+                    utl::debug("        before pb->velocity", pb->velocity);
+                    utl::debug("        before pb->position", pb->position);
+                    utl::debug("        before pb->angularVelocity", pb->angularVelocity);
+                    utl::debug("        before pb->angle ", angle);
+                    utl::debug("        pb->orientationMat", pb->orientationMat);
+
+                }
             }
             
             pb->position += pb->velocity * dt_s;

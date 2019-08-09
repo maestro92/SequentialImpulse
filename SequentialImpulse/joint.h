@@ -45,10 +45,29 @@ namespace Physics
     };
 
 
+    struct ResoluteJoint
+    {
+
+    };
+
+    struct MouseDistanceJoint
+    {
+
+
+    };
+
+
     void InitAndWarmStartJointVelocityConstraints(Physics::Joint& joint, float dt_s)
     {
         if (joint.a != NULL)
         {
+            
+            if (print)
+            {
+                utl::debug("joint.aLocalAnchor ", joint.aLocalAnchor);
+                utl::debug("joint.a->orientationMat ", joint.a->orientationMat);
+            }
+            
             joint.rA = glm::mat3(joint.a->orientationMat) * joint.aLocalAnchor;
         }
         if (joint.b != NULL)
@@ -120,7 +139,7 @@ namespace Physics
 
 
                 glm::vec3 crossURa = glm::cross(joint.rA, joint.mouseDistanceJointU);
-                // since we are in 2D
+                // since we are in 2D, we only take z
 
                 // JMJ
                 joint.mouseDistanceJointAMatrix = imA + iiA * crossURa.z * crossURa.z + joint.mouseDistanceJointGamma;
@@ -129,6 +148,9 @@ namespace Physics
                 {
                     cout << "imA " << imA << endl;
                     cout << "iiA " << iiA << endl;
+
+                    utl::debug("joint.rA ", joint.rA);
+                    utl::debug("joint.mouseDistanceJointU ", joint.mouseDistanceJointU);
                     utl::debug("crossURa ", crossURa);
                     cout << "joint.mouseDistanceJointGamma " << joint.mouseDistanceJointGamma << endl;
                 }
@@ -139,6 +161,11 @@ namespace Physics
                 glm::vec3 p = joint.mouseDistanceJointImpulse * joint.mouseDistanceJointU;
                 joint.a->velocity -= p * joint.a->invMass;
                 joint.a->angularVelocity -= joint.a->inverseInertiaTensor * glm::cross(joint.rA, p);
+                if (print)
+                {
+                    utl::debug("joint.a->angularVelocity ", joint.a->angularVelocity);
+                }
+
                 break;
             }
     }
@@ -403,7 +430,12 @@ namespace Physics
         glm::vec3 u = joint.targetPos - (joint.a->position + joint.rA);
         float uLength = glm::length(u);
         
-        glm::vec3 unitU = glm::normalize(u);
+
+        glm::vec3 unitU = glm::vec3(0);
+        if (uLength > FLT_EPSILON)
+        {
+            unitU = glm::normalize(u);
+        }
 
         float correction = uLength; // if want to maintain a length, then it will be correction = uLength - desired length
 
@@ -418,6 +450,28 @@ namespace Physics
         joint.a->position -= p * joint.a->invMass;
         glm::vec3 rotation = -joint.a->inverseInertiaTensor * glm::cross(joint.rA, p);
         joint.a->addRotation(rotation, 1.0);
+
+
+        if (Physics::print == true)
+        {
+            float angle = acos(joint.a->orientationMat[0][0]);
+            utl::debug("        before pb->velocity", joint.a->velocity);
+            utl::debug("        before pb->position", joint.a->position);
+            utl::debug("        before pb->angularVelocity", joint.a->angularVelocity);
+            utl::debug("        before pb->angle ", angle);
+            
+            utl::debug("        u", u);
+            utl::debug("        uLength", uLength);
+            utl::debug("        impulse", impulse);
+            utl::debug("        joint.mouseDistanceJointAMatrix", joint.mouseDistanceJointAMatrix);
+
+            utl::debug("        p", p);
+            utl::debug("        correction", correction);
+
+            utl::debug("        pb->orientationMat", joint.a->orientationMat);
+            int g = 1;
+        }
+
 
         return abs(correction) <= LINEAR_SLOP;
     }

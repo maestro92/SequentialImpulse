@@ -185,7 +185,7 @@ namespace Physics
 
     inline glm::vec3 GetWorldPos(PhysBody* physBody, Plane plane)
     {
-        return physBody->position;
+        return physBody->position + physBody->orientationMat * plane.point;
     }
 
     inline glm::vec3 GetWorldPos(PhysBody* physBody, OBB obb)
@@ -1053,7 +1053,9 @@ namespace Physics
             // compute vertex distance from the plane
 
             // need to change penetration to be negative, cuz in academic papers, they use that convention
-            float dist = glm::dot(p.point - vertexPos, p.normal);
+
+            glm::vec3 planePos = GetWorldPos(pBody, p);
+            float dist = glm::dot(planePos - vertexPos, p.normal);
 
 
             if (dist >= 0)
